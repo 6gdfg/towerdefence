@@ -90,7 +90,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     icon: '🍀',
     cost: 300,
     range: 3.8,
-    damage: 24,
+    damage: 20,
     fireRate: 1.0,
     projectileSpeed: 9,
     penetration: true,
