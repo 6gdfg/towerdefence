@@ -3,7 +3,7 @@ import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, Ele
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
-import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, BasePlantConfig } from './plants';
+import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats } from './plants';
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -34,57 +34,11 @@ const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
 export const TOWERS_PRESET = BASE_PLANTS_CONFIG;
 
 // Tower level scaling config (per-level multipliers)
-const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.08, rangePerLevel: 0.03, fireRatePerLevel: 0.05 } as const;
-function scaleTowerStats(base: BasePlantConfig, level: number) {
-  const lv = Math.max(1, Math.floor(level||1));
-  const dmgMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.damagePerLevel;
-  const rngMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.rangePerLevel;
-  const frMul  = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.fireRatePerLevel;
-  return {
-    damage: Number((base.damage * dmgMul).toFixed(2)),
-    range: Number((base.range * rngMul).toFixed(2)),
-    fireRate: base.fireRate === 0 ? 0 : Number((base.fireRate * frMul).toFixed(2)),
-  };
-}
-
-function computeTowerStats(base: BasePlantConfig, level: number, element?: { type: ElementType; level: number }) {
-  const scaled = scaleTowerStats(base, level);
-  let damage = scaled.damage;
-  let range = scaled.range;
-  let fireRate = scaled.fireRate;
-  const projectileSpeed = base.projectileSpeed;
-  let penetration = !!base.penetration;
-  let color = DEFAULT_PLANT_COLOR;
-  let bulletColor = DEFAULT_BULLET_COLOR;
-
-  if (element) {
-    const elementCfg = ELEMENT_PLANT_CONFIG[element.type];
-    if (elementCfg) {
-      if (elementCfg.fireRateMultiplier != null) {
-        fireRate = Number((fireRate * elementCfg.fireRateMultiplier).toFixed(2));
-      }
-      if (elementCfg.fireRatePenalty != null) {
-        fireRate = Math.max(0, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
-      }
-      let damageMul = elementCfg.damageMultiplier ?? 1;
-      if (elementCfg.damageBonusPerLevel) {
-        damageMul += elementCfg.damageBonusPerLevel * (element.level - 1);
-      }
-      damage = Number((damage * damageMul).toFixed(2));
-      penetration = penetration || !!elementCfg.penetration;
-      color = elementCfg.color;
-      bulletColor = elementCfg.bulletColor;
-    }
-  }
-
-  return { damage, range, fireRate, projectileSpeed, penetration, color, bulletColor };
-}
-
 function ensureTowerStats(tower: Tower) {
   const base = BASE_PLANTS_CONFIG[tower.type];
   if (!base) return tower;
   const level = tower.level ?? 1;
-  const stats = computeTowerStats(base, level, tower.element);
+  const stats = computePlantStats(base, level, tower.element);
   tower.range = stats.range;
   tower.damage = stats.damage;
   tower.fireRate = stats.fireRate;
@@ -96,6 +50,68 @@ function ensureTowerStats(tower: Tower) {
   tower.incomeBase = base.incomeBase;
   tower.incomeBonusPerLevel = base.incomeBonusPerLevel;
   return tower;
+}
+
+function createProjectileForTower(tower: Tower, target: Enemy): Projectile | null {
+  if (tower.damage <= 0) return null;
+  const baseConfig = BASE_PLANTS_CONFIG[tower.type];
+  const projectile: Projectile = {
+    id: `p-${Date.now()}-${Math.random()}`,
+    pos: { ...tower.pos },
+    targetId: null,
+    speed: tower.projectileSpeed || baseConfig?.projectileSpeed || 8,
+    damage: tower.damage,
+    from: tower.type,
+    color: tower.bulletColor || DEFAULT_BULLET_COLOR,
+    sourceTowerId: tower.id,
+    piercing: !!tower.penetration,
+    pierced: tower.penetration ? {} : undefined,
+    pierceHitCount: 0,
+  };
+
+  if (baseConfig?.pierceLimit != null) {
+    projectile.pierceLimit = baseConfig.pierceLimit;
+  }
+  if (baseConfig?.damageDecayFactor != null) {
+    projectile.damageDecayFactor = baseConfig.damageDecayFactor;
+  }
+
+  if (projectile.piercing) {
+    const dx = target.pos.x - tower.pos.x;
+    const dy = target.pos.y - tower.pos.y;
+    const len = Math.hypot(dx, dy) || 1;
+    projectile.direction = { x: dx / len, y: dy / len };
+  } else {
+    projectile.targetId = target.id;
+  }
+
+  const elementState = tower.element;
+  if (elementState) {
+    const elementCfg = ELEMENT_PLANT_CONFIG[elementState.type];
+    if (elementCfg) {
+      if (elementCfg.breakArmor) {
+        projectile.breakArmorMultiplier = elementCfg.breakArmor.multiplier + elementCfg.breakArmor.bonusPerLevel * (elementState.level - 1);
+        projectile.breakArmorDuration = elementCfg.breakArmor.duration;
+      }
+      if (elementCfg.burn) {
+        projectile.burnDamagePerSec = elementCfg.burn.damagePerSecond + elementCfg.burn.bonusPerLevel * (elementState.level - 1);
+        projectile.burnDuration = elementCfg.burn.duration;
+      }
+      if (elementCfg.splash) {
+        projectile.splashRadius = elementCfg.splash.radius;
+        projectile.splashPercent = elementCfg.splash.damagePercent + elementCfg.splash.bonusPerLevel * (elementState.level - 1);
+      }
+      if (elementCfg.slow) {
+        projectile.slowPct = elementCfg.slow.pct;
+        projectile.slowDuration = elementCfg.slow.duration;
+      }
+      if (elementCfg.knockback) {
+        projectile.knockbackDistance = elementCfg.knockback.distance;
+      }
+    }
+  }
+
+  return projectile;
 }
 
 function distancePointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
@@ -166,6 +182,7 @@ export interface TDStore extends TDState {
   placeTower: (type: PlantType, pos: Position) => void;
   applyElement: (element: ElementType, pos: Position) => void;
   canPlaceTower: (pos: Position) => boolean;
+  manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
   loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: Partial<Record<PlantType, number>>; allowedPlants?: PlantType[]; allowedElements?: ElementType[] }) => void;
@@ -355,6 +372,37 @@ export const useTDStore = create<TDStore>((set, get) => ({
       singleUseCasts: [...state.singleUseCasts, cast],
       elementCooldowns: { ...state.elementCooldowns, [elementType]: state.gameTime + (ELEMENT_SINGLE_USE_COOLDOWN[elementType] || 20) },
       gold: state.gold - elementCost,
+    });
+  },
+
+  manualFireTower: (towerId) => {
+    const state = get();
+    const index = state.towers.findIndex(t => t.id === towerId);
+    if (index === -1) return;
+    const tower = state.towers[index];
+    if (tower.type !== 'sunlightFlower') return;
+    const base = BASE_PLANTS_CONFIG[tower.type];
+    const abilityCost = base?.activeAbilityCost ?? 10;
+    if (state.gold < abilityCost) return;
+
+    const towerCopy: Tower = { ...tower };
+    ensureTowerStats(towerCopy);
+
+    const inRange = state.enemies
+      .filter(e => getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
+      .sort((a, b) => b.progress - a.progress);
+    if (inRange.length === 0) return;
+
+    const projectile = createProjectileForTower(towerCopy, inRange[0]);
+    if (!projectile) return;
+
+    const towers = [...state.towers];
+    towers[index] = { ...towerCopy, lastShotTime: state.gameTime };
+
+    set({
+      towers,
+      projectiles: [...state.projectiles, projectile],
+      gold: state.gold - abilityCost,
     });
   },
 
@@ -675,55 +723,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
       tw.lastShotTime = gameTime;
 
-      const projectile: Projectile = {
-        id: `p-${Date.now()}-${Math.random()}`,
-        pos: { ...tw.pos },
-        targetId: null,
-        speed: tw.projectileSpeed || 8,
-        damage: tw.damage,
-        from: tw.type,
-        color: tw.bulletColor || DEFAULT_BULLET_COLOR,
-        sourceTowerId: tw.id,
-        piercing: !!tw.penetration,
-        pierced: tw.penetration ? {} : undefined,
-      };
-
-      if (projectile.piercing) {
-        const dx = target.pos.x - tw.pos.x;
-        const dy = target.pos.y - tw.pos.y;
-        const len = Math.hypot(dx, dy) || 1;
-        projectile.direction = { x: dx / len, y: dy / len };
-      } else {
-        projectile.targetId = target.id;
+      const projectile = createProjectileForTower(tw, target);
+      if (projectile) {
+        projectiles.push(projectile);
       }
-
-      const elementState = tw.element;
-      if (elementState) {
-        const elementCfg = ELEMENT_PLANT_CONFIG[elementState.type];
-        if (elementCfg) {
-          if (elementCfg.breakArmor) {
-            projectile.breakArmorMultiplier = elementCfg.breakArmor.multiplier + elementCfg.breakArmor.bonusPerLevel * (elementState.level - 1);
-            projectile.breakArmorDuration = elementCfg.breakArmor.duration;
-          }
-          if (elementCfg.burn) {
-            projectile.burnDamagePerSec = elementCfg.burn.damagePerSecond + elementCfg.burn.bonusPerLevel * (elementState.level - 1);
-            projectile.burnDuration = elementCfg.burn.duration;
-          }
-          if (elementCfg.splash) {
-            projectile.splashRadius = elementCfg.splash.radius;
-            projectile.splashPercent = elementCfg.splash.damagePercent + elementCfg.splash.bonusPerLevel * (elementState.level - 1);
-          }
-          if (elementCfg.slow) {
-            projectile.slowPct = elementCfg.slow.pct;
-            projectile.slowDuration = elementCfg.slow.duration;
-          }
-          if (elementCfg.knockback) {
-            projectile.knockbackDistance = elementCfg.knockback.distance;
-          }
-        }
-      }
-
-      projectiles.push(projectile);
     });
 
     const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number) => {
@@ -769,16 +772,48 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const hitRadius = 0.45;
         const hits = enemies.filter(e => !(updated.pierced && updated.pierced[e.id]) && distancePointToSegment(e.pos.x, e.pos.y, prevPos.x, prevPos.y, nextPos.x, nextPos.y) <= hitRadius);
         if (hits.length > 0) {
-          hits.forEach(enemy => {
-            applyProjectileDamage(enemy, p.damage, updated, gameTime);
+          const ordered = hits.slice().sort((a, b) => b.progress - a.progress);
+          let damageForHit = updated.damage;
+          let hitCount = updated.pierceHitCount ?? 0;
+          const pierceLimit = updated.pierceLimit;
+          const decayFactor = updated.damageDecayFactor;
+          let consumed = false;
+
+          for (const enemy of ordered) {
+            if (pierceLimit != null && hitCount >= pierceLimit) break;
+            const currentDamage = damageForHit;
+            applyProjectileDamage(enemy, currentDamage, updated, gameTime);
             if (updated.splashRadius && updated.splashPercent) {
               const splashTargets = enemies.filter(e => e.id !== enemy.id && getDistance(e.pos.x, e.pos.y, enemy.pos.x, enemy.pos.y) <= updated.splashRadius!);
-              splashTargets.forEach(target => applyProjectileDamage(target, p.damage * (updated.splashPercent || 0), updated, gameTime));
+              splashTargets.forEach(target => applyProjectileDamage(target, currentDamage * (updated.splashPercent || 0), updated, gameTime));
             }
             if (updated.pierced) {
               updated.pierced[enemy.id] = true;
             }
-          });
+            hitCount += 1;
+            if (pierceLimit != null && hitCount >= pierceLimit) {
+              consumed = true;
+              break;
+            }
+            if (decayFactor != null) {
+              damageForHit = Number((damageForHit * decayFactor).toFixed(2));
+            }
+          }
+
+          if (decayFactor != null && !consumed) {
+            updated.damage = damageForHit;
+          }
+          if (decayFactor != null) {
+            updated.damageDecayFactor = decayFactor;
+          }
+          if (pierceLimit != null) {
+            updated.pierceLimit = pierceLimit;
+          }
+          updated.pierceHitCount = hitCount;
+
+          if (consumed) {
+            return [];
+          }
         }
         const outOfBounds = nextPos.x < 0 || nextPos.x > state.mapWidth || nextPos.y < 0 || nextPos.y > state.mapHeight;
         if (outOfBounds) {

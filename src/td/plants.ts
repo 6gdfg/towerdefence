@@ -10,6 +10,9 @@ export interface BasePlantConfig {
   fireRate: number;
   projectileSpeed: number;
   penetration?: boolean;
+  pierceLimit?: number;
+  damageDecayFactor?: number;
+  activeAbilityCost?: number;
   incomeInterval?: number;
   incomeBase?: number;
   incomeBonusPerLevel?: number;
@@ -114,9 +117,35 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     cost: 250,
     range: 99,
     damage: 120,
-    fireRate: 0.18,
+    fireRate: 0.36,
     projectileSpeed: 14,
     description: '射程覆盖整张地图，伤害高但攻速极慢。',
+  },
+  rocket: {
+    id: 'rocket',
+    name: '火箭',
+    icon: '◆',
+    cost: 250,
+    range: 6.5,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 10,
+    penetration: true,
+    pierceLimit: 5,
+    damageDecayFactor: 0.8,
+    description: '穿透型火箭，命中目标后伤害逐次递减，仅能命中有限数量敌人。',
+  },
+  sunlightFlower: {
+    id: 'sunlightFlower',
+    name: '日光花',
+    icon: '▣',
+    cost: 10,
+    range: 3.2,
+    damage: 30,
+    fireRate: 0,
+    projectileSpeed: 8,
+    activeAbilityCost: 10,
+    description: '主动技能植物：点击时消耗10金币发射高伤害子弹，平时不会自动攻击。',
   },
 };
 
@@ -192,3 +221,62 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
 };
 
 export const SUNFLOWER_ELEMENT_BLOCKLIST = new Set<ElementType>(['gold', 'fire', 'electric', 'ice', 'wind']);
+
+const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.08, rangePerLevel: 0.03, fireRatePerLevel: 0.05 } as const;
+
+export function scalePlantStats(base: BasePlantConfig, level: number) {
+  const lv = Math.max(1, Math.floor(level || 1));
+  const dmgMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.damagePerLevel;
+  const rngMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.rangePerLevel;
+  const frMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.fireRatePerLevel;
+  return {
+    damage: Number((base.damage * dmgMul).toFixed(2)),
+    range: Number((base.range * rngMul).toFixed(2)),
+    fireRate: base.fireRate === 0 ? 0 : Number((base.fireRate * frMul).toFixed(2)),
+  };
+}
+
+export function computePlantStats(base: BasePlantConfig, level: number, element?: { type: ElementType; level: number }) {
+  const scaled = scalePlantStats(base, level);
+  let damage = scaled.damage;
+  let range = scaled.range;
+  let fireRate = scaled.fireRate;
+  const projectileSpeed = base.projectileSpeed;
+  let penetration = !!base.penetration;
+  let color = DEFAULT_PLANT_COLOR;
+  let bulletColor = DEFAULT_BULLET_COLOR;
+
+  if (element) {
+    const elementCfg = ELEMENT_PLANT_CONFIG[element.type];
+    if (elementCfg) {
+      if (elementCfg.fireRateMultiplier != null) {
+        fireRate = Number((fireRate * elementCfg.fireRateMultiplier).toFixed(2));
+      }
+      if (elementCfg.fireRatePenalty != null) {
+        fireRate = Math.max(0, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
+      }
+      let damageMul = elementCfg.damageMultiplier ?? 1;
+      if (elementCfg.damageBonusPerLevel) {
+        damageMul += elementCfg.damageBonusPerLevel * (element.level - 1);
+      }
+      damage = Number((damage * damageMul).toFixed(2));
+      penetration = penetration || !!elementCfg.penetration;
+      color = elementCfg.color;
+      bulletColor = elementCfg.bulletColor;
+    }
+  }
+
+  return { damage, range, fireRate, projectileSpeed, penetration, color, bulletColor };
+}
+
+export function getPlantStatsForLevel(type: PlantType, level: number) {
+  const base = BASE_PLANTS_CONFIG[type];
+  if (!base) return null;
+  const stats = computePlantStats(base, level);
+  return {
+    ...stats,
+    pierceLimit: base.pierceLimit,
+    damageDecayFactor: base.damageDecayFactor,
+    activeAbilityCost: base.activeAbilityCost,
+  };
+}

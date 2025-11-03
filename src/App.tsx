@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TDGame from './td/TDGame';
 import { useTDStore } from './td/store';
 import { LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid } from './td/maps';
 import { getUsername, loginUser, registerUser, fetchCloudProgress, getPlayerId, getToken, clearAuth } from './td/authProgress';
-import { getUnlocked, setUnlocked as setUnlockedPersist, getMaxStarSync, setStarCleared, refreshCache, initCache, getUnlockedItems, DEFAULT_UNLOCKED_ITEMS } from './td/progress';
-import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
+import { getUnlocked, setUnlocked as setUnlockedPersist, getMaxStarSync, setStarCleared, refreshCache, initCache, getUnlockedItems, DEFAULT_UNLOCKED_ITEMS, updateUnlockedItems } from './td/progress';
+import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, getPlantStatsForLevel, BasePlantConfig } from './td/plants';
 import { ElementType, PlantType } from './td/types';
 
 // 统一按钮样式（hover 效果在 index.css 中定义）
@@ -19,8 +19,51 @@ const btnStyle = (disabled = false): React.CSSProperties => ({
   transition: 'all 0.15s ease',
 });
 
-const PLANT_TYPES: PlantType[] = ['sunflower','bottleGrass','fourLeafClover','machineGun','sniper'];
+const PLANT_TYPES: PlantType[] = ['sunflower','bottleGrass','fourLeafClover','machineGun','sniper','rocket','sunlightFlower'];
 const ELEMENT_TYPES: ElementType[] = ['fire','wind','ice','electric','gold'];
+const LEVEL_UNLOCK_REQUIREMENTS: Array<{ level: number; star: 1|2|3; itemId: string }> = [
+  { level: 1, star: 1, itemId: 'element:fire' },
+  { level: 3, star: 3, itemId: 'fourLeafClover' },
+  { level: 4, star: 3, itemId: 'rocket' },
+  { level: 6, star: 3, itemId: 'element:wind' },
+  { level: 11, star: 3, itemId: 'sunlightFlower' },
+  { level: 15, star: 3, itemId: 'machineGun' },
+  { level: 20, star: 3, itemId: 'element:ice' },
+  { level: 23, star: 3, itemId: 'sniper' },
+  { level: 27, star: 3, itemId: 'element:electric' },
+  { level: 30, star: 3, itemId: 'element:gold' },
+];
+const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
+  4: 'rocket',
+  11: 'sunlightFlower',
+};
+const STAR_LABELS: Record<1|2|3, string> = { 1: '一星', 2: '二星', 3: '三星' };
+const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
+  circle: '圆怪',
+  triangle: '三角怪',
+  square: '方块怪',
+  healer: '治疗者',
+  evilSniper: '邪恶狙击手',
+  rager: '狂暴者',
+};
+
+type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book';
+type NonBookStage = Exclude<Stage, 'book'>;
+type PlantBookEntry = { type: PlantType; level: number; stats: NonNullable<ReturnType<typeof getPlantStatsForLevel>>; config: BasePlantConfig };
+type ElementBookEntry = {
+  id: ElementType;
+  level: number;
+  damageMultiplier: number;
+  fireRateMultiplier: number | null;
+  fireRatePenalty: number | null;
+  breakArmor: { multiplier: number; duration: number } | null;
+  burn: { dps: number; duration: number } | null;
+  splash: { radius: number; percent: number } | null;
+  slow: { pct: number; duration: number } | null;
+  aura: { dps: number } | null;
+  knockback: number | null;
+  cfg: (typeof ELEMENT_PLANT_CONFIG)[ElementType];
+};
 
 function resolveShardLabel(key: string): string {
   if (BASE_PLANTS_CONFIG[key as PlantType]) {
@@ -34,7 +77,32 @@ function resolveShardLabel(key: string): string {
   return key;
 }
 
-function AuthBar({ onAuthed, variant = 'bar' }: { onAuthed?: () => void; variant?: 'bar' | 'card' }) {
+function resolveUnlockItemLabel(itemId: string): string {
+  if (BASE_PLANTS_CONFIG[itemId as PlantType]) {
+    return BASE_PLANTS_CONFIG[itemId as PlantType].name;
+  }
+  if (itemId.startsWith('element:')) {
+    const elementId = itemId.split(':')[1] as ElementType;
+    const cfg = ELEMENT_PLANT_CONFIG[elementId];
+    if (cfg) return cfg.name;
+  }
+  return itemId;
+}
+
+const RainbowText = ({ text }: { text: string }) => {
+  const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
+  return (
+    <p>
+      {text.split('').map((char, index) => (
+        <span key={index} style={{ color: colors[index % colors.length], fontWeight: 'bold' }}>
+          {char}
+        </span>
+      ))}
+    </p>
+  );
+};
+
+function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook }: { onAuthed?: () => void; variant?: 'bar' | 'card', onShowAbout?: () => void; onNavigateBook?: () => void }) {
   const [username, setUsername] = useState<string>(() => getUsername() || '');
   const [password, setPassword] = useState<string>('');
   const [me, setMe] = useState<{ username?: string|null; coins?: number|null }>({ username: getUsername(), coins: null });
@@ -82,6 +150,9 @@ function AuthBar({ onAuthed, variant = 'bar' }: { onAuthed?: () => void; variant
             <span style={{ fontSize:13, color:'#6b7280' }}>已登录：{me.username}</span>
             <span style={{ fontSize:13, color:'#6b7280' }}>钱包金币：{me.coins ?? '-'}</span>
             <button onClick={refresh} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>刷新</button>
+            {onNavigateBook && (
+              <button onClick={onNavigateBook} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>图鉴</button>
+            )}
           </>
         ) : (
           <>
@@ -91,7 +162,15 @@ function AuthBar({ onAuthed, variant = 'bar' }: { onAuthed?: () => void; variant
             <button onClick={handleLogin} className="btn-hover" style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>登录</button>
           </>
         )}
-        <div style={{ marginLeft:'auto', fontSize:12, color:'#9ca3af' }}>ID: {getPlayerId()}</div>
+        <div style={{ marginLeft:'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <a href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" style={{ color: '#111827', display: 'flex', alignItems: 'center' }}>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </a>
+          <button onClick={onShowAbout} className="btn-hover" style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>关于</button>
+          <div style={{ fontSize:12, color:'#9ca3af' }}>ID: {getPlayerId()}</div>
+        </div>
       </div>
     </div>
   );
@@ -100,9 +179,57 @@ function AuthBar({ onAuthed, variant = 'bar' }: { onAuthed?: () => void; variant
 
 function App() {
   const loadLevel = useTDStore(s => s.loadLevel);
-  const [stage, setStage] = useState<'auth'|'hub'|'select'|'playing'|'won'|'lost'>(() => getToken() ? 'hub' : 'auth');
+  const [stage, setStage] = useState<Stage>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/book') {
+      return getToken() ? 'book' : 'auth';
+    }
+    return getToken() ? 'hub' : 'auth';
+  });
+  const lastNonBookStageRef = useRef<NonBookStage>(
+    (() => {
+      const initial = typeof window !== 'undefined' && window.location.pathname === '/book'
+        ? (getToken() ? 'hub' : 'auth')
+        : stage;
+      return initial === 'book' ? (getToken() ? 'hub' : 'auth') : initial;
+    })()
+  );
+  const goToBook = useCallback(() => {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/book') {
+      window.history.pushState({}, '', '/book');
+    }
+    setStage('book');
+  }, []);
+
+  const exitBook = useCallback(() => {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+    const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
+    setStage(fallback);
+  }, []);
+
+  useEffect(() => {
+    if (stage !== 'book') {
+      lastNonBookStageRef.current = stage;
+    }
+  }, [stage]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window === 'undefined') return;
+      if (window.location.pathname === '/book') {
+        setStage('book');
+      } else {
+        const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
+        setStage(fallback);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [levelIndex, setLevelIndex] = useState<number | null>(null);
   const [unlocked, setUnlockedState] = useState<number>(() => getUnlocked());
+  const [showAbout, setShowAbout] = useState(false);
 
   const [starSel, setStarSel] = useState<Record<number, 1|2|3>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
@@ -111,6 +238,60 @@ function App() {
   const [hub, setHub] = useState<HubData>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [winReward, setWinReward] = useState<{ coins: number; chestType: string; message?: string } | null>(null);
+  const unlockedItemsSet = useMemo(() => {
+    const items = hub?.unlockedItems ?? getUnlockedItems();
+    return new Set(items);
+  }, [hub]);
+  const plantBookData = useMemo<PlantBookEntry[]>(() => {
+    return PLANT_TYPES
+      .filter(type => unlockedItemsSet.has(type))
+      .map<PlantBookEntry | null>(type => {
+        const config = BASE_PLANTS_CONFIG[type];
+        if (!config) return null;
+        const level = hub?.towerLevels?.[type] ?? 1;
+        const stats = getPlantStatsForLevel(type, level);
+        if (!stats) return null;
+        return { type, level, stats, config };
+      })
+      .filter((item): item is PlantBookEntry => item !== null);
+  }, [hub, unlockedItemsSet]);
+
+  const elementBookData = useMemo<ElementBookEntry[]>(() => {
+    return ELEMENT_TYPES
+      .filter(el => unlockedItemsSet.has(`element:${el}`))
+      .map<ElementBookEntry>(el => {
+        const cfg = ELEMENT_PLANT_CONFIG[el];
+        const key = `element:${el}` as const;
+        const level = hub?.towerLevels?.[key] ?? 1;
+        const damageBase = (cfg.damageMultiplier ?? 1) + (cfg.damageBonusPerLevel ?? 0) * (level - 1);
+        const damageMultiplier = Number(damageBase.toFixed(2));
+        const fireRateMultiplier = cfg.fireRateMultiplier != null ? Number(cfg.fireRateMultiplier.toFixed(2)) : null;
+        const fireRatePenalty = cfg.fireRatePenalty != null ? Number(cfg.fireRatePenalty.toFixed(2)) : null;
+        const breakArmor = cfg.breakArmor ? {
+          multiplier: Number((cfg.breakArmor.multiplier + cfg.breakArmor.bonusPerLevel * (level - 1)).toFixed(2)),
+          duration: cfg.breakArmor.duration,
+        } : null;
+        const burn = cfg.burn ? {
+          dps: Number((cfg.burn.damagePerSecond + cfg.burn.bonusPerLevel * (level - 1)).toFixed(2)),
+          duration: cfg.burn.duration,
+        } : null;
+        const splash = cfg.splash ? {
+          radius: cfg.splash.radius,
+          percent: Number(((cfg.splash.damagePercent + cfg.splash.bonusPerLevel * (level - 1)) * 100).toFixed(1)),
+        } : null;
+        const slow = cfg.slow ? {
+          pct: Number((cfg.slow.pct * 100).toFixed(0)),
+          duration: cfg.slow.duration,
+        } : null;
+        const aura = cfg.aura ? {
+          dps: Number((cfg.aura.damagePerSecond + cfg.aura.bonusPerLevel * (level - 1)).toFixed(2)),
+        } : null;
+        const knockback = cfg.knockback ? cfg.knockback.distance : null;
+        return { id: el, level, cfg, damageMultiplier, fireRateMultiplier, fireRatePenalty, breakArmor, burn, splash, slow, aura, knockback };
+      });
+  }, [hub, unlockedItemsSet]);
+
+  const monsterEntries = useMemo(() => Object.entries(MONSTER_BASE_STATS) as [keyof typeof MONSTER_BASE_STATS, typeof MONSTER_BASE_STATS[keyof typeof MONSTER_BASE_STATS]][], []);
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
   async function loadHub() {
     try {
@@ -141,8 +322,15 @@ function App() {
     init();
   }, []);
 
+  useEffect(() => {
+    if (stage === 'book' && !hub) {
+      loadHub();
+    }
+  }, [stage, hub]);
+
   type ChestReward = { shards: Record<string, number>; coins: number; chestType: string } | null;
   const [chestReward, setChestReward] = useState<ChestReward>(null);
+  const [openingChestId, setOpeningChestId] = useState<string | null>(null);
 
   async function startUnlock(chestId: string) {
     const token = getToken(); if (!token) return;
@@ -151,12 +339,20 @@ function App() {
   }
   async function openChest(chestId: string) {
     const token = getToken(); if (!token) return;
-    const resp = await fetch('/api/chest', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ action:'open', chestId })});
-    if (resp.ok) {
-      const data = await resp.json();
-      setChestReward({ shards: data.shards || {}, coins: data.coins || 0, chestType: data.chestType || 'common' });
+    if (openingChestId) return;
+    setOpeningChestId(chestId);
+    try {
+      const resp = await fetch('/api/chest', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify({ action:'open', chestId })});
+      if (resp.ok) {
+        const data = await resp.json();
+        setChestReward({ shards: data.shards || {}, coins: data.coins || 0, chestType: data.chestType || 'common' });
+      }
+    } catch (err) {
+      console.error('openChest failed', err);
+    } finally {
+      await loadHub();
+      setOpeningChestId(null);
     }
-    await loadHub();
   }
   async function skipChest(chestId: string) {
     const token = getToken(); if (!token) return;
@@ -255,7 +451,7 @@ function App() {
       {stage !== 'auth' && (
         <>
           {/* 简易登录/注册栏 */}
-          <AuthBar />
+          <AuthBar onShowAbout={() => setShowAbout(true)} onNavigateBook={stage === 'book' ? undefined : goToBook} />
           {stage === 'hub' && (
             <div style={{ maxWidth: 900, margin:'0 auto', padding:24 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
@@ -346,6 +542,8 @@ function App() {
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:8 }}>
                     {(hub?.chests ?? []).map((c:any) => {
                       const status = c.status as string;
+                      const isOpening = openingChestId === c.chest_id;
+                      const disableOpen = openingChestId !== null;
                       let action = null as any;
                       if (status==='locked') action = <button onClick={()=>startUnlock(c.chest_id)} style={{ padding:'6px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>开始解锁</button>;
                       let extraAction = null as any;
@@ -355,7 +553,22 @@ function App() {
                         const minutes = Math.max(1, Math.ceil(left / 60));
                         const skipCost = minutes * 20;
                         if (left <= 0) {
-                          action = <button onClick={()=>openChest(c.chest_id)} style={{ padding:'6px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>开箱</button>;
+                          action = (
+                            <button
+                              onClick={()=>openChest(c.chest_id)}
+                              disabled={disableOpen}
+                              style={{
+                                padding:'6px 8px',
+                                borderRadius:6,
+                                border:'1px solid #d1d5db',
+                                background: disableOpen ? '#f3f4f6' : '#fff',
+                                color: disableOpen ? '#9ca3af' : '#111827',
+                                cursor: disableOpen ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              {isOpening ? '开启中…' : '开箱'}
+                            </button>
+                          );
                         } else {
                           const mm = Math.floor(left/60).toString().padStart(2,'0');
                           const ss = (left%60).toString().padStart(2,'0');
@@ -368,7 +581,22 @@ function App() {
                           );
                         }
                       }
-                      if (status==='ready') action = <button onClick={()=>openChest(c.chest_id)} style={{ padding:'6px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>开箱</button>;
+                      if (status==='ready') action = (
+                        <button
+                          onClick={()=>openChest(c.chest_id)}
+                          disabled={disableOpen}
+                          style={{
+                            padding:'6px 8px',
+                            borderRadius:6,
+                            border:'1px solid #d1d5db',
+                            background: disableOpen ? '#f3f4f6' : '#fff',
+                            color: disableOpen ? '#9ca3af' : '#111827',
+                            cursor: disableOpen ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {isOpening ? '开启中…' : '开箱'}
+                        </button>
+                      );
                       if (status==='opened') action = <div style={{ fontSize:12, color:'#6b7280' }}>已打开</div>;
                       return (
                         <div key={c.chest_id} style={{ border:'1px solid #e5e7eb', borderRadius:10, padding:10 }}>
@@ -404,6 +632,8 @@ function App() {
                   const M = MAPS.find(m => m.id === L.mapId);
                   const clearedMax = getMaxStarSync(L.id);
                   const selectedStar = (starSel[i] ?? 1) as 1|2|3;
+                  const levelNumber = i + 1;
+                  const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
                   return (
                     <div key={L.id} style={{ border:'1px solid #e5e7eb', borderRadius:12, padding:12, background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.06)' }}>
                       <div style={{ fontWeight:700, marginBottom:8 }}>{`第${i+1}关 ${L.name}`}</div>
@@ -413,6 +643,20 @@ function App() {
                         <span>生命: {L.lives}</span>
                         <span>波数: {L.waves.length}</span>
                       </div>
+                      {unlockInfos.length > 0 && (
+                        <div style={{ marginTop:6, fontSize:12, color:'#f97316', display:'flex', flexDirection:'column', gap:2 }}>
+                          {unlockInfos.map(info => {
+                            const unlocked = unlockedItemsSet.has(info.itemId);
+                            const itemLabel = resolveUnlockItemLabel(info.itemId);
+                            const starLabel = STAR_LABELS[info.star];
+                            return (
+                              <span key={`${info.level}-${info.itemId}`}>
+                                {starLabel}通关可解锁{itemLabel}{unlocked ? '（已获得）' : ''}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       <div style={{ marginTop: 8, display:'flex', alignItems:'center', gap:6 }}>
                         {[1,2,3].map((s) => {
                           const disabled = isLocked || (clearedMax === 0 && s > 1);
@@ -444,18 +688,121 @@ function App() {
             </div>
           )}
 
+          {stage === 'book' && (
+            <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ fontSize: 20, margin: 0 }}>图鉴</h2>
+                <button onClick={exitBook} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>返回</button>
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 16, margin: '12px 0 8px 0' }}>已解锁植物</h3>
+                {plantBookData.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#9ca3af' }}>暂无解锁植物。</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+                    {plantBookData.map(entry => (
+                      <div key={entry.type} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.config.name}（lv.{entry.level}）</div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+                          射程 {entry.stats.range} ｜ 伤害 {entry.stats.damage} ｜ 攻速 {entry.stats.fireRate > 0 ? entry.stats.fireRate : '0（手动）'} ｜ 子弹速度 {entry.stats.projectileSpeed}
+                        </div>
+                        {entry.stats.pierceLimit ? (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                            穿透上限 {entry.stats.pierceLimit}
+                            {entry.stats.damageDecayFactor ? `，每次伤害×${entry.stats.damageDecayFactor}` : ''}
+                          </div>
+                        ) : null}
+                        {entry.stats.activeAbilityCost ? (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                            主动消耗 {entry.stats.activeAbilityCost} 金币发动攻击
+                          </div>
+                        ) : null}
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{entry.config.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 16, margin: '12px 0 8px 0' }}>已解锁元素</h3>
+                {elementBookData.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#9ca3af' }}>暂无解锁元素。</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+                    {elementBookData.map(entry => (
+                      <div key={entry.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.cfg.name}（lv.{entry.level}）</div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>费用 {entry.cfg.cost} ｜ 伤害倍率 ×{entry.damageMultiplier}</div>
+                        {entry.fireRateMultiplier !== null && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>攻速倍率 ×{entry.fireRateMultiplier}</div>
+                        )}
+                        {entry.fireRatePenalty !== null && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>攻速惩罚 -{entry.fireRatePenalty}</div>
+                        )}
+                        {entry.breakArmor && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>破甲倍率 ×{entry.breakArmor.multiplier}（{entry.breakArmor.duration}s）</div>
+                        )}
+                        {entry.burn && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>灼烧 {entry.burn.dps}/s（{entry.burn.duration}s）</div>
+                        )}
+                        {entry.splash && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>溅射 {entry.splash.percent}% ｜ 半径 {entry.splash.radius}</div>
+                        )}
+                        {entry.slow && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>减速 {entry.slow.pct}%（{entry.slow.duration}s）</div>
+                        )}
+                        {entry.knockback && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>击退 {entry.knockback}</div>
+                        )}
+                        {entry.aura && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>光环伤害 {entry.aura.dps}/s</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 16, margin: '12px 0 8px 0' }}>怪物图鉴</h3>
+                <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                  {monsterEntries.map(([id, stats]) => (
+                    <div key={id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{MONSTER_LABELS[id]}（{id}）</div>
+                      <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>基础生命 {stats.hp} ｜ 基础速度 {stats.speed.toFixed(2)} ｜ 泄漏伤害 {stats.leakDamage}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>实际数值会随关卡等级提升。</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {stage === 'playing' && (
             <TDGame
               onWin={async () => {
                 if (levelIndex != null) {
                   const L = LEVELS[levelIndex];
                   const result = await setStarCleared(L.id, currentStar);
-                  const unlockList = Array.isArray(result?.newUnlocks) ? (result.newUnlocks as string[]) : [];
-                  if (unlockList.length > 0) {
+                  const serverUnlocks = Array.isArray(result?.newUnlocks) ? (result.newUnlocks as string[]) : [];
+                  const levelNumber = (levelIndex ?? 0) + 1;
+                  const unlockTarget = PLANT_UNLOCK_TARGETS[levelNumber];
+                  const bestStar = Math.max(result?.star ?? 0, currentStar);
+                  const extraUnlocks: string[] = [];
+                  if (unlockTarget && bestStar >= 3 && !unlockedItemsSet.has(unlockTarget)) {
+                    extraUnlocks.push(unlockTarget);
+                  }
+                  if (extraUnlocks.length > 0) {
+                    updateUnlockedItems(extraUnlocks);
+                  }
+                  const totalUnlocks = Array.from(new Set([...serverUnlocks, ...extraUnlocks]));
+                  if (totalUnlocks.length > 0) {
                     setHub(prev => {
                       const base = prev ?? { coins: 0, shards: {}, towerLevels: {}, chests: [], unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
                       const merged = new Set(base.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
-                      unlockList.forEach((item: string) => merged.add(item));
+                      totalUnlocks.forEach((item: string) => merged.add(item));
                       return { ...base, unlockedItems: Array.from(merged) };
                     });
                   }
@@ -565,6 +912,22 @@ function App() {
             </div>
           )}
         </>
+      )}
+
+      {showAbout && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '8px', width: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h2>关于</h2>
+            <RainbowText text="Tower Defence Version 0.0.5" />
+            <h2>鸣谢</h2>
+            <p>总策划:hebscyf</p>
+            <p>代码:6gdfg</p>
+            <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
+            <button onClick={() => setShowAbout(false)} className="btn-hover" style={{ alignSelf: 'flex-end', padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+              关闭
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

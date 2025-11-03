@@ -221,10 +221,15 @@ function fitTemplateToSection(
   const finalOffsetX = sectionStartX + sectionCenter - templateCenterOffset;
 
   // 应用平移（包括垂直偏移）
-  return template.map(point => ({
+  return template.map(point => snapPoint({
     x: point.x - minX + finalOffsetX,
     y: point.y + LETTER_VERTICAL_OFFSET,
   }));
+}
+
+function snapPoint(point: Position): Position {
+  const snap = (value: number) => Math.round(value * 2) / 2;
+  return { x: snap(point.x), y: snap(point.y) };
 }
 
 function reversePathPoints(path: Position[]): Position[] {
@@ -258,7 +263,7 @@ function generateLetterPath(letters: string): Position[][] {
       
       // 对每条路径应用统一的转换
       multiPaths.forEach(pathTemplate => {
-        const fittedPath = pathTemplate.map(point => ({
+        const fittedPath = pathTemplate.map(point => snapPoint({
           x: point.x - minX + finalOffsetX,
           y: point.y + LETTER_VERTICAL_OFFSET,
         }));
@@ -273,11 +278,11 @@ function generateLetterPath(letters: string): Position[][] {
         path = reversePathPoints(path);
       }
       
-      allPaths.push(path);
+      allPaths.push(path.map(snapPoint));
     }
   });
   
-  return allPaths;
+  return allPaths.map(path => path.map(snapPoint));
 }
 
 function createLetterMap(id: number, name: string, desc: string, letters: string): MapSpec {
@@ -431,5 +436,3 @@ export function generatePlantGrid(map: MapSpec): Position[] {
 export function getPlantGrid(map: MapSpec): Position[] {
   return map.plantGrid || generatePlantGrid(map);
 }
-
-

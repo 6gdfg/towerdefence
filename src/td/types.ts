@@ -32,7 +32,7 @@ export interface Enemy {
   speedBoostUntil?: number;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machineGun' | 'sniper';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind';
 
 export type TowerType = PlantType;
@@ -86,6 +86,9 @@ export interface Projectile {
   burnDuration?: number;
   splashPercent?: number;
   knockbackDistance?: number;
+  pierceLimit?: number;
+  pierceHitCount?: number;
+  damageDecayFactor?: number;
 }
 
 export interface ElementCast {

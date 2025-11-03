@@ -16,9 +16,10 @@ const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
 };
 
 export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?: () => void } = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
+  const [showAbout, setShowAbout] = useState(false);
   const announcedWinRef = useRef(false);
   const announcedLoseRef = useRef(false);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
@@ -71,6 +72,21 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         return (
           <svg width={28} height={28} viewBox="0 0 24 24">
             <polygon points="12 4 4 20 20 20" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+          </svg>
+        );
+      case 'rocket':
+        return (
+          <svg width={28} height={28} viewBox="0 0 24 24">
+            <polygon points="12 3 21 12 12 21 3 12" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+            <line x1="12" y1="3" x2="12" y2="8.5" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
+            <line x1="12" y1="21" x2="12" y2="17" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
+          </svg>
+        );
+      case 'sunlightFlower':
+        return (
+          <svg width={28} height={28} viewBox="0 0 24 24">
+            <rect x="4" y="4" width="16" height="16" fill="none" stroke={stroke} strokeWidth={strokeWidth} rx="2" ry="2" />
+            <rect x="9" y="9" width="6" height="6" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.9} rx="1" ry="1" />
           </svg>
         );
       case 'sniper':
@@ -174,6 +190,14 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
     }
   };
 
+  const handleTowerClick = (tower: typeof towers[number], e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedPlant || selectedElement) return;
+    if (tower.type === 'sunlightFlower') {
+      manualFireTower(tower.id);
+    }
+  };
+
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'stretch', padding:0, color:'#111827', background:'#f3f4f6', height:'100vh', width:'100%', overflow:'hidden' }}>
       <div style={{ padding:'16px 24px 12px 24px', display:'flex', flexDirection:'column', gap:12, flexShrink:0 }}>
@@ -182,7 +206,15 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
           <div>❤️ 生命: {lives}</div>
           <div>🌊 波次: {Math.min(waveIndex + (isWaveActive ? 1 : 0), waves.length)} / {waves.length}</div>
           <div style={{ fontSize:12, color:'#6b7280' }}>提示：塔和怪物已显示 lv. 等级</div>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, alignItems: 'center' }}>
+            <a href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" style={{ color: '#111827', display: 'flex', alignItems: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+            </a>
+            <button onClick={() => setShowAbout(true)} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+              关于
+            </button>
             <button onClick={togglePause} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
               {running ? '⏸️ 暂停' : '▶️ 继续'}
             </button>
@@ -301,7 +333,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
               当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 金币，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
             </div>
           )}
-            <div style={{ fontSize:12, color:'#9ca3af' }}>提示：向日葵只能产金，无法附加元素；所有数值可在 src/td/plants.ts 中调整。</div>
+            <div style={{ fontSize:12, color:'#9ca3af' }}>提示：向日葵只能产金，无法附加元素；日光花需点击消耗10金币发动攻击；所有数值可在 src/td/plants.ts 中调整。</div>
           </div>
         </aside>
 
@@ -452,7 +484,11 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
           const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
           const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : '#9ca3af';
           return (
-            <div key={t.id} style={{ position:'absolute', ...worldToPx(t.pos), width:CELL_SIZE, height:CELL_SIZE, transform:'translate(-50%, -50%)', zIndex:2 }}>
+            <div
+              key={t.id}
+              onClick={(e) => handleTowerClick(t, e)}
+              style={{ position:'absolute', ...worldToPx(t.pos), width:CELL_SIZE, height:CELL_SIZE, transform:'translate(-50%, -50%)', zIndex:2, cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default' }}
+            >
               <div
                 style={{
                   width:'100%',
@@ -593,6 +629,21 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
 
       {!isWaveActive && waveIndex >= waves.length && (
         <div style={{ padding:'16px 24px', color:'#a3e635', flexShrink:0 }}>全部波次完成！🎉</div>
+      )}
+      {showAbout && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '8px', width: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h2>关于</h2>
+            <p>Tower Defence Version 0.0.5</p>
+            <h2>鸣谢</h2>
+            <p>总策划:hebscyf</p>
+            <p>代码:6gdfg</p>
+            <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
+            <button onClick={() => setShowAbout(false)} className="btn-hover" style={{ alignSelf: 'flex-end', padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+              关闭
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

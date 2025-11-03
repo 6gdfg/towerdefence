@@ -22,10 +22,12 @@ const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass'] as const;
 const UNLOCK_RULES: Array<{ level: number; star: 1|2|3; itemId: string }> = [
   { level: 1, star: 1, itemId: 'element:fire' },
   { level: 3, star: 3, itemId: 'fourLeafClover' },
+  { level: 4, star: 3, itemId: 'rocket' },
   { level: 6, star: 3, itemId: 'element:wind' },
   { level: 15, star: 3, itemId: 'machineGun' },
   { level: 20, star: 3, itemId: 'element:ice' },
   { level: 23, star: 3, itemId: 'sniper' },
+  { level: 11, star: 3, itemId: 'sunlightFlower' },
   { level: 27, star: 3, itemId: 'element:electric' },
   { level: 30, star: 3, itemId: 'element:gold' },
 ];
