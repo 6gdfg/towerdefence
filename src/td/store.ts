@@ -288,6 +288,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       damage: 0,
       fireRate: 0,
       lastShotTime: -999,
+      lockedTargetId: undefined,
       projectileSpeed: base.projectileSpeed,
       penetration: base.penetration,
       incomeInterval: base.incomeInterval,
@@ -497,6 +498,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
           enemy.specialTimer = gameTime + 3.5;
         } else if (enemy.shape === 'evilSniper') {
           enemy.specialTimer = gameTime + 20;
+        } else if (enemy.shape === 'summoner') {
+          enemy.specialTimer = gameTime + 5;
         }
         enemies.push(enemy);
         spawnCursor.remaining -= 1;
@@ -704,6 +707,62 @@ export const useTDStore = create<TDStore>((set, get) => ({
             target.speedBoostUntil = Math.max(target.speedBoostUntil || 0, gameTime + 0.6);
           }
         });
+      } else if (enemy.shape === 'summoner') {
+        const interval = 5;
+        if ((enemy.specialTimer ?? 0) <= gameTime) {
+          // 召唤一个与自己等级相同的circle怪，出现在召唤者前方0.5格
+          const path = state.paths[enemy.pathId];
+          const currentIndex = enemy.pathIndex;
+          const currentT = enemy.t;
+
+          // 计算召唤者前方位置（沿路径前进0.5格）
+          let spawnPos = { ...enemy.pos };
+          let spawnPathIndex = currentIndex;
+          let spawnT = currentT;
+
+          // 简单前进0.5格距离
+          const segLen = segmentLength(path[currentIndex], path[currentIndex + 1]);
+          if (segLen > 0) {
+            const advance = 0.5 / segLen;
+            spawnT = currentT + advance;
+            if (spawnT >= 1 && currentIndex < path.length - 2) {
+              spawnPathIndex = currentIndex + 1;
+              spawnT = spawnT - 1;
+            } else if (spawnT >= 1) {
+              spawnT = 0.99;
+            }
+            spawnPos = lerp(path[spawnPathIndex], path[spawnPathIndex + 1], spawnT);
+          }
+
+          // 创建召唤的circle怪物
+          const baseStats = MONSTER_BASE_STATS['circle'];
+          const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * (enemy.level ?? 1);
+          const summonedHp = Math.round(baseStats.hp * mul);
+          const totalLen = totalPathLength(path);
+          const prevSegments = (() => {
+            let s = 0;
+            for (let k = 0; k < spawnPathIndex; k++) s += segmentLength(path[k], path[k + 1]);
+            return s + segmentLength(path[spawnPathIndex], path[spawnPathIndex + 1]) * spawnT;
+          })();
+          const spawnProgress = prevSegments / totalLen;
+
+          const summonedEnemy: Enemy = {
+            id: `e-summoned-${Date.now()}-${Math.random()}`,
+            pos: spawnPos,
+            hp: summonedHp,
+            maxHp: summonedHp,
+            speed: baseStats.speed,
+            shape: 'circle',
+            leakDamage: baseStats.leakDamage,
+            level: enemy.level,
+            pathIndex: spawnPathIndex,
+            t: spawnT,
+            progress: spawnProgress,
+            pathId: enemy.pathId,
+          };
+          enemies.push(summonedEnemy);
+          enemy.specialTimer = gameTime + interval;
+        }
       }
     });
     if (towersModified) {
@@ -713,17 +772,59 @@ export const useTDStore = create<TDStore>((set, get) => ({
     // ᚻ 植物发射子弹
     towers.forEach(tw => {
       ensureTowerStats(tw);
+      if (tw.type === 'sniper') {
+        const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId) : undefined;
+        const lockedValid = locked && locked.hp > 0 && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
+        if (!lockedValid) {
+          let best: Enemy | null = null;
+          for (const enemy of enemies) {
+            if (getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+              if (!best || enemy.hp > best.hp) {
+                best = enemy;
+              }
+            }
+          }
+          tw.lockedTargetId = best ? best.id : undefined;
+        }
+      }
       if (tw.fireRate <= 0 || tw.damage <= 0) return;
       const cooldown = tw.fireRate > 0 ? 1 / tw.fireRate : Infinity;
       if (gameTime - tw.lastShotTime < cooldown) return;
-      const inRange = enemies.filter(e => getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
-      if (inRange.length === 0) return;
-      inRange.sort((a, b) => b.progress - a.progress);
-      const target = inRange[0];
+      let target: Enemy | undefined;
+      if (tw.type === 'sniper') {
+        if (tw.lockedTargetId) {
+          const locked = enemies.find(e => e.id === tw.lockedTargetId && e.hp > 0);
+          if (locked && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+            target = locked;
+          }
+        }
+        if (!target) {
+          let best: Enemy | null = null;
+          for (const enemy of enemies) {
+            if (getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+              if (!best || enemy.hp > best.hp) {
+                best = enemy;
+              }
+            }
+          }
+          if (best) {
+            target = best;
+            tw.lockedTargetId = best.id;
+          } else {
+            tw.lockedTargetId = undefined;
+            return;
+          }
+        }
+      } else {
+        const inRange = enemies.filter(e => getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
+        if (inRange.length === 0) return;
+        inRange.sort((a, b) => b.progress - a.progress);
+        target = inRange[0];
+      }
 
       tw.lastShotTime = gameTime;
 
-      const projectile = createProjectileForTower(tw, target);
+      const projectile = target ? createProjectileForTower(tw, target) : null;
       if (projectile) {
         projectiles.push(projectile);
       }
@@ -934,6 +1035,9 @@ function rewardForEnemy(e: Enemy): number {
       break;
     case 'rager':
       base = 9;
+      break;
+    case 'summoner':
+      base = 10;
       break;
     default:
       base = 5;

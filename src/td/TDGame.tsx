@@ -573,6 +573,13 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                     <circle cx="12" cy="12" r="4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
                   </svg>
                 );
+              case 'summoner':
+                return (
+                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                    <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={2} ry={2} />
+                    <circle cx="12" cy="12" r="7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
+                  </svg>
+                );
               default:
                 return (
                   <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">

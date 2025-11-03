@@ -82,6 +82,7 @@ export const MONSTER_BASE_STATS = {
   healer: { hp: 140, speed: 2.3, leakDamage: 1 },
   evilSniper: { hp: 260, speed: 2.0, leakDamage: 3 },
   rager: { hp: 180, speed: 2.4, leakDamage: 2 },
+  summoner: { hp: 250, speed: 2.2, leakDamage: 2 },
 };
 
 // 星级难度配置
@@ -162,11 +163,11 @@ for (let i = 0; i < 49; i++) {
   const pathCount = getPathCount(mapId); // 获取地图路径数量
 
   // 基础参数随关卡递增
-  const baseLevel = 12 + i * 2; // 怪物基础等级：12, 14, 16, ...
-  const startGold = 1000; // 每关统一1000金币起步
-  const lives = Math.max(10, 15 - Math.floor(i / 10)); // 生命值递减：15→14→13→12→11→10
+  const baseLevel = 10 + i * 3; // 怪物基础等级：12, 14, 16, ...
+  const startGold = Math.max(1000, 1200 - i * 10); // 第4关1200，每关递减10，最低1000
+  const lives = Math.max(10, 18 - Math.floor(i / 10)); // 生命值递减：15→14→13→12→11→10
   const waveCount = 3 + Math.floor(i / 8); // 波数递增：3→4→5→6→7
-  const bossLevel = 1150 + i * 10; // BOSS等级递增
+  const bossLevel = 1150 + i * 20; // BOSS等级递增
 
   const waves: WaveDef[] = [];
 
@@ -334,6 +335,20 @@ for (let i = 0; i < 49; i++) {
       }
     }
 
+    if (levelNum >= 7 && w >= 2 && (w % 3 === 0)) {
+      const summonerCount = Math.max(1, Math.floor((1 + i / 20) / pathCount));
+      for (let p = 0; p < pathCount; p++) {
+        groups.push({
+          type: 'summoner' as const,
+          count: summonerCount,
+          interval: 3.5,
+          level: Math.max(baseLevel + 8, 35 + Math.floor(i / 2)),
+          reward: 20 + Math.floor(i / 4),
+          pathId: p,
+        });
+      }
+    }
+
     if (levelNum >= 10 && w >= Math.max(2, waveCount - 2)) {
       const ragerCount = Math.max(1, Math.floor((1 + i / 15) / pathCount));
       for (let p = 0; p < pathCount; p++) {
@@ -368,6 +383,6 @@ for (let i = 0; i < 49; i++) {
     mapId,
     waves,
     autoStartFirstWave: true,
-    firstWaveDelaySec: 0.8,
+    firstWaveDelaySec: 5,
   });
 }

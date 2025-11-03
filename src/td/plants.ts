@@ -116,7 +116,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     icon: '▸',
     cost: 250,
     range: 99,
-    damage: 120,
+    damage: 250,
     fireRate: 0.36,
     projectileSpeed: 14,
     description: '射程覆盖整张地图，伤害高但攻速极慢。',

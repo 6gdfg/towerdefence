@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner';
 
 export interface Enemy {
   id: string;
@@ -46,6 +46,7 @@ export interface Tower {
   damage: number;
   fireRate: number; // 次/秒
   lastShotTime: number;
+  lockedTargetId?: string;
   splashRadius?: number;
   slowPct?: number;
   slowDuration?: number;

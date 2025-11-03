@@ -45,10 +45,11 @@ const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   healer: '治疗者',
   evilSniper: '邪恶狙击手',
   rager: '狂暴者',
+  summoner: '召唤者',
 };
 
-type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book';
-type NonBookStage = Exclude<Stage, 'book'>;
+type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking';
+type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PlantBookEntry = { type: PlantType; level: number; stats: NonNullable<ReturnType<typeof getPlantStatsForLevel>>; config: BasePlantConfig };
 type ElementBookEntry = {
   id: ElementType;
@@ -102,7 +103,7 @@ const RainbowText = ({ text }: { text: string }) => {
   );
 };
 
-function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook }: { onAuthed?: () => void; variant?: 'bar' | 'card', onShowAbout?: () => void; onNavigateBook?: () => void }) {
+function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook, onNavigateRanking }: { onAuthed?: () => void; variant?: 'bar' | 'card', onShowAbout?: () => void; onNavigateBook?: () => void; onNavigateRanking?: () => void }) {
   const [username, setUsername] = useState<string>(() => getUsername() || '');
   const [password, setPassword] = useState<string>('');
   const [me, setMe] = useState<{ username?: string|null; coins?: number|null }>({ username: getUsername(), coins: null });
@@ -153,6 +154,9 @@ function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook }: { o
             {onNavigateBook && (
               <button onClick={onNavigateBook} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>图鉴</button>
             )}
+            {onNavigateRanking && (
+              <button onClick={onNavigateRanking} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>排行榜</button>
+            )}
           </>
         ) : (
           <>
@@ -176,21 +180,106 @@ function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook }: { o
   );
 }
 
+function RankingPage({ onBack }: { onBack: () => void }) {
+  const [ranking, setRanking] = useState<Array<{ rank: number; username: string; clearedLevels: number }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchRanking() {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await fetch('/api/ranking');
+        if (!response.ok) {
+          throw new Error('Failed to fetch ranking');
+        }
+        const data = await response.json();
+        setRanking(data.ranking || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load ranking');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRanking();
+  }, []);
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h2 style={{ fontSize: 20, margin: 0 }}>通关排行榜</h2>
+        <button onClick={onBack} className="btn-hover" style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer' }}>返回</button>
+      </div>
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280' }}>加载中...</div>
+      )}
+
+      {error && (
+        <div style={{ padding: '20px', background: '#fee', border: '1px solid #fcc', borderRadius: 8, color: '#c33' }}>
+          错误: {error}
+        </div>
+      )}
+
+      {!loading && !error && ranking.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>暂无排行数据</div>
+      )}
+
+      {!loading && !error && ranking.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: 14 }}>排名</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: 14 }}>玩家</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, fontSize: 14 }}>通关数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map((entry) => (
+                <tr key={entry.username} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '12px 16px', fontSize: 14 }}>
+                    {entry.rank <= 3 ? (
+                      <span style={{ fontWeight: 600, color: entry.rank === 1 ? '#f59e0b' : entry.rank === 2 ? '#94a3b8' : '#cd7f32' }}>
+                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'} {entry.rank}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#6b7280' }}>{entry.rank}</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 500 }}>{entry.username}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 14, textAlign: 'right', color: '#059669', fontWeight: 600 }}>{entry.clearedLevels}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function App() {
   const loadLevel = useTDStore(s => s.loadLevel);
   const [stage, setStage] = useState<Stage>(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/book') {
-      return getToken() ? 'book' : 'auth';
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname === '/book') {
+        return getToken() ? 'book' : 'auth';
+      }
+      if (window.location.pathname === '/ranking') {
+        return getToken() ? 'ranking' : 'auth';
+      }
     }
     return getToken() ? 'hub' : 'auth';
   });
   const lastNonBookStageRef = useRef<NonBookStage>(
     (() => {
-      const initial = typeof window !== 'undefined' && window.location.pathname === '/book'
+      const initial = typeof window !== 'undefined' && (window.location.pathname === '/book' || window.location.pathname === '/ranking')
         ? (getToken() ? 'hub' : 'auth')
         : stage;
-      return initial === 'book' ? (getToken() ? 'hub' : 'auth') : initial;
+      return (initial === 'book' || initial === 'ranking') ? (getToken() ? 'hub' : 'auth') : initial;
     })()
   );
   const goToBook = useCallback(() => {
@@ -198,6 +287,13 @@ function App() {
       window.history.pushState({}, '', '/book');
     }
     setStage('book');
+  }, []);
+
+  const goToRanking = useCallback(() => {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/ranking') {
+      window.history.pushState({}, '', '/ranking');
+    }
+    setStage('ranking');
   }, []);
 
   const exitBook = useCallback(() => {
@@ -209,7 +305,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (stage !== 'book') {
+    if (stage !== 'book' && stage !== 'ranking') {
       lastNonBookStageRef.current = stage;
     }
   }, [stage]);
@@ -219,6 +315,8 @@ function App() {
       if (typeof window === 'undefined') return;
       if (window.location.pathname === '/book') {
         setStage('book');
+      } else if (window.location.pathname === '/ranking') {
+        setStage('ranking');
       } else {
         const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
         setStage(fallback);
@@ -450,8 +548,8 @@ function App() {
 
       {stage !== 'auth' && (
         <>
-          {/* 简易登录/注册栏 */}
-          <AuthBar onShowAbout={() => setShowAbout(true)} onNavigateBook={stage === 'book' ? undefined : goToBook} />
+          {/* 简易登录/注册栏 - 游戏进行时不显示 */}
+          {stage !== 'playing' && <AuthBar onShowAbout={() => setShowAbout(true)} onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook} onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking} />}
           {stage === 'hub' && (
             <div style={{ maxWidth: 900, margin:'0 auto', padding:24 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
@@ -778,6 +876,15 @@ function App() {
                 </div>
               </div>
             </div>
+          )}
+
+          {stage === 'ranking' && (
+            <RankingPage onBack={() => {
+              if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+                window.history.pushState({}, '', '/');
+              }
+              setStage('hub');
+            }} />
           )}
 
           {stage === 'playing' && (
