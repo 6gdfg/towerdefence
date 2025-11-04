@@ -33,9 +33,10 @@ export interface Enemy {
 }
 
 export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
-export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind';
+export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 
 export type TowerType = PlantType;
+export type GameMode = 'campaign' | 'endless' | 'endlessTest';
 
 export interface Tower {
   id: string;
@@ -90,6 +91,8 @@ export interface Projectile {
   pierceLimit?: number;
   pierceHitCount?: number;
   damageDecayFactor?: number;
+  bounceCount?: number;
+  maxBounces?: number;
 }
 
 export interface ElementCast {
@@ -154,4 +157,8 @@ export interface TDState {
   } | null;
   // 玩家塔等级映射（用于放塔时按等级缩放面板）
   towerLevelMap?: Partial<Record<PlantType, number>>;
+  mode?: GameMode;
+  lifeBonusPerWave?: number;
+  wavesCleared?: number;
+  endlessWaveFactory?: ((waveNumber: number) => WaveDef) | null;
 }

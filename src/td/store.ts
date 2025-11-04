@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
@@ -28,6 +28,7 @@ const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
   wind: 20,
   gold: 20,
   electric: 30,
+  light: 30,
 };
 
 // 基础植物预设（灰度数值，后续可在 src/td/plants.ts 中调整）
@@ -76,11 +77,13 @@ function createProjectileForTower(tower: Tower, target: Enemy): Projectile | nul
     projectile.damageDecayFactor = baseConfig.damageDecayFactor;
   }
 
+  const dx = target.pos.x - tower.pos.x;
+  const dy = target.pos.y - tower.pos.y;
+  const len = Math.hypot(dx, dy) || 1;
+  projectile.direction = { x: dx / len, y: dy / len };
+
   if (projectile.piercing) {
-    const dx = target.pos.x - tower.pos.x;
-    const dy = target.pos.y - tower.pos.y;
-    const len = Math.hypot(dx, dy) || 1;
-    projectile.direction = { x: dx / len, y: dy / len };
+    // Piercing projectiles don't have a target
   } else {
     projectile.targetId = target.id;
   }
@@ -107,6 +110,10 @@ function createProjectileForTower(tower: Tower, target: Enemy): Projectile | nul
       }
       if (elementCfg.knockback) {
         projectile.knockbackDistance = elementCfg.knockback.distance;
+      }
+      if (elementCfg.bounce) {
+        projectile.bounceCount = elementCfg.bounce.maxBounces;
+        projectile.maxBounces = elementCfg.bounce.maxBounces;
       }
     }
   }
@@ -185,7 +192,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: Partial<Record<PlantType, number>>; allowedPlants?: PlantType[]; allowedElements?: ElementType[] }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: Partial<Record<PlantType, number>>; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef }) => void;
   togglePause: () => void;
 }
 
@@ -216,6 +223,10 @@ const INITIAL_TD_STATE: TDState = {
   nextWaveStartTime: null,
   spawnCursor: null,
   towerLevelMap: {},
+  mode: 'campaign',
+  lifeBonusPerWave: 0,
+  wavesCleared: 0,
+  endlessWaveFactory: null,
 };
 
 export const useTDStore = create<TDStore>((set, get) => ({
@@ -265,6 +276,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
       nextWaveStartTime: opts?.autoStartFirstWave ? (0 + (opts.firstWaveDelaySec ?? 0.8)) : null,
       spawnCursor: null,
       towerLevelMap: opts?.towerLevels || {},
+      mode: opts?.mode ?? 'campaign',
+      lifeBonusPerWave: opts?.lifeBonusPerWave ?? 0,
+      wavesCleared: 0,
+      endlessWaveFactory: opts?.endlessWaveFactory ?? null,
     });
   },
 
@@ -314,31 +329,23 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const elementCost = config.cost;
     if (state.gold < elementCost) return;
 
-    let targetIndex = -1;
-    state.towers.forEach((tower, idx) => {
-      const dist = getDistance(tower.pos.x, tower.pos.y, pos.x, pos.y);
-      if (dist < 0.6) {
-        targetIndex = idx;
-      }
-    });
+    const targetIndex = state.towers.findIndex(tower => getDistance(tower.pos.x, tower.pos.y, pos.x, pos.y) <= 0.75);
 
     if (targetIndex !== -1) {
       const tower = state.towers[targetIndex];
       if (tower.type === 'sunflower' && SUNFLOWER_ELEMENT_BLOCKLIST.has(elementType)) return;
 
       const towers = [...state.towers];
-      const target = { ...tower };
+      const targetTower = towers[targetIndex];
 
-      if (target.element) {
-        if (target.element.type !== elementType) {
-          return;
-        }
-        target.element = {
-          ...target.element,
-          level: target.element.level + 1,
+      if (targetTower.element) {
+        if (targetTower.element.type !== elementType) return;
+        targetTower.element = {
+          ...targetTower.element,
+          level: targetTower.element.level + 1,
         };
       } else {
-        target.element = {
+        targetTower.element = {
           type: elementType,
           level: 1,
           color: config.color,
@@ -346,9 +353,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         };
       }
 
-      ensureTowerStats(target);
-      towers[targetIndex] = target;
-
+      ensureTowerStats(targetTower);
       set({
         towers,
         gold: state.gold - elementCost,
@@ -440,6 +445,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let isWaveActive = state.isWaveActive;
     let spawnCursor = state.spawnCursor ? { ...state.spawnCursor } : null;
     let nextWaveStartTime = state.nextWaveStartTime ?? null;
+    let waves = state.waves;
+    const mode: GameMode = state.mode ?? 'campaign';
+    const lifeBonusPerWave = state.lifeBonusPerWave ?? 0;
+    const endlessWaveFactory = state.endlessWaveFactory ?? null;
+    let wavesCleared = state.wavesCleared ?? 0;
     towers.forEach(t => ensureTowerStats(t));
 
     towers.forEach(tw => {
@@ -459,8 +469,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     });
 
     // auto start scheduled next wave
-    if (!isWaveActive && waveIndex < state.waves.length && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
-      const firstGroup = state.waves[waveIndex].groups[0];
+    if (!isWaveActive && waveIndex < waves.length && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
+      const firstGroup = waves[waveIndex].groups[0];
       isWaveActive = true;
       spawnCursor = {
         groupIndex: 0,
@@ -471,8 +481,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     }
 
     //  handle spawning
-    if (isWaveActive && waveIndex < state.waves.length && spawnCursor) {
-      const wave = state.waves[waveIndex];
+    if (isWaveActive && waveIndex < waves.length && spawnCursor) {
+      const wave = waves[waveIndex];
       const g = wave.groups[spawnCursor.groupIndex];
       if (gameTime >= spawnCursor.nextSpawnTime && spawnCursor.remaining > 0) {
         const baseStats = MONSTER_BASE_STATS[g.type];
@@ -664,6 +674,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
           enemies.forEach(enemy => {
             dealDamage(enemy, damage, '#8b5cf6');
           });
+          break;
+        }
+        case 'light': {
+          const goldBonus = 400;
+          gold += goldBonus;
+          addDamagePopup(cast.pos, goldBonus, '#fde047');
           break;
         }
       }
@@ -863,7 +879,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     //  更新子弹
     projectiles = projectiles.flatMap(p => {
-      if (p.piercing && p.direction) {
+      if ((p.piercing || p.bounceCount) && p.direction) {
         const prevPos = { ...p.pos };
         const nextPos = {
           x: p.pos.x + p.direction.x * p.speed * dt,
@@ -912,11 +928,30 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
           updated.pierceHitCount = hitCount;
 
-          if (consumed) {
+          // 如果子弹被消耗(达到穿透上限)，或者它是一个非穿透类型的反弹子弹，则在命中后移除
+          if (consumed || (updated.bounceCount && !updated.piercing)) {
             return [];
           }
         }
-        const outOfBounds = nextPos.x < 0 || nextPos.x > state.mapWidth || nextPos.y < 0 || nextPos.y > state.mapHeight;
+        
+        let bounced = false;
+        if (updated.direction && (nextPos.x < 0 || nextPos.x > state.mapWidth)) {
+          updated.direction.x *= -1;
+          bounced = true;
+        }
+        if (updated.direction && (nextPos.y < 0 || nextPos.y > state.mapHeight)) {
+          updated.direction.y *= -1;
+          bounced = true;
+        }
+
+        if (bounced) {
+          updated.bounceCount = (updated.bounceCount ?? 0) - 1;
+          if (updated.bounceCount < 0) {
+            return [];
+          }
+        }
+
+        const outOfBounds = nextPos.x < -1 || nextPos.x > state.mapWidth + 1 || nextPos.y < -1 || nextPos.y > state.mapHeight + 1;
         if (outOfBounds) {
           return [];
         }
@@ -924,6 +959,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
       } else {
         const target = p.targetId ? enemies.find(e => e.id === p.targetId) : null;
         if (!target) {
+          if (p.bounceCount && p.direction) {
+            p.targetId = null;
+            return [p];
+          }
           return [];
         }
         const dx = target.pos.x - p.pos.x;
@@ -971,7 +1010,16 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (spawningDone && enemies.length === 0 && projectiles.length === 0) {
         isWaveActive = false;
         waveIndex += 1;
-        if (waveIndex < state.waves.length) {
+        wavesCleared += 1;
+        if (mode !== 'campaign' && lifeBonusPerWave > 0) {
+          lives += lifeBonusPerWave;
+        }
+        if ((mode === 'endless' || mode === 'endlessTest') && endlessWaveFactory) {
+          const nextWaveNumber = waveIndex + 1;
+          const newWave = endlessWaveFactory(nextWaveNumber);
+          waves = [...waves, newWave];
+        }
+        if (waveIndex < waves.length) {
           nextWaveStartTime = gameTime + 2; // auto-next in 2s
         }
       }
@@ -1008,6 +1056,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       waveIndex,
       spawnCursor,
       nextWaveStartTime,
+      waves,
+      wavesCleared,
     });
   },
 

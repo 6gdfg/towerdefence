@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TDGame from './td/TDGame';
 import { useTDStore } from './td/store';
 import { LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
-import { MAPS, getPlantGrid } from './td/maps';
+import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { getUsername, loginUser, registerUser, fetchCloudProgress, getPlayerId, getToken, clearAuth } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, getMaxStarSync, setStarCleared, refreshCache, initCache, getUnlockedItems, DEFAULT_UNLOCKED_ITEMS, updateUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, getPlantStatsForLevel, BasePlantConfig } from './td/plants';
-import { ElementType, PlantType } from './td/types';
+import { ElementType, PlantType, WaveDef } from './td/types';
 
 // 统一按钮样式（hover 效果在 index.css 中定义）
 const btnStyle = (disabled = false): React.CSSProperties => ({
@@ -20,7 +20,7 @@ const btnStyle = (disabled = false): React.CSSProperties => ({
 });
 
 const PLANT_TYPES: PlantType[] = ['sunflower','bottleGrass','fourLeafClover','machineGun','sniper','rocket','sunlightFlower'];
-const ELEMENT_TYPES: ElementType[] = ['fire','wind','ice','electric','gold'];
+const ELEMENT_TYPES: ElementType[] = ['fire','wind','ice','electric','gold','light'];
 const LEVEL_UNLOCK_REQUIREMENTS: Array<{ level: number; star: 1|2|3; itemId: string }> = [
   { level: 1, star: 1, itemId: 'element:fire' },
   { level: 3, star: 3, itemId: 'fourLeafClover' },
@@ -32,12 +32,51 @@ const LEVEL_UNLOCK_REQUIREMENTS: Array<{ level: number; star: 1|2|3; itemId: str
   { level: 23, star: 3, itemId: 'sniper' },
   { level: 27, star: 3, itemId: 'element:electric' },
   { level: 30, star: 3, itemId: 'element:gold' },
+  { level: 33, star: 3, itemId: 'element:light' },
 ];
 const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
   4: 'rocket',
   11: 'sunlightFlower',
 };
 const STAR_LABELS: Record<1|2|3, string> = { 1: '一星', 2: '二星', 3: '三星' };
+const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager'] as const;
+const FUN_MODE_INITIAL_WAVES = 1;
+
+type FunModeType = 'test' | 'endless';
+
+function createFunModeWave(waveNumber: number): WaveDef {
+  const isBoss = waveNumber % 10 === 0;
+  if (isBoss) {
+    const bossLevel = 2000 + waveNumber;
+    return {
+      groups: [
+        { type: 'square', count: 18, interval: 0.45, level: bossLevel - 200, reward: 60 },
+        { type: 'evilSniper', count: 6, interval: 1.4, level: bossLevel, reward: 80 },
+        { type: 'rager', count: 8, interval: 1.1, level: bossLevel - 120, reward: 70 },
+      ],
+    };
+  }
+
+  const baseLevel = waveNumber;
+  const baseCount = Math.min(20 + waveNumber * 3, 120);
+  const interval = Math.max(0.2, 0.65 - waveNumber * 0.01);
+  const rewardBase = 8 + Math.floor(waveNumber / 2);
+  const groups = FUN_MODE_SHAPES.slice(0, 3).map((_, idx) => {
+    const shape = FUN_MODE_SHAPES[(waveNumber + idx) % FUN_MODE_SHAPES.length];
+    return {
+      type: shape,
+      count: baseCount - idx * 3,
+      interval,
+      level: baseLevel + idx,
+      reward: rewardBase + idx * 2,
+    };
+  });
+  return { groups };
+}
+
+function buildInitialFunWaves(): WaveDef[] {
+  return Array.from({ length: FUN_MODE_INITIAL_WAVES }, (_, idx) => createFunModeWave(idx + 1));
+}
 const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   circle: '圆怪',
   triangle: '三角怪',
@@ -48,7 +87,7 @@ const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   summoner: '召唤者',
 };
 
-type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking';
+type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PlantBookEntry = { type: PlantType; level: number; stats: NonNullable<ReturnType<typeof getPlantStatsForLevel>>; config: BasePlantConfig };
 type ElementBookEntry = {
@@ -63,6 +102,7 @@ type ElementBookEntry = {
   slow: { pct: number; duration: number } | null;
   aura: { dps: number } | null;
   knockback: number | null;
+  bounce: { maxBounces: number } | null;
   cfg: (typeof ELEMENT_PLANT_CONFIG)[ElementType];
 };
 
@@ -263,6 +303,7 @@ function RankingPage({ onBack }: { onBack: () => void }) {
 
 function App() {
   const loadLevel = useTDStore(s => s.loadLevel);
+  const wavesCleared = useTDStore(s => s.wavesCleared ?? 0);
   const [stage, setStage] = useState<Stage>(() => {
     if (typeof window !== 'undefined') {
       if (window.location.pathname === '/book') {
@@ -328,6 +369,7 @@ function App() {
   const [levelIndex, setLevelIndex] = useState<number | null>(null);
   const [unlocked, setUnlockedState] = useState<number>(() => getUnlocked());
   const [showAbout, setShowAbout] = useState(false);
+  const [activeFunMode, setActiveFunMode] = useState<FunModeType | null>(null);
 
   const [starSel, setStarSel] = useState<Record<number, 1|2|3>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
@@ -385,11 +427,13 @@ function App() {
           dps: Number((cfg.aura.damagePerSecond + cfg.aura.bonusPerLevel * (level - 1)).toFixed(2)),
         } : null;
         const knockback = cfg.knockback ? cfg.knockback.distance : null;
-        return { id: el, level, cfg, damageMultiplier, fireRateMultiplier, fireRatePenalty, breakArmor, burn, splash, slow, aura, knockback };
+        const bounce = cfg.bounce ? { maxBounces: cfg.bounce.maxBounces } : null;
+        return { id: el, level, cfg, damageMultiplier, fireRateMultiplier, fireRatePenalty, breakArmor, burn, splash, slow, aura, knockback, bounce };
       });
   }, [hub, unlockedItemsSet]);
 
   const monsterEntries = useMemo(() => Object.entries(MONSTER_BASE_STATS) as [keyof typeof MONSTER_BASE_STATS, typeof MONSTER_BASE_STATS[keyof typeof MONSTER_BASE_STATS]][], []);
+  const funMap = useMemo(() => MAPS.find(m => m.id === SPIRAL_MAP_ID), []);
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
   async function loadHub() {
     try {
@@ -487,6 +531,7 @@ function App() {
 
 
   const startLevel = (idx: number) => {
+    setActiveFunMode(null);
     const L = LEVELS[idx];
     const M = MAPS.find(m => m.id === L.mapId);
     if (!M) { console.warn('Map not found for level', L.mapId); return; }
@@ -534,6 +579,78 @@ function App() {
     if (levelIndex==null) return;
     startLevel(levelIndex);
   };
+
+  const startFunMode = useCallback((mode: FunModeType) => {
+    if (!funMap) {
+      alert('趣味模式地图缺失，无法开始');
+      return;
+    }
+
+    const plantGrid = getPlantGrid(funMap);
+    let allowedPlants: PlantType[] = [];
+    let allowedElements: ElementType[] = [];
+    let towerLevels: Record<string, number> = {};
+    const startGold = mode === 'test' ? 6000 : 2000;
+
+    if (mode === 'test') {
+      allowedPlants = [...PLANT_TYPES];
+      allowedElements = [...ELEMENT_TYPES];
+      const configuredLevels: Record<string, number> = {};
+      for (const plant of PLANT_TYPES) {
+        const label = BASE_PLANTS_CONFIG[plant]?.name ?? plant;
+        const defaultLv = hub?.towerLevels?.[plant] ?? 5;
+        const input = window.prompt(`设置 ${label} 等级 (≥1)`, String(defaultLv));
+        if (input === null) return;
+        const parsed = Number(input);
+        const level = Number.isFinite(parsed) ? Math.max(1, Math.min(99, Math.floor(parsed))) : defaultLv;
+        configuredLevels[plant] = level;
+      }
+      for (const element of ELEMENT_TYPES) {
+        const label = ELEMENT_PLANT_CONFIG[element]?.name ?? element;
+        const key = `element:${element}`;
+        const defaultLv = hub?.towerLevels?.[key] ?? 3;
+        const input = window.prompt(`设置 ${label} 等级 (≥1)`, String(defaultLv));
+        if (input === null) return;
+        const parsed = Number(input);
+        const level = Number.isFinite(parsed) ? Math.max(1, Math.min(99, Math.floor(parsed))) : defaultLv;
+        configuredLevels[key] = level;
+      }
+      towerLevels = configuredLevels;
+    } else {
+      const unlockedItems = getUnlockedItems();
+      const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item));
+      allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
+      const allowedElementsRaw = unlockedItems
+        .filter(item => item.startsWith('element:'))
+        .map(item => item.split(':')[1])
+        .filter((el): el is ElementType => Object.prototype.hasOwnProperty.call(ELEMENT_PLANT_CONFIG, el));
+      allowedElements = Array.from(new Set(allowedElementsRaw)) as ElementType[];
+      towerLevels = hub?.towerLevels ? { ...hub.towerLevels } : {};
+    }
+
+    const initialWaves = buildInitialFunWaves();
+    loadLevel(
+      { startGold, lives: 100, waves: initialWaves },
+      { path: funMap.path, size: funMap.size, roadWidthCells: funMap.roadWidthCells, plantGrid },
+      {
+        autoStartFirstWave: false,
+        towerLevels: towerLevels as any,
+        allowedPlants,
+        allowedElements,
+        mode: mode === 'test' ? 'endlessTest' : 'endless',
+        lifeBonusPerWave: 50,
+        endlessWaveFactory: (waveNumber: number) => createFunModeWave(waveNumber),
+      }
+    );
+
+    setActiveFunMode(mode);
+    setWinReward(null);
+    setCurrentStar(1);
+    setLevelIndex(null);
+    setStage('playing');
+  }, [funMap, hub, loadLevel, setCurrentStar, setLevelIndex, setStage]);
+
+  const funModeLabel = activeFunMode ? (activeFunMode === 'test' ? '测试模式' : '无尽模式') : '';
 
   return (
     <div style={{ minHeight:'100vh', background:'#f3f4f6', color:'#111827', fontFamily:'Arial, sans-serif' }}>
@@ -712,8 +829,35 @@ function App() {
               </div>
 
               {/* 中间开始按钮 */}
-              <div style={{ display:'flex', justifyContent:'center', marginTop:20 }}>
-                <button onClick={()=>setStage('select')} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #111827', background:'#fff', fontWeight:700 }}>开始游戏</button>
+              <div style={{ display:'flex', justifyContent:'center', gap:12, marginTop:20 }}>
+                <button onClick={()=>{ setActiveFunMode(null); setStage('select'); }} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #111827', background:'#fff', fontWeight:700 }}>开始游戏</button>
+                <button onClick={()=>setStage('fun')} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #0f172a', background:'#f8fafc', fontWeight:700 }}>趣味模式</button>
+              </div>
+            </div>
+          )}
+
+          {stage === 'fun' && (
+            <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h2 style={{ fontSize: 20, margin: 0 }}>趣味模式</h2>
+                <button onClick={() => { setActiveFunMode(null); setStage('hub'); }} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>返回主界面</button>
+              </div>
+              <p style={{ fontSize: 14, color: '#475569', marginBottom: 16 }}>在究极回环地图上体验无尽挑战：测试模式可自定义全部植物/元素等级，无尽模式沿用当前账号的解锁状态。初始生命 100，每通关一波生命 +50。</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18 }}>测试模式</h3>
+                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>所有植物与元素全部解锁，开始前可逐一设定等级，适合快速验证数值与组合。</p>
+                  </div>
+                  <button onClick={() => startFunMode('test')} className="btn-hover" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #0f172a', background: '#0f172a', color: '#fff', fontWeight: 600 }}>配置并开始</button>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18 }}>无尽模式</h3>
+                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>沿用当前账号的解锁与等级配置，逐波强化敌人，每 10 波迎战 Boss。</p>
+                  </div>
+                  <button onClick={() => startFunMode('endless')} className="btn-hover" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #0f172a', background: '#fff', color: '#0f172a', fontWeight: 600 }}>直接开始</button>
+                </div>
               </div>
             </div>
           )}
@@ -857,6 +1001,10 @@ function App() {
                         {entry.aura && (
                           <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>光环伤害 {entry.aura.dps}/s</div>
                         )}
+                        {entry.bounce && (
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>反弹上限 {entry.bounce.maxBounces}</div>
+                        )}
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{entry.cfg.description}</div>
                       </div>
                     ))}
                   </div>
@@ -944,11 +1092,16 @@ function App() {
             <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999 }}>
               <div style={{ width: 360, borderRadius: 12, background:'#ffffff', border:'1px solid #e5e7eb', padding:16, boxShadow:'0 10px 30px rgba(0,0,0,0.15)' }}>
                 <div style={{ fontWeight:700, fontSize:18, marginBottom:8 }}>
-                  {stage === 'won' ? '关卡完成 🎉' : '挑战失败 💥'}
+                  {stage === 'won' ? '关卡完成 🎉' : (activeFunMode ? `挑战结束 · ${funModeLabel}` : '挑战失败 💥')}
                 </div>
                 <div style={{ color:'#6b7280', fontSize:13, marginBottom:10 }}>
-                  {levelIndex!=null ? `第${levelIndex+1}关 ${LEVELS[levelIndex].name}` : ''}
+                  {stage === 'won'
+                    ? (levelIndex != null ? `第${levelIndex + 1}关 ${LEVELS[levelIndex].name}` : activeFunMode ? `趣味模式 · ${funModeLabel}` : '')
+                    : (activeFunMode ? `趣味模式 · ${funModeLabel}` : levelIndex != null ? `第${levelIndex + 1}关 ${LEVELS[levelIndex].name}` : '')}
                 </div>
+                {stage === 'lost' && activeFunMode && (
+                  <div style={{ color:'#475569', fontSize:13, marginBottom:10 }}>本轮击退波数：{wavesCleared}</div>
+                )}
                 {stage === 'won' && winReward && winReward.coins > 0 && (
                   <div style={{ background:'#f9fafb', borderRadius:8, padding:12, marginBottom:12 }}>
                     <div style={{ fontWeight:600, marginBottom:6, color:'#059669' }}>🎁 通关奖励</div>
@@ -970,17 +1123,29 @@ function App() {
                   </div>
                 )}
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {stage === 'won' && (
+                  {stage === 'won' ? (
                     <>
-                      {currentStar < 3 && (
-                        <button onClick={() => { if (levelIndex!=null) { const nextStar = (Math.min(3, (currentStar + 1)) as 1|2|3); setStarSel(prev => ({ ...prev, [levelIndex]: nextStar })); setWinReward(null); startLevel(levelIndex); } }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>挑战更高星级</button>
+                      {levelIndex != null && currentStar < 3 && (
+                        <button onClick={() => { if (levelIndex != null) { const nextStar = (Math.min(3, (currentStar + 1)) as 1|2|3); setStarSel(prev => ({ ...prev, [levelIndex]: nextStar })); setWinReward(null); startLevel(levelIndex); } }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>挑战更高星级</button>
                       )}
                       <button onClick={() => { setWinReward(null); toNextLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>下一关</button>
+                      <button onClick={() => { setWinReward(null); restartLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>重玩</button>
+                      <button onClick={() => { setWinReward(null); setStage('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
+                      <button onClick={() => { setWinReward(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
+                    </>
+                  ) : activeFunMode ? (
+                    <>
+                      <button onClick={() => { setWinReward(null); startFunMode(activeFunMode); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #0f172a', background:'#0f172a', color:'#fff', cursor:'pointer' }}>重新开始{funModeLabel}</button>
+                      <button onClick={() => { setWinReward(null); setStage('fun'); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回趣味模式</button>
+                      <button onClick={() => { setWinReward(null); setActiveFunMode(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { setWinReward(null); restartLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>重玩</button>
+                      <button onClick={() => { setWinReward(null); setStage('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
+                      <button onClick={() => { setWinReward(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
                     </>
                   )}
-                  <button onClick={() => { setWinReward(null); restartLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>重玩</button>
-                  <button onClick={() => { setWinReward(null); setStage('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
-                  <button onClick={() => { setWinReward(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
                 </div>
               </div>
             </div>
@@ -1041,4 +1206,3 @@ function App() {
 }
 
 export default App;
-

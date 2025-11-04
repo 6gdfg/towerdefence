@@ -93,6 +93,7 @@ const REWARD_POOL: Array<{ id: string; weight: number }> = [
   { id: 'element:electric', weight: 6 },
   { id: 'element:ice', weight: 7 },
   { id: 'element:wind', weight: 5 },
+  { id: 'element:light', weight: 6 },
 ];
 
 function randInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }

@@ -13,10 +13,11 @@ const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
   wind: 20,
   gold: 20,
   electric: 30,
+  light: 25,
 };
 
 export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?: () => void } = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [showAbout, setShowAbout] = useState(false);
@@ -29,6 +30,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
   const plantChoices = availablePlants.map(id => BASE_PLANTS_CONFIG[id]).filter(Boolean);
   const elementChoices = availableElements.map(id => ELEMENT_PLANT_CONFIG[id]).filter(Boolean);
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
+  const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
 
   useEffect(() => {
     if (selectedPlant && !availablePlants.includes(selectedPlant)) {
@@ -164,10 +166,11 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
   const handlePlace = (e: React.MouseEvent) => {
     if (!selectedPlant && !selectedElement) return;
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    const scaledCell = CELL_SIZE * mapScale;
-    if (scaledCell <= 0) return;
-    const clickX = (e.clientX - rect.left) / scaledCell;
-    const clickY = (e.clientY - rect.top) / scaledCell;
+    if (mapScale <= 0) return;
+    const localX = (e.clientX - rect.left) / mapScale;
+    const localY = (e.clientY - rect.top) / mapScale;
+    const clickX = localX / CELL_SIZE;
+    const clickY = localY / CELL_SIZE;
 
     let nearestGrid = null as Position | null;
     let minDist = Infinity;
@@ -191,8 +194,10 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
   };
 
   const handleTowerClick = (tower: typeof towers[number], e: React.MouseEvent) => {
+    if (selectedPlant || selectedElement) {
+      return;
+    }
     e.stopPropagation();
-    if (selectedPlant || selectedElement) return;
     if (tower.type === 'sunlightFlower') {
       manualFireTower(tower.id);
     }
@@ -204,7 +209,13 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         <header style={{ width:'100%', display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:12 }}>
           <div>🪙 金币: {gold}</div>
           <div>❤️ 生命: {lives}</div>
-          <div>🌊 波次: {Math.min(waveIndex + (isWaveActive ? 1 : 0), waves.length)} / {waves.length}</div>
+          <div>🌊 波次: {mode === 'campaign' ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
+          {mode && mode !== 'campaign' && (
+            <div style={{ fontSize:12, color:'#f97316' }}>
+              模式：{mode === 'endless' ? '无尽模式' : '测试模式'}
+              <span style={{ marginLeft:8, color:'#22c55e' }}>每波 +50 生命</span>
+            </div>
+          )}
           <div style={{ fontSize:12, color:'#6b7280' }}>提示：塔和怪物已显示 lv. 等级</div>
           <div style={{ display:'flex', gap:8, alignItems: 'center' }}>
             <a href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" style={{ color: '#111827', display: 'flex', alignItems: 'center' }}>
@@ -487,7 +498,16 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
             <div
               key={t.id}
               onClick={(e) => handleTowerClick(t, e)}
-              style={{ position:'absolute', ...worldToPx(t.pos), width:CELL_SIZE, height:CELL_SIZE, transform:'translate(-50%, -50%)', zIndex:2, cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default' }}
+              style={{
+                position: 'absolute',
+                ...worldToPx(t.pos),
+                width: CELL_SIZE,
+                height: CELL_SIZE,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 2,
+                cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default',
+                filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
+              }}
             >
               <div
                 style={{
@@ -503,7 +523,20 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
               >
                 {renderPlantIcon({ ...t, color: iconStroke })}
               </div>
-              <div style={{ position:'absolute', left:'50%', top:'50%', width: t.range*2*CELL_SIZE, height: t.range*2*CELL_SIZE, marginLeft: -t.range*CELL_SIZE, marginTop:-t.range*CELL_SIZE, border:`1px dashed rgba(17,24,39,0.15)`, borderRadius:'50%' }} />
+              <div
+                style={{
+                  position:'absolute',
+                  left:'50%',
+                  top:'50%',
+                  width: t.range * 2 * CELL_SIZE,
+                  height: t.range * 2 * CELL_SIZE,
+                  marginLeft: -t.range * CELL_SIZE,
+                  marginTop: -t.range * CELL_SIZE,
+                  border: `1px dashed rgba(17,24,39,0.15)`,
+                  borderRadius: '50%',
+                  pointerEvents: 'none',
+                }}
+              />
               <div style={{ position:'absolute', left:'50%', top:'105%', transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280', textAlign:'center', lineHeight:1.2 }}>
                 <div>lv.{t.level ?? 1}</div>
               </div>
@@ -601,6 +634,8 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         {projectiles.map(p => {
           const borderColor = p.color || DEFAULT_BULLET_COLOR;
           const textColor = borderColor;
+          const sourceTower = towers.find(t => t.id === p.sourceTowerId);
+          const isLightBullet = sourceTower?.element?.type === 'light';
               return (
                 <div key={p.id} style={{ position:'absolute', ...worldToPx(p.pos), transform:'translate(-50%, -50%)', pointerEvents:'none', zIndex:10 }}>
                   <div
@@ -615,6 +650,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                   borderRadius:6,
                   boxShadow:'0 1px 2px rgba(0,0,0,0.08)',
                   textAlign:'center',
+                  textShadow: isLightBullet ? `0 0 4px ${p.color}` : 'none',
                 }}
               >
                 {Math.round(p.damage)}

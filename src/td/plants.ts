@@ -22,6 +22,7 @@ export interface BasePlantConfig {
 export interface ElementConfig {
   id: ElementType;
   name: string;
+  description: string;
   cost: number;
   color: string;
   bulletColor: string;
@@ -56,6 +57,9 @@ export interface ElementConfig {
     damagePerSecond: number;
     bonusPerLevel: number;
   };
+  bounce?: {
+    maxBounces: number;
+  };
 }
 
 export const DEFAULT_PLANT_COLOR = '#d1d5db'; // 灰色
@@ -64,7 +68,7 @@ export const DEFAULT_BULLET_COLOR = '#9ca3af'; // 灰色
 export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
   sunflower: {
     id: 'sunflower',
-    name: '向日葵',
+    name: '金盏花',
     icon: '★',
     cost: 50,
     range: 0,
@@ -153,6 +157,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   gold: {
     id: 'gold',
     name: '金元素',
+    description: '攻击时概率破甲，大幅增加后续伤害。',
     cost: 100,
     color: '#fbbf24',
     bulletColor: '#f59e0b',
@@ -166,6 +171,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   fire: {
     id: 'fire',
     name: '火元素',
+    description: '攻击附加灼烧效果，持续造成伤害。',
     cost: 100,
     color: '#ef4444',
     bulletColor: '#dc2626',
@@ -180,6 +186,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   electric: {
     id: 'electric',
     name: '电元素',
+    description: '攻击时产生小范围溅射伤害。',
     cost: 100,
     color: '#8b5cf6',
     bulletColor: '#7c3aed',
@@ -193,6 +200,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   ice: {
     id: 'ice',
     name: '冰元素',
+    description: '攻击附加减速效果。',
     cost: 80,
     color: '#3b82f6',
     bulletColor: '#2563eb',
@@ -207,6 +215,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   wind: {
     id: 'wind',
     name: '风元素',
+    description: '植物周围产生光环，持续对范围内敌人造成伤害，并附加击退效果。',
     cost: 150,
     color: '#10b981',
     bulletColor: '#059669',
@@ -218,9 +227,20 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
       distance: 0.7,
     },
   },
+  light: {
+    id: 'light',
+    name: '光元素',
+    description: '子弹在失去目标后会继续飞行并可反弹，最多反弹5次。',
+    cost: 80,
+    color: '#fde047',
+    bulletColor: '#facc15',
+    bounce: {
+      maxBounces: 5,
+    },
+  },
 };
 
-export const SUNFLOWER_ELEMENT_BLOCKLIST = new Set<ElementType>(['gold', 'fire', 'electric', 'ice', 'wind']);
+export const SUNFLOWER_ELEMENT_BLOCKLIST = new Set<ElementType>(['gold', 'fire', 'electric', 'ice', 'wind', 'light']);
 
 const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.08, rangePerLevel: 0.03, fireRatePerLevel: 0.05 } as const;
 

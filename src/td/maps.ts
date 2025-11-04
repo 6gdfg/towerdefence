@@ -12,6 +12,34 @@ export interface MapSpec {
 
 const DEFAULT_MAP_WIDTH = 24;
 const DEFAULT_MAP_HEIGHT = 40;
+export const SPIRAL_MAP_ID = 1000;
+const SPIRAL_MAP_SIZE = { w: 36, h: 36 } as const;
+
+function createSquareSpiralPath(size: { w: number; h: number }): Position[] {
+  const centerX = (size.w - 1) / 2;
+  const centerY = (size.h - 1) / 2;
+  const maxRadius = Math.min(size.w, size.h) / 2 - 3;
+  const a = 0.4;
+  const b = 1.2;
+  const thetaStep = 0.18;
+  const positions: Position[] = [{ x: centerX, y: centerY }];
+
+  for (let theta = thetaStep; theta <= 14; theta += thetaStep) {
+    const radius = a + b * theta;
+    if (radius > maxRadius) break;
+    const x = centerX + radius * Math.cos(theta);
+    const y = centerY + radius * Math.sin(theta);
+    positions.push({ x: Number(x.toFixed(3)), y: Number(y.toFixed(3)) });
+  }
+
+  // 让路径在最外圈向右延伸到终点
+  const last = positions[positions.length - 1];
+  if (last) {
+    positions.push({ x: size.w - 2.5, y: last.y });
+  }
+
+  return positions;
+}
 
 // 字母模板的原始设计尺寸和布局参数
 const LETTER_TEMPLATE_WIDTH = 10; // 每个字母占据的区域宽度（包含字母本身+内部padding）
@@ -302,6 +330,14 @@ function createLetterMap(id: number, name: string, desc: string, letters: string
 }
 
 export const MAPS: MapSpec[] = [
+  {
+    id: SPIRAL_MAP_ID,
+    name: '究极回环',
+    desc: '螺旋式无尽挑战专用地图',
+    size: { w: SPIRAL_MAP_SIZE.w, h: SPIRAL_MAP_SIZE.h },
+    roadWidthCells: 2,
+    path: createSquareSpiralPath(SPIRAL_MAP_SIZE),
+  },
   {
     id: 1,
     name: '折线小道',
