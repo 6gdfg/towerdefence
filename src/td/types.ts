@@ -36,7 +36,7 @@ export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machin
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 
 export type TowerType = PlantType;
-export type GameMode = 'campaign' | 'endless' | 'endlessTest';
+export type GameMode = 'campaign' | 'endless' | 'endlessTest' | 'random';
 
 export interface Tower {
   id: string;

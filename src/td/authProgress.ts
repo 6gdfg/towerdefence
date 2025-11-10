@@ -9,37 +9,35 @@ export function setUsername(name: string): void {
 
 export async function loginUser(username: string, password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
   try {
-    const resp = await fetch('/api/auth?action=login', {
+    const resp = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ action: 'login', username, password })
     });
     const data = await resp.json();
-    if (data.token) {
-      localStorage.setItem('td_token', data.token);
-      setUsername(username);
-    }
+    if (!resp.ok || !data?.token) throw new Error(data?.error || '登录失败');
+    localStorage.setItem('td_token', data.token);
+    setUsername(username);
     return data;
-  } catch {
-    return { ok: false, error: '网络错误' };
+  } catch (err) {
+    throw err instanceof Error ? err : new Error('网络错误');
   }
 }
 
 export async function registerUser(username: string, password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
   try {
-    const resp = await fetch('/api/auth?action=register', {
+    const resp = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ action: 'register', username, password })
     });
     const data = await resp.json();
-    if (data.token) {
-      localStorage.setItem('td_token', data.token);
-      setUsername(username);
-    }
+    if (!resp.ok || !data?.token) throw new Error(data?.error || '注册失败');
+    localStorage.setItem('td_token', data.token);
+    setUsername(username);
     return data;
-  } catch {
-    return { ok: false, error: '网络错误' };
+  } catch (err) {
+    throw err instanceof Error ? err : new Error('网络错误');
   }
 }
 

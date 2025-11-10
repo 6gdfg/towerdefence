@@ -26,7 +26,7 @@ async function ensureTables() {
   const sql = getSql();
   await Promise.all([
     sql`CREATE TABLE IF NOT EXISTS players (player_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT NOW())`,
-    sql`CREATE TABLE IF NOT EXISTS player_wallet (player_id TEXT PRIMARY KEY, coins BIGINT DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`,
+    sql`CREATE TABLE IF NOT EXISTS player_wallet (player_id TEXT PRIMARY KEY, coins BIGINT DEFAULT 0, magic_keys INTEGER DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`,
     sql`CREATE TABLE IF NOT EXISTS inventory_shards (player_id TEXT, tower_type TEXT, shards BIGINT DEFAULT 0, PRIMARY KEY (player_id, tower_type))`,
     sql`CREATE TABLE IF NOT EXISTS chests (chest_id TEXT PRIMARY KEY, player_id TEXT, status TEXT CHECK (status IN ('locked','unlocking','ready','opened')) DEFAULT 'locked', awarded_at TIMESTAMPTZ DEFAULT NOW(), unlock_start_at TIMESTAMPTZ, unlock_ready_at TIMESTAMPTZ, duration_seconds INTEGER DEFAULT 3600, chest_type TEXT DEFAULT 'common' CHECK (chest_type IN ('common','rare','epic')), coin_reward INTEGER DEFAULT 0, open_result JSONB)`,
     sql`CREATE TABLE IF NOT EXISTS unlocked_items (player_id TEXT, item_id TEXT, unlocked BOOLEAN DEFAULT TRUE, unlocked_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (player_id, item_id))`
@@ -171,16 +171,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const chestType = c.chest_type || 'common';
       let shardCount = 0;
       let coinReward = c.coin_reward || 0;
+      let magicKeyReward = 0;
 
       // 普通箱子: 3-10碎片
       // 稀有箱子: 5-15碎片
-      // 史诗箱子: 20-30碎片
+      // 史诗箱子: 20-30碎片, 10%概率给神奇钥匙
       if (chestType === 'common') {
         shardCount = randInt(3, 10);
       } else if (chestType === 'rare') {
         shardCount = randInt(5, 15);
       } else if (chestType === 'epic') {
         shardCount = randInt(20, 30);
+        if (Math.random() < 0.1) {
+          magicKeyReward = 1;
+        }
       }
 
       // 生成随机碎片分配
@@ -200,14 +204,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ON CONFLICT (player_id, tower_type) DO UPDATE SET shards = inventory_shards.shards + EXCLUDED.shards`;
       }
 
-      // 发放金币奖励
-      if (coinReward > 0) {
-        await sql`UPDATE player_wallet SET coins = coins + ${coinReward}, updated_at=NOW() WHERE player_id=${playerId}`;
+      // 发放金币和钥匙奖励
+      if (coinReward > 0 || magicKeyReward > 0) {
+        await sql`UPDATE player_wallet SET coins = coins + ${coinReward}, magic_keys = magic_keys + ${magicKeyReward}, updated_at=NOW() WHERE player_id=${playerId}`;
       }
 
       // 开完箱后直接删除该箱子
       await sql`DELETE FROM chests WHERE chest_id=${chestId}`;
-      return res.json({ ok: true, shards: sum, coins: coinReward, chestType });
+      return res.json({ ok: true, shards: sum, coins: coinReward, magicKeys: magicKeyReward, chestType });
     }
 
     return res.status(400).json({ error: 'bad action' });

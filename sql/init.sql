@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
 CREATE TABLE IF NOT EXISTS player_wallet (
   player_id TEXT PRIMARY KEY REFERENCES players(player_id),
   coins BIGINT DEFAULT 0,
+  magic_keys INTEGER DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

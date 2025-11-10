@@ -39,7 +39,7 @@ async function ensureTables() {
   await Promise.all([
     sql`CREATE TABLE IF NOT EXISTS players (player_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT NOW())`,
     sql`CREATE TABLE IF NOT EXISTS player_progress (player_id TEXT, level_id TEXT, max_star INTEGER CHECK (max_star BETWEEN 0 AND 3), updated_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (player_id, level_id))`,
-    sql`CREATE TABLE IF NOT EXISTS player_wallet (player_id TEXT PRIMARY KEY, coins BIGINT DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`,
+    sql`CREATE TABLE IF NOT EXISTS player_wallet (player_id TEXT PRIMARY KEY, coins BIGINT DEFAULT 0, magic_keys INTEGER DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`,
     sql`CREATE TABLE IF NOT EXISTS inventory_shards (player_id TEXT, tower_type TEXT, shards BIGINT DEFAULT 0, PRIMARY KEY (player_id, tower_type))`,
     sql`CREATE TABLE IF NOT EXISTS tower_levels (player_id TEXT, tower_type TEXT, level INTEGER DEFAULT 1, PRIMARY KEY (player_id, tower_type))`,
     sql`CREATE TABLE IF NOT EXISTS chests (chest_id TEXT PRIMARY KEY, player_id TEXT, status TEXT CHECK (status IN ('locked','unlocking','ready','opened')) DEFAULT 'locked', awarded_at TIMESTAMPTZ DEFAULT NOW(), unlock_start_at TIMESTAMPTZ, unlock_ready_at TIMESTAMPTZ, duration_seconds INTEGER DEFAULT 3600, chest_type TEXT DEFAULT 'common' CHECK (chest_type IN ('common','rare','epic')), coin_reward INTEGER DEFAULT 0, open_result JSONB)`,
@@ -112,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const [prog, wallet, shards, levels, chests, unlockedRows] = await Promise.all([
         sql`SELECT level_id, max_star FROM player_progress WHERE player_id=${playerId}`,
-        sql`SELECT coins FROM player_wallet WHERE player_id=${playerId}`,
+        sql`SELECT coins, magic_keys FROM player_wallet WHERE player_id=${playerId}`,
         sql`SELECT tower_type, shards FROM inventory_shards WHERE player_id=${playerId}`,
         sql`SELECT tower_type, level FROM tower_levels WHERE player_id=${playerId}`,
         sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
@@ -121,26 +121,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const stars: Record<string, number> = {};
       (prog as any[]).forEach((r: any) => stars[r.level_id] = r.max_star);
       const coins = (wallet as any[])[0]?.coins ?? 0;
+      const magicKeys = (wallet as any[])[0]?.magic_keys ?? 0;
       const shardInv: Record<string, number> = {};
       (shards as any[]).forEach((r: any) => shardInv[r.tower_type] = Number(r.shards));
       const towerLv: Record<string, number> = {};
       (levels as any[]).forEach((r: any) => towerLv[r.tower_type] = Number(r.level));
       const unlockedItems = (unlockedRows as any[]).map((r: any) => r.item_id);
 
-      // 计算 unlocked：找到最大的已通关关卡编号 + 1
+      // 计算 unlocked：只考虑连续通关的关卡
       let unlocked = 1; // 默认至少解锁第1关
       for (let i = 1; i <= 52; i++) {
         const levelId = `L${i}`;
-        if (stars[levelId] && stars[levelId] > 0) {
-          unlocked = Math.max(unlocked, i + 1); // 通关第i关，解锁第i+1关
+        const star = stars[levelId];
+        if (star !== undefined && star > 0) {
+          // 通关了，解锁下一关
+          unlocked = i + 1;
+        } else {
+          // 未通关或钥匙解锁（0星），停止连续计数
+          break;
         }
       }
 
-      return res.json({ stars, coins, shards: shardInv, towerLevels: towerLv, chests, unlocked, unlockedItems });
+      return res.json({ stars, coins, magicKeys, shards: shardInv, towerLevels: towerLv, chests, unlocked, unlockedItems });
     }
 
     if (req.method === 'POST') {
       const { action } = req.body || {};
+      if (action === 'unlockWithKey') {
+        const pid = resolvePlayerId(req);
+        const { levelId } = req.body as { levelId: string };
+        if (!pid || !levelId) return res.status(400).json({ error: 'params' });
+        await ensurePlayer(pid);
+
+        // 检查钥匙数量
+        const wallet = await sql`SELECT magic_keys FROM player_wallet WHERE player_id=${pid}`;
+        const keys = (wallet as any[])[0]?.magic_keys ?? 0;
+        if (keys < 1) return res.status(400).json({ error: 'not enough keys' });
+
+        // 检查是否已解锁
+        const prog = await sql`SELECT max_star FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
+        if ((prog as any[])[0]?.max_star > 0) {
+          return res.status(400).json({ error: 'already unlocked' });
+        }
+
+        // 消耗钥匙，标记关卡为已解锁（0星）
+        await sql`UPDATE player_wallet SET magic_keys = magic_keys - 1, updated_at=NOW() WHERE player_id=${pid}`;
+        await sql`INSERT INTO player_progress (player_id, level_id, max_star) VALUES (${pid}, ${levelId}, 0)
+          ON CONFLICT (player_id, level_id) DO NOTHING`;
+
+        return res.json({ ok: true, remainingKeys: keys - 1 });
+      }
+
       if (action === 'setStar') {
         const pid = resolvePlayerId(req);
         const { levelId, star } = req.body as { playerId?: string; levelId: string; star: 1|2|3 };
@@ -173,6 +204,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let rewardCoins = 0;
         let chestType = 'common';
         let chestCoinReward = 0;
+        let rewardMagicKeys = 0;
 
         // 根据当前获得的星级给奖励
         if (star >= 1) {
@@ -188,14 +220,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             chestType = 'epic';
           }
 
-          await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, updated_at=NOW() WHERE player_id=${pid}`;
+          // L4通关1星给神奇钥匙
+          if (levelNum === 4 && star >= 1 && prev === 0) {
+            rewardMagicKeys = 1;
+          }
+
+          await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, updated_at=NOW() WHERE player_id=${pid}`;
 
           // 每次通关都给宝箱（锁定状态，需要解锁）
           const chestId = `c_${Math.random().toString(36).slice(2)}_${Date.now()}`;
           await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
             VALUES (${chestId}, ${pid}, 'locked', 3600, ${chestType}, ${chestCoinReward})`;
 
-          return res.json({ ok: true, star: next, rewardCoins, chestId, chestType, previousStar: prev, newRecord: next > prev, newUnlocks });
+          return res.json({ ok: true, star: next, rewardCoins, rewardMagicKeys, chestId, chestType, previousStar: prev, newRecord: next > prev, newUnlocks });
         }
 
         return res.json({ ok: true, star: next, rewardCoins: 0, newUnlocks });

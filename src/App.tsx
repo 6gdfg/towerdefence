@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TDGame from './td/TDGame';
+import LoadingScreen from './td/LoadingScreen';
+import TransitionScreen from './td/TransitionScreen';
 import { useTDStore } from './td/store';
 import { LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
+import type { MapSpec } from './td/maps';
 import { getUsername, loginUser, registerUser, fetchCloudProgress, getPlayerId, getToken, clearAuth } from './td/authProgress';
-import { getUnlocked, setUnlocked as setUnlockedPersist, getMaxStarSync, setStarCleared, refreshCache, initCache, getUnlockedItems, DEFAULT_UNLOCKED_ITEMS, updateUnlockedItems } from './td/progress';
+import { getUnlocked, setUnlocked as setUnlockedPersist, getMaxStarSync, setStarCleared, refreshCache, initCache, getUnlockedItems, DEFAULT_UNLOCKED_ITEMS, updateUnlockedItems, getAllStars } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, getPlantStatsForLevel, BasePlantConfig } from './td/plants';
-import { ElementType, PlantType, WaveDef } from './td/types';
+import { ElementType, PlantType, WaveDef, ShapeType, WaveGroup } from './td/types';
 
 // 统一按钮样式（hover 效果在 index.css 中定义）
 const btnStyle = (disabled = false): React.CSSProperties => ({
@@ -41,8 +44,88 @@ const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
 const STAR_LABELS: Record<1|2|3, string> = { 1: '一星', 2: '二星', 3: '三星' };
 const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
+const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner'];
+const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
+  square: 0.65,
+  healer: 0.55,
+  evilSniper: 0.45,
+  rager: 0.6,
+  summoner: 0.5,
+};
+const RANDOM_MODE_PLANT_COUNT = { min: 3, max: 7 };
+const RANDOM_MODE_ELEMENT_COUNT = { min: 3, max: 5 };
+const RANDOM_MODE_LEVEL_RANGE = { min: 3, max: 10 };
+const RANDOM_MODE_START_GOLD_RANGE = { min: 1000, max: 3000 };
+const RANDOM_MODE_LIVES_RANGE = { min: 18, max: 30 };
+const RANDOM_MODE_WAVE_COUNT = { min: 4, max: 10 };
 
-type FunModeType = 'test' | 'endless';
+const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const pickRandomUnique = <T,>(source: readonly T[], count: number): T[] => {
+  const pool = [...source];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, Math.min(count, pool.length));
+};
+function getMapPathCount(map: MapSpec): number {
+  const rawPath = map.path as MapSpec['path'];
+  const first = (rawPath as any)[0];
+  if (Array.isArray(first) && first.length > 0 && typeof first[0] === 'object' && first[0] !== null && 'x' in first[0]) {
+    return (rawPath as any[]).length;
+  }
+  return 1;
+}
+function buildRandomModeWaves(map: MapSpec): WaveDef[] {
+  const totalWaves = getRandomInt(RANDOM_MODE_WAVE_COUNT.min, RANDOM_MODE_WAVE_COUNT.max);
+  const pathCount = Math.max(1, getMapPathCount(map));
+  const baseLevelSeed = getRandomInt(18, 40);
+  const waves: WaveDef[] = [];
+
+  for (let w = 0; w < totalWaves; w++) {
+    const groups: WaveGroup[] = [];
+    const groupCount = getRandomInt(2, 4);
+    for (let g = 0; g < groupCount; g++) {
+      const shape = RANDOM_MODE_SHAPES[getRandomInt(0, RANDOM_MODE_SHAPES.length - 1)];
+      const level = baseLevelSeed + getRandomInt(0, 6) + w * getRandomInt(2, 4);
+      const reward = 8 + Math.floor(level / 8) + g;
+      const baseCount = getRandomInt(18, 60) + w * getRandomInt(1, 4);
+      const shapeFactor = RANDOM_MODE_SHAPE_MULTIPLIER[shape] ?? 1;
+      const adjustedCount = Math.max(3, Math.round(baseCount * shapeFactor));
+      const interval = Math.max(0.12, Number((0.45 - w * 0.02 - g * 0.01 + Math.random() * 0.12).toFixed(2)));
+      if (pathCount > 1) {
+        const perPath = Math.max(3, Math.floor(adjustedCount / pathCount));
+        for (let p = 0; p < pathCount; p++) {
+          groups.push({
+            type: shape,
+            count: perPath,
+            interval,
+            level,
+            reward,
+            pathId: p,
+          });
+        }
+      } else {
+        groups.push({
+          type: shape,
+          count: adjustedCount,
+          interval,
+          level,
+          reward,
+        });
+      }
+    }
+    waves.push({ groups });
+  }
+  return waves;
+}
+
+type FunModeType = 'test' | 'endless' | 'random';
+const FUN_MODE_LABELS: Record<FunModeType, string> = {
+  test: '测试模式',
+  endless: '无尽模式',
+  random: '随机模式',
+};
 
 function createFunModeWave(waveNumber: number): WaveDef {
   const isBoss = waveNumber % 10 === 0;
@@ -146,7 +229,7 @@ const RainbowText = ({ text }: { text: string }) => {
 function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook, onNavigateRanking }: { onAuthed?: () => void; variant?: 'bar' | 'card', onShowAbout?: () => void; onNavigateBook?: () => void; onNavigateRanking?: () => void }) {
   const [username, setUsername] = useState<string>(() => getUsername() || '');
   const [password, setPassword] = useState<string>('');
-  const [me, setMe] = useState<{ username?: string|null; coins?: number|null }>({ username: getUsername(), coins: null });
+  const [me, setMe] = useState<{ username?: string|null; coins?: number|null; magicKeys?: number|null }>({ username: getUsername(), coins: null, magicKeys: null });
   const authed = !!getToken();
 
   async function refresh() {
@@ -154,7 +237,7 @@ function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook, onNav
       const token = getToken();
       if (!token) return;
       const data = await fetchCloudProgress();
-      setMe({ username: getUsername(), coins: data.coins });
+      setMe({ username: getUsername(), coins: data.coins, magicKeys: data.magicKeys });
     } catch {}
   }
 
@@ -189,7 +272,8 @@ function AuthBar({ onAuthed, variant = 'bar', onShowAbout, onNavigateBook, onNav
         {authed && me.username ? (
           <>
             <span style={{ fontSize:13, color:'#6b7280' }}>已登录：{me.username}</span>
-            <span style={{ fontSize:13, color:'#6b7280' }}>钱包金币：{me.coins ?? '-'}</span>
+            <span style={{ fontSize:13, color:'#6b7280' }}>金币：{me.coins ?? '-'}</span>
+            <span style={{ fontSize:13, color:'#6b7280' }}>🔑：{me.magicKeys ?? 0}</span>
             <button onClick={refresh} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>刷新</button>
             {onNavigateBook && (
               <button onClick={onNavigateBook} className="btn-hover" style={{ marginLeft:8, padding:'4px 8px', borderRadius:6, border:'1px solid #d1d5db', background:'#fff' }}>图鉴</button>
@@ -302,6 +386,10 @@ function RankingPage({ onBack }: { onBack: () => void }) {
 
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [animationFinished, setAnimationFinished] = useState(false);
+  const [dataFinished, setDataFinished] = useState(false);
   const loadLevel = useTDStore(s => s.loadLevel);
   const wavesCleared = useTDStore(s => s.wavesCleared ?? 0);
   const [stage, setStage] = useState<Stage>(() => {
@@ -323,27 +411,38 @@ function App() {
       return (initial === 'book' || initial === 'ranking') ? (getToken() ? 'hub' : 'auth') : initial;
     })()
   );
+  const navigateWithTransition = useCallback((targetStage: Stage) => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setStage(targetStage);
+      // Keep transitioning for a bit longer to allow for fade-in of the new stage
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 500);
+    }, 1000); // Shorten the transition screen time
+  }, []);
+
   const goToBook = useCallback(() => {
     if (typeof window !== 'undefined' && window.location.pathname !== '/book') {
       window.history.pushState({}, '', '/book');
     }
-    setStage('book');
-  }, []);
+    navigateWithTransition('book');
+  }, [navigateWithTransition]);
 
   const goToRanking = useCallback(() => {
     if (typeof window !== 'undefined' && window.location.pathname !== '/ranking') {
       window.history.pushState({}, '', '/ranking');
     }
-    setStage('ranking');
-  }, []);
+    navigateWithTransition('ranking');
+  }, [navigateWithTransition]);
 
   const exitBook = useCallback(() => {
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
     const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
-    setStage(fallback);
-  }, []);
+    navigateWithTransition(fallback);
+  }, [navigateWithTransition]);
 
   useEffect(() => {
     if (stage !== 'book' && stage !== 'ranking') {
@@ -374,7 +473,7 @@ function App() {
   const [starSel, setStarSel] = useState<Record<number, 1|2|3>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
 
-  type HubData = { coins: number; shards: Record<string, number>; towerLevels: Record<string, number>; chests: any[]; unlockedItems: string[] } | null;
+  type HubData = { coins: number; magicKeys: number; shards: Record<string, number>; towerLevels: Record<string, number>; chests: any[]; unlockedItems: string[] } | null;
   const [hub, setHub] = useState<HubData>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [winReward, setWinReward] = useState<{ coins: number; chestType: string; message?: string } | null>(null);
@@ -435,13 +534,15 @@ function App() {
   const monsterEntries = useMemo(() => Object.entries(MONSTER_BASE_STATS) as [keyof typeof MONSTER_BASE_STATS, typeof MONSTER_BASE_STATS[keyof typeof MONSTER_BASE_STATS]][], []);
   const funMap = useMemo(() => MAPS.find(m => m.id === SPIRAL_MAP_ID), []);
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
-  async function loadHub() {
+  const loadHub = useCallback(async () => {
     try {
       const token = getToken();
-      if (!token) return;
+      if (!token) {
+        return;
+      }
       const d = await fetchCloudProgress();
       const unlockedItems = Array.isArray(d.unlockedItems) && d.unlockedItems.length > 0 ? d.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS];
-      setHub({ coins: d.coins ?? 0, shards: d.shards ?? {}, towerLevels: d.towerLevels ?? {}, chests: d.chests ?? [], unlockedItems });
+      setHub({ coins: d.coins ?? 0, magicKeys: d.magicKeys ?? 0, shards: d.shards ?? {}, towerLevels: d.towerLevels ?? {}, chests: d.chests ?? [], unlockedItems });
       // 刷新缓存
       await refreshCache();
       setHub(prev => prev ? { ...prev, unlockedItems: getUnlockedItems() } : prev);
@@ -452,17 +553,27 @@ function App() {
         // 新用户确保至少解锁第一关
         setUnlockedState(1);
       }
-    } catch {}
-  }
+    } catch (e) {
+      console.error('Failed to load hub data', e);
+    } finally {
+      setDataFinished(true);
+    }
+  }, []);
 
   // 初始化缓存
   useEffect(() => {
+    if (animationFinished && dataFinished) {
+      setIsLoading(false);
+    }
+  }, [animationFinished, dataFinished]);
+
+  useEffect(() => {
     const init = async () => {
       await initCache();
-      loadHub();
+      await loadHub();
     };
     init();
-  }, []);
+  }, [loadHub]);
 
   useEffect(() => {
     if (stage === 'book' && !hub) {
@@ -560,7 +671,7 @@ function App() {
 
     setCurrentStar(chosenStar);
     setLevelIndex(idx);
-    setStage('playing');
+    navigateWithTransition('playing');
   };
 
   const toNextLevel = () => {
@@ -570,7 +681,7 @@ function App() {
       startLevel(next);
     } else {
       // 全部通关，回到关卡选择
-      setStage('select');
+      navigateWithTransition('select');
       setLevelIndex(null);
     }
   };
@@ -581,8 +692,61 @@ function App() {
   };
 
   const startFunMode = useCallback((mode: FunModeType) => {
+    const finalizeStart = () => {
+      setActiveFunMode(mode);
+      setWinReward(null);
+      setCurrentStar(1);
+      setLevelIndex(null);
+      navigateWithTransition('playing');
+    };
+
+    if (mode === 'random') {
+      if (MAPS.length === 0) {
+        alert('No map available for random mode');
+        return;
+      }
+      const randomMap = MAPS[Math.floor(Math.random() * MAPS.length)];
+      if (!randomMap) {
+        alert('Failed to pick a random map, please try again');
+        return;
+      }
+      const plantGrid = getPlantGrid(randomMap);
+      const allowedPlants = pickRandomUnique(
+        PLANT_TYPES,
+        getRandomInt(RANDOM_MODE_PLANT_COUNT.min, RANDOM_MODE_PLANT_COUNT.max),
+      );
+      const allowedElements = pickRandomUnique(
+        ELEMENT_TYPES,
+        getRandomInt(RANDOM_MODE_ELEMENT_COUNT.min, RANDOM_MODE_ELEMENT_COUNT.max),
+      );
+      const towerLevels: Record<string, number> = {};
+      allowedPlants.forEach(plant => {
+        towerLevels[plant] = getRandomInt(RANDOM_MODE_LEVEL_RANGE.min, RANDOM_MODE_LEVEL_RANGE.max);
+      });
+      allowedElements.forEach(element => {
+        const key = `element:${element}`;
+        towerLevels[key] = getRandomInt(RANDOM_MODE_LEVEL_RANGE.min, RANDOM_MODE_LEVEL_RANGE.max);
+      });
+      const startGold = getRandomInt(RANDOM_MODE_START_GOLD_RANGE.min, RANDOM_MODE_START_GOLD_RANGE.max);
+      const lives = getRandomInt(RANDOM_MODE_LIVES_RANGE.min, RANDOM_MODE_LIVES_RANGE.max);
+      const waves = buildRandomModeWaves(randomMap);
+      loadLevel(
+        { startGold, lives, waves },
+        { path: randomMap.path, size: randomMap.size, roadWidthCells: randomMap.roadWidthCells, plantGrid },
+        {
+          autoStartFirstWave: false,
+          towerLevels: towerLevels as any,
+          allowedPlants,
+          allowedElements,
+          mode: 'random',
+        },
+      );
+      finalizeStart();
+      return;
+    }
+
     if (!funMap) {
-      alert('趣味模式地图缺失，无法开始');
+      alert('Fun mode map missing, cannot start');
       return;
     }
 
@@ -599,7 +763,7 @@ function App() {
       for (const plant of PLANT_TYPES) {
         const label = BASE_PLANTS_CONFIG[plant]?.name ?? plant;
         const defaultLv = hub?.towerLevels?.[plant] ?? 5;
-        const input = window.prompt(`设置 ${label} 等级 (≥1)`, String(defaultLv));
+        const input = window.prompt(`Set ${label} level (>=1)`, String(defaultLv));
         if (input === null) return;
         const parsed = Number(input);
         const level = Number.isFinite(parsed) ? Math.max(1, Math.min(99, Math.floor(parsed))) : defaultLv;
@@ -609,7 +773,7 @@ function App() {
         const label = ELEMENT_PLANT_CONFIG[element]?.name ?? element;
         const key = `element:${element}`;
         const defaultLv = hub?.towerLevels?.[key] ?? 3;
-        const input = window.prompt(`设置 ${label} 等级 (≥1)`, String(defaultLv));
+        const input = window.prompt(`Set ${label} level (>=1)`, String(defaultLv));
         if (input === null) return;
         const parsed = Number(input);
         const level = Number.isFinite(parsed) ? Math.max(1, Math.min(99, Math.floor(parsed))) : defaultLv;
@@ -618,7 +782,9 @@ function App() {
       towerLevels = configuredLevels;
     } else {
       const unlockedItems = getUnlockedItems();
-      const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item));
+      const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType =>
+        Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item),
+      );
       allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
       const allowedElementsRaw = unlockedItems
         .filter(item => item.startsWith('element:'))
@@ -640,47 +806,59 @@ function App() {
         mode: mode === 'test' ? 'endlessTest' : 'endless',
         lifeBonusPerWave: 50,
         endlessWaveFactory: (waveNumber: number) => createFunModeWave(waveNumber),
-      }
+      },
     );
 
-    setActiveFunMode(mode);
-    setWinReward(null);
-    setCurrentStar(1);
-    setLevelIndex(null);
-    setStage('playing');
-  }, [funMap, hub, loadLevel, setCurrentStar, setLevelIndex, setStage]);
+    finalizeStart();
+  }, [funMap, hub, loadLevel, navigateWithTransition, setCurrentStar, setLevelIndex, setWinReward]);
 
-  const funModeLabel = activeFunMode ? (activeFunMode === 'test' ? '测试模式' : '无尽模式') : '';
+  const funModeLabel = activeFunMode ? FUN_MODE_LABELS[activeFunMode] : '';
+
+  const handleAuth = useCallback(() => {
+    setIsLoading(true);
+    setAnimationFinished(false);
+    setDataFinished(false);
+    loadHub().then(() => {
+      navigateWithTransition('hub');
+    });
+  }, [loadHub, navigateWithTransition]);
+
+  if (isLoading) {
+    return <LoadingScreen onAnimationComplete={() => setAnimationFinished(true)} />;
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'#f3f4f6', color:'#111827', fontFamily:'Arial, sans-serif' }}>
-      {stage === 'auth' && (
-        <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ width: 400, background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:20, boxShadow:'0 10px 30px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontWeight:700, marginBottom:16, fontSize:18 }}>登录 / 注册</div>
-            <AuthBar variant="card" onAuthed={() => { setStage('hub'); loadHub(); }} />
+      {isTransitioning && <TransitionScreen onTransitionComplete={() => { /* Logic is now handled in navigateWithTransition */ }} />}
+      <div key={stage} className={isTransitioning ? '' : 'stage-container-fade-in'}>
+        {stage === 'auth' && (
+          <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div style={{ width: 400, background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:20, boxShadow:'0 10px 30px rgba(0,0,0,0.08)' }}>
+              <div style={{ fontWeight:700, marginBottom:16, fontSize:18 }}>登录 / 注册</div>
+              <AuthBar variant="card" onAuthed={handleAuth} />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {stage !== 'auth' && (
-        <>
-          {/* 简易登录/注册栏 - 游戏进行时不显示 */}
-          {stage !== 'playing' && <AuthBar onShowAbout={() => setShowAbout(true)} onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook} onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking} />}
-          {stage === 'hub' && (
-            <div style={{ maxWidth: 900, margin:'0 auto', padding:24 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <h2 style={{ fontSize:20, margin:0 }}>主界面</h2>
-                <button onClick={() => { clearAuth(); setStage('auth'); }} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #dc2626', background:'#fff', color:'#dc2626' }}>退出账号</button>
+        {stage !== 'auth' && (
+          <>
+            {/* 简易登录/注册栏 - 游戏进行时不显示 */}
+            {stage !== 'playing' && <AuthBar onShowAbout={() => setShowAbout(true)} onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook} onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking} />}
+            {stage === 'hub' && (
+              <div style={{ maxWidth: 900, margin:'0 auto', padding:24 }}>
+                <div className="card-enter" style={{ opacity: 0, animationDelay: '0s', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                  <h2 style={{ fontSize:20, margin:0 }}>主界面</h2>
+                <button onClick={() => { clearAuth(); navigateWithTransition('auth'); }} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #dc2626', background:'#fff', color:'#dc2626' }}>退出账号</button>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+              <div className="card-enter" style={{ opacity: 0, animationDelay: '0.05s', display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
                 <div style={{ padding:'6px 10px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:8 }}>金币：{hub?.coins ?? '-'}</div>
+                <div style={{ padding:'6px 10px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:8 }}>🔑神奇钥匙：{hub?.magicKeys ?? 0}</div>
                 <button onClick={loadHub} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff' }}>刷新云端</button>
               </div>
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                 {/* 升级面板 */}
-                <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:12 }}>
+                <div className="card-enter" style={{ opacity: 0, animationDelay: '0.1s', background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:12 }}>
                   <div style={{ fontWeight:700, marginBottom:8 }}>植物升级</div>
                   {(() => {
                     const unlockedSet = new Set(hub?.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
@@ -752,7 +930,7 @@ function App() {
                 </div>
 
                 {/* 宝箱仓库 */}
-                <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:12 }}>
+                <div className="card-enter" style={{ opacity: 0, animationDelay: '0.15s', background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:12 }}>
                   <div style={{ fontWeight:700, marginBottom:8 }}>宝箱仓库</div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:8 }}>
                     {(hub?.chests ?? []).map((c:any) => {
@@ -829,9 +1007,9 @@ function App() {
               </div>
 
               {/* 中间开始按钮 */}
-              <div style={{ display:'flex', justifyContent:'center', gap:12, marginTop:20 }}>
-                <button onClick={()=>{ setActiveFunMode(null); setStage('select'); }} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #111827', background:'#fff', fontWeight:700 }}>开始游戏</button>
-                <button onClick={()=>setStage('fun')} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #0f172a', background:'#f8fafc', fontWeight:700 }}>趣味模式</button>
+              <div className="card-enter" style={{ opacity: 0, animationDelay: '0.2s', display:'flex', justifyContent:'center', gap:12, marginTop:20 }}>
+                <button onClick={()=>{ setActiveFunMode(null); navigateWithTransition('select'); }} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #111827', background:'#fff', fontWeight:700 }}>开始游戏</button>
+                <button onClick={()=>navigateWithTransition('fun')} style={{ padding:'10px 16px', borderRadius:10, border:'1px solid #0f172a', background:'#f8fafc', fontWeight:700 }}>趣味模式</button>
               </div>
             </div>
           )}
@@ -840,14 +1018,14 @@ function App() {
             <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <h2 style={{ fontSize: 20, margin: 0 }}>趣味模式</h2>
-                <button onClick={() => { setActiveFunMode(null); setStage('hub'); }} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>返回主界面</button>
+                <button onClick={() => { setActiveFunMode(null); navigateWithTransition('hub'); }} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>返回主界面</button>
               </div>
-              <p style={{ fontSize: 14, color: '#475569', marginBottom: 16 }}>在究极回环地图上体验无尽挑战：测试模式可自定义全部植物/元素等级，无尽模式沿用当前账号的解锁状态。初始生命 100，每通关一波生命 +50。</p>
+              <p style={{ fontSize: 14, color: '#475569', marginBottom: 16 }}>在究极回环地图上体验自由挑战：测试模式可自定义全部植物/元素等级，无尽模式沿用当前账号配置，新增的随机模式会把地图、金币、植物、元素与波次统统洗牌。</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
                 <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 18 }}>测试模式</h3>
-                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>所有植物与元素全部解锁，开始前可逐一设定等级，适合快速验证数值与组合。</p>
+                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>所有植物与元素全部解锁，开始前可逐一设定等级，适合验证数值与组合。</p>
                   </div>
                   <button onClick={() => startFunMode('test')} className="btn-hover" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #0f172a', background: '#0f172a', color: '#fff', fontWeight: 600 }}>配置并开始</button>
                 </div>
@@ -858,6 +1036,13 @@ function App() {
                   </div>
                   <button onClick={() => startFunMode('endless')} className="btn-hover" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #0f172a', background: '#fff', color: '#0f172a', fontWeight: 600 }}>直接开始</button>
                 </div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 18 }}>随机模式</h3>
+                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>地图从全部地图池抽取，初始金币 1000-3000 随机；随机获得 3-7 种植物与 3-5 种元素，并赋予 3-10 级等级，波数 4-10 波、怪物组合完全随机。</p>
+                  </div>
+                  <button onClick={() => startFunMode('random')} className="btn-hover" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #0f172a', background: '#0f172a', color: '#fff', fontWeight: 600 }}>立即开局</button>
+                </div>
               </div>
             </div>
           )}
@@ -866,18 +1051,32 @@ function App() {
             <div style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
                 <h2 style={{ fontSize: 20, margin:0 }}>选择关卡</h2>
-                <button onClick={()=>setStage('hub')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff' }}>返回主界面</button>
+                <button onClick={()=>navigateWithTransition('hub')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff' }}>返回主界面</button>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                 {LEVELS.map((L, i) => {
-                  const isLocked = i + 1 > unlocked;
-                  const M = MAPS.find(m => m.id === L.mapId);
                   const clearedMax = getMaxStarSync(L.id);
+                  const allStars = getAllStars();
+                  const hasStarRecord = L.id in allStars;
+                  const isLocked = (i + 1 > unlocked) && !hasStarRecord;
+                  const M = MAPS.find(m => m.id === L.mapId);
                   const selectedStar = (starSel[i] ?? 1) as 1|2|3;
                   const levelNumber = i + 1;
                   const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
                   return (
-                    <div key={L.id} style={{ border:'1px solid #e5e7eb', borderRadius:12, padding:12, background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div
+                      key={L.id}
+                      className="card-enter"
+                      style={{
+                        border:'1px solid #e5e7eb',
+                        borderRadius:12,
+                        padding:12,
+                        background:'#fff',
+                        boxShadow:'0 1px 3px rgba(0,0,0,0.06)',
+                        animationDelay: `${i * 0.05}s`,
+                        opacity: 0,
+                      }}
+                    >
                       <div style={{ fontWeight:700, marginBottom:8 }}>{`第${i+1}关 ${L.name}`}</div>
                       <div style={{ display:'flex', gap:8, fontSize:12, color:'#6b7280' }}>
                         <span>地图: {M ? `#${M.id} ${M.name}` : `#${L.mapId}`}</span>
@@ -920,9 +1119,36 @@ function App() {
                         })}
                         <span style={{ fontSize:12, color:'#6b7280' }}>星级</span>
                       </div>
-                      <button onClick={() => startLevel(i)} disabled={isLocked} style={{ marginTop:10, padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:isLocked?'#f3f4f6':'#fff', color:isLocked?'#9ca3af':'#111827', cursor:isLocked?'not-allowed':'pointer' }}>
-                        {isLocked ? '未解锁' : `开始（★${selectedStar}）` }
-                      </button>
+                      <div style={{ display:'flex', gap:6, marginTop:10 }}>
+                        <button onClick={() => startLevel(i)} disabled={isLocked} style={{ flex:1, padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:isLocked?'#f3f4f6':'#fff', color:isLocked?'#9ca3af':'#111827', cursor:isLocked?'not-allowed':'pointer' }}>
+                          {isLocked ? '未解锁' : `开始（★${selectedStar}）` }
+                        </button>
+                        {isLocked && (hub?.magicKeys ?? 0) > 0 && (
+                          <button onClick={async () => {
+                            const token = getToken();
+                            if (!token) return;
+                            if (!confirm(`使用1把神奇钥匙解锁${L.name}？`)) return;
+                            try {
+                              const resp = await fetch('/api/progress', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ action: 'unlockWithKey', levelId: L.id })
+                              });
+                              if (resp.ok) {
+                                await loadHub();
+                                alert('解锁成功！');
+                              } else {
+                                const err = await resp.json();
+                                alert('解锁失败：' + (err.error || '未知错误'));
+                              }
+                            } catch (e: any) {
+                              alert('解锁失败：' + (e?.message || '网络错误'));
+                            }
+                          }} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #f59e0b', background:'#fff', color:'#f59e0b', cursor:'pointer', whiteSpace:'nowrap' }}>
+                            🔑解锁
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -943,8 +1169,19 @@ function App() {
                   <div style={{ fontSize: 12, color: '#9ca3af' }}>暂无解锁植物。</div>
                 ) : (
                   <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-                    {plantBookData.map(entry => (
-                      <div key={entry.type} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                    {plantBookData.map((entry, i) => (
+                      <div
+                        key={entry.type}
+                        className="card-enter"
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 12,
+                          padding: 12,
+                          background: '#fff',
+                          animationDelay: `${i * 0.05}s`,
+                          opacity: 0,
+                        }}
+                      >
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.config.name}（lv.{entry.level}）</div>
                         <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
                           射程 {entry.stats.range} ｜ 伤害 {entry.stats.damage} ｜ 攻速 {entry.stats.fireRate > 0 ? entry.stats.fireRate : '0（手动）'} ｜ 子弹速度 {entry.stats.projectileSpeed}
@@ -973,8 +1210,19 @@ function App() {
                   <div style={{ fontSize: 12, color: '#9ca3af' }}>暂无解锁元素。</div>
                 ) : (
                   <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-                    {elementBookData.map(entry => (
-                      <div key={entry.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                    {elementBookData.map((entry, i) => (
+                      <div
+                        key={entry.id}
+                        className="card-enter"
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 12,
+                          padding: 12,
+                          background: '#fff',
+                          animationDelay: `${i * 0.05}s`,
+                          opacity: 0,
+                        }}
+                      >
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{entry.cfg.name}（lv.{entry.level}）</div>
                         <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>费用 {entry.cfg.cost} ｜ 伤害倍率 ×{entry.damageMultiplier}</div>
                         {entry.fireRateMultiplier !== null && (
@@ -1014,8 +1262,19 @@ function App() {
               <div>
                 <h3 style={{ fontSize: 16, margin: '12px 0 8px 0' }}>怪物图鉴</h3>
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-                  {monsterEntries.map(([id, stats]) => (
-                    <div key={id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, background: '#fff' }}>
+                  {monsterEntries.map(([id, stats], i) => (
+                    <div
+                      key={id}
+                      className="card-enter"
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 12,
+                        padding: 12,
+                        background: '#fff',
+                        animationDelay: `${i * 0.05}s`,
+                        opacity: 0,
+                      }}
+                    >
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{MONSTER_LABELS[id]}（{id}）</div>
                       <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>基础生命 {stats.hp} ｜ 基础速度 {stats.speed.toFixed(2)} ｜ 泄漏伤害 {stats.leakDamage}</div>
                       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>实际数值会随关卡等级提升。</div>
@@ -1031,7 +1290,7 @@ function App() {
               if (typeof window !== 'undefined' && window.location.pathname !== '/') {
                 window.history.pushState({}, '', '/');
               }
-              setStage('hub');
+              navigateWithTransition('hub');
             }} />
           )}
 
@@ -1055,7 +1314,7 @@ function App() {
                   const totalUnlocks = Array.from(new Set([...serverUnlocks, ...extraUnlocks]));
                   if (totalUnlocks.length > 0) {
                     setHub(prev => {
-                      const base = prev ?? { coins: 0, shards: {}, towerLevels: {}, chests: [], unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
+                      const base = prev ?? { coins: 0, magicKeys: 0, shards: {}, towerLevels: {}, chests: [], unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
                       const merged = new Set(base.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
                       totalUnlocks.forEach((item: string) => merged.add(item));
                       return { ...base, unlockedItems: Array.from(merged) };
@@ -1073,7 +1332,8 @@ function App() {
                   }
                   const prevUnlocked = getUnlocked();
                   const nextUnlock = Math.min(LEVELS.length, levelIndex + 2);
-                  if (nextUnlock > prevUnlocked) {
+                  // 只有当玩家通关的关卡是当前解锁的最高关卡时，才解锁下一关
+                  if (levelIndex != null && levelIndex + 1 === prevUnlocked) {
                     setUnlockedPersist(nextUnlock);
                     setUnlockedState(nextUnlock);
                   }
@@ -1130,20 +1390,20 @@ function App() {
                       )}
                       <button onClick={() => { setWinReward(null); toNextLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>下一关</button>
                       <button onClick={() => { setWinReward(null); restartLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>重玩</button>
-                      <button onClick={() => { setWinReward(null); setStage('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
-                      <button onClick={() => { setWinReward(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
+                      <button onClick={() => { setWinReward(null); navigateWithTransition('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
+                      <button onClick={() => { setWinReward(null); navigateWithTransition('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
                     </>
                   ) : activeFunMode ? (
                     <>
                       <button onClick={() => { setWinReward(null); startFunMode(activeFunMode); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #0f172a', background:'#0f172a', color:'#fff', cursor:'pointer' }}>重新开始{funModeLabel}</button>
-                      <button onClick={() => { setWinReward(null); setStage('fun'); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回趣味模式</button>
-                      <button onClick={() => { setWinReward(null); setActiveFunMode(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
+                      <button onClick={() => { setWinReward(null); navigateWithTransition('fun'); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回趣味模式</button>
+                      <button onClick={() => { setWinReward(null); setActiveFunMode(null); navigateWithTransition('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
                     </>
                   ) : (
                     <>
                       <button onClick={() => { setWinReward(null); restartLevel(); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>重玩</button>
-                      <button onClick={() => { setWinReward(null); setStage('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
-                      <button onClick={() => { setWinReward(null); setStage('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
+                      <button onClick={() => { setWinReward(null); navigateWithTransition('select'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回关卡</button>
+                      <button onClick={() => { setWinReward(null); navigateWithTransition('hub'); setLevelIndex(null); }} className="btn-hover" style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #d1d5db', background:'#fff', cursor:'pointer' }}>返回主界面</button>
                     </>
                   )}
                 </div>
@@ -1185,6 +1445,7 @@ function App() {
           )}
         </>
       )}
+      </div>
 
       {showAbout && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -26,15 +26,15 @@ function getPathCount(mapId: number): number {
   return 1;
 }
 
-function createFinalBossWave(mapId: number, opts: { bossLevel: number; smallReward: number; bossReward: number; intensity?: number; leakDamage?: number }): WaveDef {
-  const { bossLevel, smallReward, bossReward, intensity = 1, leakDamage = 5 } = opts;
+function createFinalBossWave(mapId: number, opts: { bossLevel: number; smallReward: number; bossReward: number; intensity?: number }): WaveDef {
+  const { bossLevel, smallReward, bossReward, intensity = 1 } = opts;
   const pathCount = Math.max(1, getPathCount(mapId));
-  const circleBase = Math.round(120 * intensity);
-  const triangleBase = Math.round(90 * intensity);
-  const bossCountPerPath = pathCount > 1 ? 1 : Math.max(3, Math.round(3 * intensity));
+  const circleBase = Math.round(120 * intensity * 0.75);
+  const triangleBase = Math.round(90 * intensity * 0.75);
+  const bossCountPerPath = 1;
   const smallLevelBase = Math.min(
     Math.max(10, Math.round(bossLevel * 0.06)),
-    Math.round(60 + intensity * 12)
+    Math.round(45 + intensity * 12)
   );
   const triangleLevelBase = Math.min(
     smallLevelBase + Math.round(6 + intensity * 4),
@@ -64,9 +64,9 @@ function createFinalBossWave(mapId: number, opts: { bossLevel: number; smallRewa
       type: 'square' as const,
       count: bossCountPerPath,
       interval: 1.4,
-      level: bossLevel,
+      level: bossLevel - 400,
       reward: bossReward,
-      leakDamage,
+      leakDamage: 4,
       ...pathInjection,
     });
   }
@@ -164,8 +164,8 @@ for (let i = 0; i < 49; i++) {
 
   // 基础参数随关卡递增
   const baseLevel = 10 + i * 3; // 怪物基础等级：12, 14, 16, ...
-  const startGold = Math.max(1000, 1200 - i * 10); // 第4关1200，每关递减10，最低1000
-  const lives = Math.max(10, 18 - Math.floor(i / 10)); // 生命值递减：15→14→13→12→11→10
+  const startGold = Math.max(1200, 1400 - i * 10); // 第4关1200，每关递减10，最低1000
+  const lives = Math.max(10, 20 - Math.floor(i / 10)); // 生命值递减：15→14→13→12→11→10
   const waveCount = 3 + Math.floor(i / 8); // 波数递增：3→4→5→6→7
   const bossLevel = 1150 + i * 20; // BOSS等级递增
 
@@ -372,7 +372,6 @@ for (let i = 0; i < 49; i++) {
     smallReward: 14 + Math.floor(i / 4),
     bossReward: 160 + i * 6,
     intensity,
-    leakDamage: 5 + Math.floor(i / 10),
   }));
 
   LEVELS.push({

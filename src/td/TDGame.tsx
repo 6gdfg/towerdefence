@@ -17,20 +17,33 @@ const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
 };
 
 export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?: () => void } = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= 900 : false,
+  );
   const [showAbout, setShowAbout] = useState(false);
   const announcedWinRef = useRef(false);
   const announcedLoseRef = useRef(false);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
-  const [mapScale, setMapScale] = useState(1);
+  const svgRef = useRef<SVGSVGElement>(null);
   const selectedPlantInfo = selectedPlant ? BASE_PLANTS_CONFIG[selectedPlant] : null;
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
   const plantChoices = availablePlants.map(id => BASE_PLANTS_CONFIG[id]).filter(Boolean);
   const elementChoices = availableElements.map(id => ELEMENT_PLANT_CONFIG[id]).filter(Boolean);
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
+  const isFiniteMode = mode === 'campaign' || mode === 'random';
+  const modeLabel = mode === 'endless'
+    ? '无尽模式'
+    : mode === 'endlessTest'
+      ? '测试模式'
+      : mode === 'random'
+        ? '随机模式'
+        : mode === 'campaign'
+          ? '关卡模式'
+          : null;
 
   useEffect(() => {
     if (selectedPlant && !availablePlants.includes(selectedPlant)) {
@@ -43,6 +56,15 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
       setSelectedElement(null);
     }
   }, [availableElements, selectedElement]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 
   const renderPlantIcon = (tower: typeof towers[number]) => {
     const stroke = tower.element ? (tower.color || '#f59e0b') : '#9ca3af';
@@ -120,34 +142,6 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
     return () => clearInterval(id);
   }, [update]);
 
-  useEffect(() => {
-    const updateScale = () => {
-      const container = mapWrapperRef.current;
-      if (!container) return;
-      const availableWidth = container.clientWidth;
-      const availableHeight = container.clientHeight;
-      if (availableWidth <= 0 || availableHeight <= 0) return;
-      if (baseMapWidth <= 0 || baseMapHeight <= 0) return;
-      const widthRatio = availableWidth / baseMapWidth;
-      const heightRatio = availableHeight / baseMapHeight;
-      const nextScale = Math.min(widthRatio, heightRatio);
-      setMapScale(prev => (Math.abs(prev - nextScale) > 0.001 ? nextScale : prev));
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-
-    let resizeObserver: ResizeObserver | undefined;
-    if (typeof ResizeObserver !== 'undefined' && mapWrapperRef.current) {
-      resizeObserver = new ResizeObserver(() => updateScale());
-      resizeObserver.observe(mapWrapperRef.current);
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateScale);
-      resizeObserver?.disconnect();
-    };
-  }, [baseMapWidth, baseMapHeight]);
 
   useEffect(() => {
     if (!isWaveActive && waveIndex >= waves.length && !announcedWinRef.current) {
@@ -165,12 +159,18 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
 
   const handlePlace = (e: React.MouseEvent) => {
     if (!selectedPlant && !selectedElement) return;
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    if (mapScale <= 0) return;
-    const localX = (e.clientX - rect.left) / mapScale;
-    const localY = (e.clientY - rect.top) / mapScale;
-    const clickX = localX / CELL_SIZE;
-    const clickY = localY / CELL_SIZE;
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+
+    // Transform the screen point to SVG coordinate system
+    const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+
+    const clickX = svgP.x / CELL_SIZE;
+    const clickY = svgP.y / CELL_SIZE;
 
     let nearestGrid = null as Position | null;
     let minDist = Infinity;
@@ -203,20 +203,22 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
     }
   };
 
+
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'stretch', padding:0, color:'#111827', background:'#f3f4f6', height:'100vh', width:'100%', overflow:'hidden' }}>
       <div style={{ padding:'16px 24px 12px 24px', display:'flex', flexDirection:'column', gap:12, flexShrink:0 }}>
         <header style={{ width:'100%', display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:12 }}>
           <div>🪙 金币: {gold}</div>
           <div>❤️ 生命: {lives}</div>
-          <div>🌊 波次: {mode === 'campaign' ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
-          {mode && mode !== 'campaign' && (
+          <div>🌊 波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
+          {mode && mode !== 'campaign' && modeLabel && (
             <div style={{ fontSize:12, color:'#f97316' }}>
-              模式：{mode === 'endless' ? '无尽模式' : '测试模式'}
-              <span style={{ marginLeft:8, color:'#22c55e' }}>每波 +50 生命</span>
+              模式：{modeLabel}
+              {lifeBonusPerWave ? (
+                <span style={{ marginLeft:8, color:'#22c55e' }}>每波 +{lifeBonusPerWave} 生命</span>
+              ) : null}
             </div>
           )}
-          <div style={{ fontSize:12, color:'#6b7280' }}>提示：塔和怪物已显示 lv. 等级</div>
           <div style={{ display:'flex', gap:8, alignItems: 'center' }}>
             <a href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" style={{ color: '#111827', display: 'flex', alignItems: 'center' }}>
               <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
@@ -234,12 +236,29 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         </header>
       </div>
 
-      <div style={{ display:'flex', flex:'1 1 auto', minHeight:0 }}>
-        <aside style={{ width:280, padding:'12px 16px 20px 24px', borderRight:'1px solid #e5e7eb', background:'#f8fafc', overflowY:'auto', flexShrink:0 }}>
+      <div style={{ display:'flex', flex:'1 1 auto', minHeight:0, flexDirection: isMobile ? 'column' : 'row' }}>
+        <aside
+          style={{
+            width: isMobile ? '100%' : 280,
+            padding: isMobile ? '12px 16px' : '12px 16px 20px 24px',
+            borderRight: isMobile ? 'none' : '1px solid #e5e7eb',
+            borderBottom: isMobile ? '1px solid #e5e7eb' : 'none',
+            background:'#f8fafc',
+            overflowY: isMobile ? 'visible' : 'auto',
+            flexShrink:0,
+          }}
+        >
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div>
               <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>基础植物</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div
+                style={{
+                  display:'flex',
+                  flexDirection: isMobile ? 'row' : 'column',
+                  flexWrap: isMobile ? 'wrap' : 'nowrap',
+                  gap: isMobile ? 6 : 8,
+                }}
+              >
                 {plantChoices.length === 0 && (
                   <div style={{ fontSize:12, color:'#9ca3af' }}>暂无可用植物</div>
                 )}
@@ -248,25 +267,35 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                   return (
                     <button
                       key={cfg.id}
+                      title={cfg.name}
                       onClick={() => { setSelectedPlant(active ? null : cfg.id); setSelectedElement(null); }}
                       style={{
                         display:'flex',
                         alignItems:'center',
-                        justifyContent:'space-between',
-                        padding:'8px 10px',
+                        justifyContent: isMobile ? 'center' : 'space-between',
+                        padding: isMobile ? '8px' : '8px 10px',
                         borderRadius:8,
                         border: active ? '2px solid #111827' : '1px solid #d1d5db',
                         background:'#ffffff',
                         color:'#111827',
                         cursor:'pointer',
                         boxShadow: active ? '0 2px 6px rgba(17,24,39,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                        flex: isMobile ? '1 0 calc(18% - 4px)' : undefined,
+                        minWidth: isMobile ? 44 : undefined,
+                        minHeight: isMobile ? 44 : undefined,
                       }}
                     >
-                      <span style={{ fontSize:18, color: active ? '#111827' : '#6b7280' }}>{cfg.icon}</span>
-                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
-                        <span>{cfg.name}</span>
-                        <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}</span>
-                      </div>
+                      {isMobile ? (
+                        <span style={{ fontSize:20 }}>{cfg.icon}</span>
+                      ) : (
+                        <>
+                          <span style={{ fontSize:18, color: active ? '#111827' : '#6b7280' }}>{cfg.icon}</span>
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
+                            <span>{cfg.name}</span>
+                            <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}</span>
+                          </div>
+                        </>
+                      )}
                     </button>
                   );
                 })}
@@ -275,7 +304,14 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
 
             <div>
               <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>元素增幅</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div
+                style={{
+                  display:'flex',
+                  flexDirection: isMobile ? 'row' : 'column',
+                  flexWrap: isMobile ? 'wrap' : 'nowrap',
+                  gap: isMobile ? 6 : 8,
+                }}
+              >
                 {elementChoices.length === 0 && (
                   <div style={{ fontSize:12, color:'#9ca3af' }}>暂无可用元素</div>
                 )}
@@ -298,12 +334,13 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                   return (
                     <button
                       key={cfg.id}
+                      title={cfg.name}
                       onClick={handleSelect}
                       style={{
                         display:'flex',
                         alignItems:'center',
-                        justifyContent:'space-between',
-                        padding:'8px 10px',
+                        justifyContent: isMobile ? 'center' : 'space-between',
+                        padding: isMobile ? '8px' : '8px 10px',
                         borderRadius:8,
                         border: active ? `2px solid ${cfg.color}` : '1px solid #d1d5db',
                         background: active ? cfg.color : '#ffffff',
@@ -313,6 +350,9 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                         position:'relative',
                         overflow:'hidden',
                         opacity: onCooldown ? 0.7 : 1,
+                        flex: isMobile ? '1 0 calc(18% - 4px)' : undefined,
+                        minWidth: isMobile ? 44 : undefined,
+                        minHeight: isMobile ? 44 : undefined,
                       }}
                     >
                       {onCooldown && (
@@ -323,11 +363,17 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                           </div>
                         </>
                       )}
-                      <span style={{ fontSize:18 }}>{cfg.name[0]}</span>
-                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
-                        <span>{cfg.name}</span>
-                        <span style={{ fontSize:12, color: active ? '#f9fafb' : '#6b7280' }}>💰 {cfg.cost}</span>
-                      </div>
+                      {isMobile ? (
+                        <span style={{ fontSize:18 }}>{cfg.name[0]}</span>
+                      ) : (
+                        <>
+                          <span style={{ fontSize:18 }}>{cfg.name[0]}</span>
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
+                            <span>{cfg.name}</span>
+                            <span style={{ fontSize:12, color: active ? '#f9fafb' : '#6b7280' }}>💰 {cfg.cost}</span>
+                          </div>
+                        </>
+                      )}
                     </button>
                   );
                 })}
@@ -344,7 +390,6 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
               当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 金币，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
             </div>
           )}
-            <div style={{ fontSize:12, color:'#9ca3af' }}>提示：向日葵只能产金，无法附加元素；日光花需点击消耗10金币发动攻击；所有数值可在 src/td/plants.ts 中调整。</div>
           </div>
         </aside>
 
@@ -360,31 +405,27 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            touchAction: 'none',
           }}
         >
-        <div
+        <svg
+          ref={svgRef}
           onClick={handlePlace}
           style={{
-            position: 'relative',
-            width: baseMapWidth,
-            height: baseMapHeight,
+            width: '100%',
+            height: '100%',
             background: '#F8FAFC',
             borderRadius: 16,
             overflow: 'hidden',
             border: '1px solid #e5e7eb',
             boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-            transform: `scale(${mapScale})`,
-            transformOrigin: 'center center',
             cursor: selectedPlant ? 'crosshair' : selectedElement ? 'cell' : 'default',
+            zIndex:1,
           }}
-        >
-        <svg
-          style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:1 }}
-          width="100%"
-          height="100%"
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid meet"
         >
+          <rect width="100%" height="100%" fill="transparent" />
           <defs>
             <pattern id="grid" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
               <path d={`M ${CELL_SIZE} 0 L 0 0 0 ${CELL_SIZE}`} fill="none" stroke="#e5e7eb" strokeWidth="1" />
@@ -489,185 +530,198 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
               );
             });
           })()}
-        </svg>
-
-        {towers.map(t => {
-          const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
-          const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : '#9ca3af';
-          return (
-            <div
-              key={t.id}
-              onClick={(e) => handleTowerClick(t, e)}
-              style={{
-                position: 'absolute',
-                ...worldToPx(t.pos),
-                width: CELL_SIZE,
-                height: CELL_SIZE,
-                transform: 'translate(-50%, -50%)',
-                zIndex: 2,
-                cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default',
-                filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
-              }}
-            >
-              <div
+          {towers.map(t => {
+            const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
+            const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : '#9ca3af';
+            const { left, top } = worldToPx(t.pos);
+            return (
+              <foreignObject
+                key={t.id}
+                x={left - CELL_SIZE / 2}
+                y={top - CELL_SIZE / 2}
+                width={CELL_SIZE}
+                height={CELL_SIZE}
                 style={{
-                  width:'100%',
-                  height:'100%',
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  background:'rgba(255,255,255,0.45)',
-                  borderRadius:6,
-                  border:'1px solid rgba(148,163,184,0.25)',
+                  zIndex: 2,
+                  cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default',
+                  filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
+                  overflow: 'visible',
                 }}
               >
-                {renderPlantIcon({ ...t, color: iconStroke })}
-              </div>
-              <div
-                style={{
-                  position:'absolute',
-                  left:'50%',
-                  top:'50%',
-                  width: t.range * 2 * CELL_SIZE,
-                  height: t.range * 2 * CELL_SIZE,
-                  marginLeft: -t.range * CELL_SIZE,
-                  marginTop: -t.range * CELL_SIZE,
-                  border: `1px dashed rgba(17,24,39,0.15)`,
-                  borderRadius: '50%',
-                  pointerEvents: 'none',
-                }}
-              />
-              <div style={{ position:'absolute', left:'50%', top:'105%', transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280', textAlign:'center', lineHeight:1.2 }}>
-                <div>lv.{t.level ?? 1}</div>
-              </div>
-            </div>
-          );
-        })}
-
-        {singleUseCasts.map(cast => {
-          const cfg = ELEMENT_PLANT_CONFIG[cast.element];
-          const remaining = Math.max(0, cast.triggerTime - gameTime);
-          const progress = Math.min(1, Math.max(0, 1 - remaining / 2));
-          const size = CELL_SIZE * (0.7 + 0.3 * progress);
-          return (
-            <div key={cast.id} style={{ position:'absolute', ...worldToPx(cast.pos), transform:'translate(-50%, -50%)', pointerEvents:'none', zIndex:5 }}>
-              <svg width={size} height={size} viewBox="0 0 24 24" style={{ display:'block' }}>
-                <polygon points="12 2 22 12 12 22 2 12" fill={`${cfg.color}33`} stroke={cfg.color} strokeWidth={2} />
-              </svg>
-              <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%, -50%)', fontSize:10, color:'#0f172a', fontWeight:600 }}>
-                {remaining > 0.1 ? remaining.toFixed(1) : '0'}
-              </div>
-            </div>
-          );
-        })}
-
-        {enemies.map(e => {
-          const size = 10 + (e.maxHp / 15);
-          const hpPercent = e.hp / e.maxHp;
-          const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
-          const grayValue = Math.round(31 + (1 - hpPercent) * 180);
-          let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
-          if (e.burnUntil && typeof e.burnUntil === 'number' && gameTime < e.burnUntil) {
-            enemyColor = `rgba(220,38,38,${alpha})`; // 红色
-          } else if (e.armorBreakUntil && typeof e.armorBreakUntil === 'number' && gameTime < e.armorBreakUntil) {
-            enemyColor = `rgba(217,119,6,${alpha})`; // 金色
-          } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
-            enemyColor = (e.slowPct || 0) >= 1 ? `rgba(30,58,138,${alpha})` : `rgba(37,99,235,${alpha})`;
-          }
-          const shapeSize = Math.max(18, size);
-          const strokeWidth = 2.2;
-          const shapeNode = (() => {
-            switch (e.shape) {
-              case 'triangle':
-              case 'healer':
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <polygon points="12 3 3 21 21 21" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
-                  </svg>
-                );
-              case 'square':
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={3} ry={3} />
-                  </svg>
-                );
-              case 'evilSniper':
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <polygon points="12 2 22 12 12 22 2 12" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
-                    <line x1="12" y1="2" x2="12" y2="22" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} />
-                    <line x1="2" y1="12" x2="22" y2="12" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} />
-                  </svg>
-                );
-              case 'rager':
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
-                    <circle cx="12" cy="12" r="4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
-                  </svg>
-                );
-              case 'summoner':
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={2} ry={2} />
-                    <circle cx="12" cy="12" r="7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
-                  </svg>
-                );
-              default:
-                return (
-                  <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
-                  </svg>
-                );
-            }
-          })();
-          return (
-            <div key={e.id} style={{ position:'absolute', ...worldToPx(e.pos), transform:'translate(-50%, -50%)', zIndex:2 }}>
-              <div style={{ width:shapeSize, height:shapeSize, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {shapeNode}
-              </div>
-              <div style={{ position:'absolute', left:'50%', top:'100%', transform:'translate(-50%, 2px)', fontSize:10, color:'#6b7280' }}>lv.{(e as any).level ?? 1}</div>
-            </div>
-          );
-        })}
-
-        {projectiles.map(p => {
-          const borderColor = p.color || DEFAULT_BULLET_COLOR;
-          const textColor = borderColor;
-          const sourceTower = towers.find(t => t.id === p.sourceTowerId);
-          const isLightBullet = sourceTower?.element?.type === 'light';
-              return (
-                <div key={p.id} style={{ position:'absolute', ...worldToPx(p.pos), transform:'translate(-50%, -50%)', pointerEvents:'none', zIndex:10 }}>
+                <div
+                  onClick={(e) => handleTowerClick(t, e)}
+                  style={{ width: '100%', height: '100%', pointerEvents: 'all' }}
+                >
                   <div
                     style={{
-                      minWidth: 20,
-                  padding:'1px 4px',
-                  fontSize:11,
-                  fontWeight:700,
-                  color: textColor,
-                  background:'rgba(255,255,255,0.9)',
-                  border:`1px solid ${borderColor}`,
-                  borderRadius:6,
-                  boxShadow:'0 1px 2px rgba(0,0,0,0.08)',
-                  textAlign:'center',
-                  textShadow: isLightBullet ? `0 0 4px ${p.color}` : 'none',
-                }}
-              >
-                {Math.round(p.damage)}
+                      width:'100%',
+                      height:'100%',
+                      display:'flex',
+                      alignItems:'center',
+                      justifyContent:'center',
+                      background:'rgba(255,255,255,0.45)',
+                      borderRadius:6,
+                      border:'1px solid rgba(148,163,184,0.25)',
+                    }}
+                  >
+                    {renderPlantIcon({ ...t, color: iconStroke })}
+                  </div>
+                  <div
+                    style={{
+                      position:'absolute',
+                      left:'50%',
+                      top:'50%',
+                      width: t.range * 2 * CELL_SIZE,
+                      height: t.range * 2 * CELL_SIZE,
+                      marginLeft: -t.range * CELL_SIZE,
+                      marginTop: -t.range * CELL_SIZE,
+                      border: `1px dashed rgba(17,24,39,0.15)`,
+                      borderRadius: '50%',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <div style={{ position:'absolute', left:'50%', top:'105%', transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280', textAlign:'center', lineHeight:1.2 }}>
+                    <div>lv.{t.level ?? 1}</div>
                   </div>
                 </div>
-              );
-            })}
-
-        {damagePopups.map(p => (
-          <div key={p.id} style={{ position:'absolute', ...worldToPx(p.pos), transform:'translate(-50%, -60%)', pointerEvents:'none', zIndex:25 }}>
-            <div style={{ padding:'2px 6px', fontSize:12, fontWeight:700, color:p.color, background:'rgba(255,255,255,0.92)', border:`1px solid ${p.color}`, borderRadius:6, boxShadow:'0 1px 3px rgba(15,23,42,0.15)' }}>
-              {p.damage}
-            </div>
-          </div>
-        ))}
-        </div>
-        </div>
+              </foreignObject>
+            );
+          })}
+ 
+          {singleUseCasts.map(cast => {
+            const cfg = ELEMENT_PLANT_CONFIG[cast.element];
+            const remaining = Math.max(0, cast.triggerTime - gameTime);
+            const progress = Math.min(1, Math.max(0, 1 - remaining / 2));
+            const size = CELL_SIZE * (0.7 + 0.3 * progress);
+            const { left, top } = worldToPx(cast.pos);
+            return (
+              <foreignObject key={cast.id} x={left - size/2} y={top - size/2} width={size} height={size} style={{ pointerEvents:'none', zIndex:5 }}>
+                <svg width={size} height={size} viewBox="0 0 24 24" style={{ display:'block' }}>
+                  <polygon points="12 2 22 12 12 22 2 12" fill={`${cfg.color}33`} stroke={cfg.color} strokeWidth={2} />
+                </svg>
+                <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%, -50%)', fontSize:10, color:'#0f172a', fontWeight:600 }}>
+                  {remaining > 0.1 ? remaining.toFixed(1) : '0'}
+                </div>
+              </foreignObject>
+            );
+          })}
+ 
+          {enemies.map(e => {
+            const size = 10 + (e.maxHp / 15);
+            const hpPercent = e.hp / e.maxHp;
+            const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
+            const grayValue = Math.round(31 + (1 - hpPercent) * 180);
+            let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
+            if (e.burnUntil && typeof e.burnUntil === 'number' && gameTime < e.burnUntil) {
+              enemyColor = `rgba(220,38,38,${alpha})`; // 红色
+            } else if (e.armorBreakUntil && typeof e.armorBreakUntil === 'number' && gameTime < e.armorBreakUntil) {
+              enemyColor = `rgba(217,119,6,${alpha})`; // 金色
+            } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
+              enemyColor = (e.slowPct || 0) >= 1 ? `rgba(30,58,138,${alpha})` : `rgba(37,99,235,${alpha})`;
+            }
+            const shapeSize = Math.max(18, size);
+            const strokeWidth = 2.2;
+            const shapeNode = (() => {
+              switch (e.shape) {
+                case 'triangle':
+                case 'healer':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <polygon points="12 3 3 21 21 21" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+                    </svg>
+                  );
+                case 'square':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={3} ry={3} />
+                    </svg>
+                  );
+                case 'evilSniper':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <polygon points="12 2 22 12 12 22 2 12" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+                      <line x1="12" y1="2" x2="12" y2="22" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} />
+                      <line x1="2" y1="12" x2="22" y2="12" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} />
+                    </svg>
+                  );
+                case 'rager':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <circle cx="12" cy="12" r="4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
+                    </svg>
+                  );
+                case 'summoner':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={2} ry={2} />
+                      <circle cx="12" cy="12" r="7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
+                    </svg>
+                  );
+                default:
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                    </svg>
+                  );
+              }
+            })();
+            const { left, top } = worldToPx(e.pos);
+            return (
+              <foreignObject key={e.id} x={left - shapeSize/2} y={top - shapeSize/2} width={shapeSize} height={shapeSize + 15} style={{ zIndex:2, overflow:'visible' }}>
+                <div style={{ width:shapeSize, height:shapeSize, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {shapeNode}
+                </div>
+                <div style={{ position:'absolute', left:'50%', top: shapeSize + 2, transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280' }}>lv.{(e as any).level ?? 1}</div>
+              </foreignObject>
+            );
+          })}
+ 
+          {projectiles.map(p => {
+            const borderColor = p.color || DEFAULT_BULLET_COLOR;
+            const textColor = borderColor;
+            const sourceTower = towers.find(t => t.id === p.sourceTowerId);
+            const isLightBullet = sourceTower?.element?.type === 'light';
+            const { left, top } = worldToPx(p.pos);
+            const width = 30;
+            const height = 18;
+            return (
+              <foreignObject key={p.id} x={left - width/2} y={top - height/2} width={width} height={height} style={{ pointerEvents:'none', zIndex:10, overflow:'visible' }}>
+                <div
+                  style={{
+                    minWidth: 20,
+                    padding:'1px 4px',
+                    fontSize:11,
+                    fontWeight:700,
+                    color: textColor,
+                    background:'rgba(255,255,255,0.9)',
+                    border:`1px solid ${borderColor}`,
+                    borderRadius:6,
+                    boxShadow:'0 1px 2px rgba(0,0,0,0.08)',
+                    textAlign:'center',
+                    textShadow: isLightBullet ? `0 0 4px ${p.color}` : 'none',
+                  }}
+                >
+                  {Math.round(p.damage)}
+                </div>
+              </foreignObject>
+            );
+          })}
+ 
+          {damagePopups.map(p => {
+            const { left, top } = worldToPx(p.pos);
+            const width = 30;
+            const height = 20;
+            return (
+              <foreignObject key={p.id} x={left - width/2} y={top - height * 0.6} width={width} height={height} style={{ pointerEvents:'none', zIndex:25, overflow:'visible' }}>
+                <div style={{ padding:'2px 6px', fontSize:12, fontWeight:700, color:p.color, background:'rgba(255,255,255,0.92)', border:`1px solid ${p.color}`, borderRadius:6, boxShadow:'0 1px 3px rgba(15,23,42,0.15)' }}>
+                  {p.damage}
+                </div>
+              </foreignObject>
+            );
+          })}
+        </svg>
+      </div>
       </div>
 
       {!isWaveActive && waveIndex >= waves.length && (
