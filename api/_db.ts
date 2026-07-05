@@ -1,7 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
-import { DEFAULT_UNLOCKED_ITEMS, INITIAL_PLAYER_COINS } from '../shared/unlocks';
-import { DATABASE_MIGRATIONS } from './_migrations';
+import { DEFAULT_UNLOCKED_ITEMS, INITIAL_PLAYER_COINS } from '../shared/unlocks.js';
+import { DATABASE_MIGRATIONS } from './_migrations.js';
 
 export type SqlRow = Record<string, unknown>;
 type QueuedSqlQuery = unknown;
@@ -15,13 +15,36 @@ export type SqlClient = ((strings: TemplateStringsArray, ...params: unknown[]) =
 
 const MIGRATION_LOCK_KEY = 74774321;
 
+function envValue(key: string) {
+  const value = process.env[key];
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/^['"]|['"]$/g, '');
+}
+
+function buildDbUrlFromParts() {
+  const host = envValue('PGHOST') || envValue('POSTGRES_HOST') || envValue('PGHOST_UNPOOLED');
+  const user = envValue('PGUSER') || envValue('POSTGRES_USER');
+  const password = envValue('PGPASSWORD') || envValue('POSTGRES_PASSWORD');
+  const database = envValue('PGDATABASE') || envValue('POSTGRES_DATABASE');
+  const port = envValue('PGPORT') || '5432';
+
+  if (!host || !user || !password || !database) return '';
+
+  const hasPort = /:\d+$/.test(host);
+  const portPart = hasPort ? '' : `:${port}`;
+  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}${portPart}/${encodeURIComponent(database)}?sslmode=require`;
+}
+
 export function getDbUrl() {
   if (typeof process === 'undefined' || !process.env) return '';
-  return process.env.POSTGRES_URL
-    || process.env.DATABASE_URL
-    || process.env.POSTGRES_PRISMA_URL
-    || process.env.POSTGRES_URL_NON_POOLING
-    || process.env.NEON_DATABASE_URL
+  return envValue('POSTGRES_URL')
+    || envValue('DATABASE_URL')
+    || envValue('DATABASE_URL_UNPOOLED')
+    || envValue('POSTGRES_PRISMA_URL')
+    || envValue('POSTGRES_URL_NON_POOLING')
+    || envValue('POSTGRES_URL_NO_SSL')
+    || envValue('NEON_DATABASE_URL')
+    || buildDbUrlFromParts()
     || '';
 }
 

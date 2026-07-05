@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensurePlayer, ensureTables, getSql } from './_db';
-import { getAuthPlayerId } from './_auth';
-import { getErrorMessage } from './_errors';
-import { getChestRewardConfig, isChestType, type ChestType } from '../shared/rewards';
-import { splitShardInventory } from '../shared/shards';
+import { ensurePlayer, ensureTables, getSql } from './_db.js';
+import { getAuthPlayerId } from './_auth.js';
+import { getErrorMessage } from './_errors.js';
+import { getChestRewardConfig, isChestType, type ChestType } from '../shared/rewards.js';
+import { splitShardInventory } from '../shared/shards.js';
 
 const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number }>> = {
   common: [

@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensurePlayer, ensureTables, getSql } from './_db';
-import { getAuthPlayerId } from './_auth';
-import { getUpgradeCost } from '../shared/unlocks';
-import { getErrorMessage } from './_errors';
+import { ensurePlayer, ensureTables, getSql } from './_db.js';
+import { getAuthPlayerId } from './_auth.js';
+import { getUpgradeCost } from '../shared/unlocks.js';
+import { getErrorMessage } from './_errors.js';
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
   const playerId = getAuthPlayerId(req);

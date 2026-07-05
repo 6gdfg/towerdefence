@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { splitShardInventory } from '../shared/shards';
-import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks';
-import { CHEST_REWARD_CONFIG, getStarRewardConfig } from '../shared/rewards';
-import { createId, ensurePlayer, ensureTables, getSql } from './_db';
-import { getAuthPlayerId } from './_auth';
-import { getErrorMessage } from './_errors';
+import { splitShardInventory } from '../shared/shards.js';
+import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
+import { CHEST_REWARD_CONFIG, getStarRewardConfig } from '../shared/rewards.js';
+import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
+import { getAuthPlayerId } from './_auth.js';
+import { getErrorMessage } from './_errors.js';
 
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;

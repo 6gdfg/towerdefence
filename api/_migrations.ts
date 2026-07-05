@@ -1,4 +1,4 @@
-import { INITIAL_PLAYER_COINS } from '../shared/unlocks';
+import { INITIAL_PLAYER_COINS } from '../shared/unlocks.js';
 
 export type DatabaseMigration = {
   id: string;

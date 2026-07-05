@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensureTables, getSql } from './_db';
-import { getErrorMessage } from './_errors';
+import { ensureTables, getSql } from './_db.js';
+import { getErrorMessage } from './_errors.js';
 
 type RankingRow = {
   username: string;

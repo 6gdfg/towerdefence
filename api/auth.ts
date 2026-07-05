@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createId, ensurePlayer, ensureTables, getSql } from './_db';
-import { hashPassword, issueToken, verifyPassword } from './_auth';
-import { getErrorMessage } from './_errors';
+import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
+import { hashPassword, issueToken, verifyPassword } from './_auth.js';
+import { getErrorMessage } from './_errors.js';
 
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
