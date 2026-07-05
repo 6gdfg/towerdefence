@@ -50,7 +50,7 @@ export default function LevelSelectPage({
       <section className={`glass-panel hero-panel level-select-hero chapter-${chapter.element} card-enter`} style={{ opacity: 0, animationDelay: '0s' }}>
         <div className="page-title-row">
           <div>
-            <div className="eyebrow">Chapter {String(chapter.id).padStart(2, '0')} · {chapter.elementLabel}</div>
+            <div className="eyebrow">Chapter {String(chapter.id).padStart(2, '0')}</div>
             <h1>{chapter.name}</h1>
           </div>
           <div className="button-row">

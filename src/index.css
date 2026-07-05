@@ -746,7 +746,6 @@ input {
 }
 
 .chapter-index,
-.chapter-element,
 .chapter-range,
 .chapter-progress {
   display: inline-flex;
@@ -1505,15 +1504,48 @@ input {
   animation: slide-in-bottom 0.5s ease-out forwards;
 }
 
-@keyframes fade-in {
+.stage-container {
+  min-height: 100vh;
+  will-change: opacity, transform, filter;
+}
+
+.stage-container-idle {
+  opacity: 1;
+  transform: translateY(0);
+  filter: none;
+}
+
+.stage-container-entering {
+  animation: stage-fade-in 0.26s ease-out both;
+}
+
+.stage-container-leaving {
+  animation: stage-fade-out 0.16s ease-in both;
+  pointer-events: none;
+}
+
+@keyframes stage-fade-in {
   from {
     opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-.stage-container-fade-in {
-  animation: fade-in 0.5s ease-in forwards;
+@keyframes stage-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+    filter: blur(2px);
+  }
 }

@@ -33,7 +33,7 @@ export interface Enemy {
   speedBoostUntil?: number;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;

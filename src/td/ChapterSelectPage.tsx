@@ -41,7 +41,6 @@ export default function ChapterSelectPage({ unlocked, onBack, onSelectChapter }:
             >
               <span className="chapter-index">Chapter {String(chapter.id).padStart(2, '0')}</span>
               <strong>{chapter.name}</strong>
-              <span className="chapter-element">{chapter.elementLabel}</span>
               <span className="chapter-range">{chapter.id}-1 至 {chapter.id}-10</span>
               <span className="chapter-progress">
                 {isLocked ? `通关 ${chapter.startLevel - 1} 解锁` : `${completed} / 10 CLEAR`}

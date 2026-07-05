@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TDGame from './td/TDGame';
 import LoadingScreen from './td/LoadingScreen';
-import TransitionScreen from './td/TransitionScreen';
 import AboutModal from './td/AboutModal';
 import AuthBar from './td/AuthBar';
 import AuthPage from './td/AuthPage';
@@ -33,10 +32,11 @@ import { getChapterForLevelIndex } from './td/chapters';
 import { getLevelDifficultyRatings } from './td/levelRatings';
 type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
+type PageTransitionState = 'idle' | 'leaving' | 'entering';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [pageTransition, setPageTransition] = useState<PageTransitionState>('idle');
   const [animationFinished, setAnimationFinished] = useState(false);
   const [dataFinished, setDataFinished] = useState(false);
   const loadLevel = useTDStore(s => s.loadLevel);
@@ -60,16 +60,27 @@ function App() {
       return (initial === 'book' || initial === 'ranking') ? (getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth') : initial;
     })()
   );
-  const navigateWithTransition = useCallback((targetStage: Stage) => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setStage(targetStage);
-      // Keep transitioning for a bit longer to allow for fade-in of the new stage
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, 500);
-    }, 1000); // Shorten the transition screen time
+  const transitionTimersRef = useRef<number[]>([]);
+  const clearTransitionTimers = useCallback(() => {
+    transitionTimersRef.current.forEach(timer => window.clearTimeout(timer));
+    transitionTimersRef.current = [];
   }, []);
+  const navigateWithTransition = useCallback((targetStage: Stage) => {
+    clearTransitionTimers();
+    setPageTransition('leaving');
+    const leaveTimer = window.setTimeout(() => {
+      setStage(targetStage);
+      setPageTransition('entering');
+      const enterTimer = window.setTimeout(() => {
+        setPageTransition('idle');
+        transitionTimersRef.current = [];
+      }, 260);
+      transitionTimersRef.current = [enterTimer];
+    }, 160);
+    transitionTimersRef.current = [leaveTimer];
+  }, [clearTransitionTimers]);
+
+  useEffect(() => () => clearTransitionTimers(), [clearTransitionTimers]);
 
   const goToBook = useCallback(() => {
     if (typeof window !== 'undefined' && window.location.pathname !== '/book') {
@@ -554,8 +565,8 @@ function App() {
       await loadHub();
       setUnlockedState(getUnlocked());
     }
-    setStage('won');
-  }, [currentStar, levelIndex, loadHub, selectedChapterId, unlockedItemsSet]);
+    navigateWithTransition('won');
+  }, [currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId, unlockedItemsSet]);
 
   const handleAuth = useCallback(() => {
     setIsLoading(true);
@@ -577,8 +588,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      {isTransitioning && <TransitionScreen onTransitionComplete={() => { /* Logic is now handled in navigateWithTransition */ }} />}
-      <div key={stage} className={isTransitioning ? '' : 'stage-container-fade-in'}>
+      <div key={stage} className={`stage-container stage-container-${pageTransition}`}>
         {stage === 'auth' && (
           <AuthPage
             onAuthed={handleAuth}
@@ -697,7 +707,7 @@ function App() {
               <TDGame
                 difficultyLabel={activeLabConfig ? `${activeLabConfig.targetDifficulty} Lv.${activeLabConfig.difficultyRatings[activeLabConfig.targetDifficulty] ?? ''}` : currentDifficultyLabel}
                 onWin={activeLabConfig ? () => navigateWithTransition('lab') : handleGameWin}
-                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => setStage('lost')}
+                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => navigateWithTransition('lost')}
                 onExit={() => {
                   setWinReward(null);
                   setLevelIndex(null);

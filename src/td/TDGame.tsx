@@ -5,6 +5,7 @@ import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
+import { ElementIcon, PlantIcon } from './TowerIcons';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
@@ -106,71 +107,6 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-
-  const renderPlantIcon = (tower: typeof towers[number]) => {
-    const stroke = tower.element ? (tower.color || '#f59e0b') : '#9ca3af';
-    const strokeWidth = 2.2;
-    switch (tower.type) {
-      case 'sunflower':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="8" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            <circle cx="12" cy="12" r="3.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
-          </svg>
-        );
-      case 'bottleGrass':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <rect x="5" y="5" width="14" height="14" rx="2" ry="2" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-          </svg>
-        );
-      case 'puffShroom':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <rect x="7.5" y="7.5" width="9" height="9" rx="1.5" ry="1.5" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-          </svg>
-        );
-      case 'fourLeafClover':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <circle cx="9" cy="8" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            <circle cx="15" cy="8" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            <circle cx="9" cy="16" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            <circle cx="15" cy="16" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-          </svg>
-        );
-      case 'machineGun':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <polygon points="12 4 4 20 20 20" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
-          </svg>
-        );
-      case 'rocket':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <polygon points="12 3 21 12 12 21 3 12" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
-            <line x1="12" y1="3" x2="12" y2="8.5" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
-            <line x1="12" y1="21" x2="12" y2="17" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
-          </svg>
-        );
-      case 'sunlightFlower':
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <rect x="4" y="4" width="16" height="16" fill="none" stroke={stroke} strokeWidth={strokeWidth} rx="2" ry="2" />
-            <rect x="9" y="9" width="6" height="6" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.9} rx="1" ry="1" />
-          </svg>
-        );
-      case 'sniper':
-      default:
-        return (
-          <svg width={28} height={28} viewBox="0 0 24 24">
-            <polygon points="12 4 20 12 12 20 4 12" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
-            <line x1="12" y1="4" x2="12" y2="20" stroke={stroke} strokeWidth={strokeWidth * 0.6} />
-            <line x1="4" y1="12" x2="20" y2="12" stroke={stroke} strokeWidth={strokeWidth * 0.6} />
-          </svg>
-        );
-    }
-  };
 
   const corridorPx = roadWidthCells * CELL_SIZE;
   const BORDER_PX = 0.6; // 路两侧边框粗细（像素）- 细灰线
@@ -372,10 +308,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                         </div>
                       )}
                       {isMobile ? (
-                        <span style={{ fontSize:20 }}>{cfg.icon}</span>
+                        <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <PlantIcon type={cfg.id} color={active ? '#111827' : DEFAULT_PLANT_COLOR} size={26} />
+                        </span>
                       ) : (
                         <>
-                          <span style={{ fontSize:18, color: active ? '#111827' : '#6b7280' }}>{cfg.icon}</span>
+                          <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <PlantIcon type={cfg.id} color={active ? '#111827' : DEFAULT_PLANT_COLOR} size={28} />
+                          </span>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{cfg.name}</span>
                             <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}{cfg.placementCooldown ? ` · ${cfg.placementCooldown}s` : ''}</span>
@@ -450,10 +390,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                         </>
                       )}
                       {isMobile ? (
-                        <span style={{ fontSize:18 }}>{cfg.name[0]}</span>
+                        <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <ElementIcon element={cfg.id} color={active ? '#ffffff' : cfg.color} size={26} />
+                        </span>
                       ) : (
                         <>
-                          <span style={{ fontSize:18 }}>{cfg.name[0]}</span>
+                          <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <ElementIcon element={cfg.id} color={active ? '#ffffff' : cfg.color} size={28} />
+                          </span>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{cfg.name}</span>
                             <span style={{ fontSize:12, color: active ? '#f9fafb' : '#6b7280' }}>💰 {cfg.cost}</span>
@@ -641,7 +585,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       opacity: lifetimeOpacity,
                     }}
                   >
-                    {renderPlantIcon({ ...t, color: iconStroke })}
+                    <PlantIcon type={t.type} color={iconStroke} size={28} />
                   </div>
                   <div
                     style={{
@@ -673,9 +617,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const { left, top } = worldToPx(cast.pos);
             return (
               <foreignObject key={cast.id} x={left - size/2} y={top - size/2} width={size} height={size} style={{ pointerEvents:'none', zIndex:5 }}>
-                <svg width={size} height={size} viewBox="0 0 24 24" style={{ display:'block' }}>
-                  <polygon points="12 2 22 12 12 22 2 12" fill={`${cfg.color}33`} stroke={cfg.color} strokeWidth={2} />
-                </svg>
+                <ElementIcon element={cast.element} color={cfg.color} size={size} style={{ display:'block' }} />
                 <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%, -50%)', fontSize:10, color:'#0f172a', fontWeight:600 }}>
                   {remaining > 0.1 ? remaining.toFixed(1) : '0'}
                 </div>

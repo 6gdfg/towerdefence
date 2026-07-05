@@ -18,6 +18,11 @@ export interface BasePlantConfig {
   incomeInterval?: number;
   incomeBase?: number;
   incomeBonusPerLevel?: number;
+  elementAllowed?: boolean;
+  instantEffect?: {
+    type: 'crossDamage';
+    tolerance: number;
+  };
   description: string;
 }
 
@@ -165,6 +170,23 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     projectileSpeed: 8,
     activeAbilityCost: 10,
     description: '主动技能植物：点击时消耗10金币发射高伤害子弹，平时不会自动攻击。',
+  },
+  hotPepper: {
+    id: 'hotPepper',
+    name: '火爆辣椒',
+    icon: '◇',
+    cost: 200,
+    placementCooldown: 60,
+    range: 0,
+    damage: 300,
+    fireRate: 0,
+    projectileSpeed: 0,
+    elementAllowed: false,
+    instantEffect: {
+      type: 'crossDamage',
+      tolerance: 0.55,
+    },
+    description: '一次性植物：种植后对所在横行和竖行范围内的全部怪物造成伤害，然后立刻消失。',
   },
 };
 

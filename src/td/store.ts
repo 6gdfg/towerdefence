@@ -294,6 +294,46 @@ export const useTDStore = create<TDStore>((set, get) => ({
     if (!get().canPlaceTower(pos)) return;
 
     const level = state.towerLevelMap?.[type] || 1;
+    const placementCooldown = base.placementCooldown ?? 0;
+    const nextPlantCooldowns = placementCooldown > 0
+      ? { ...state.plantCooldowns, [type]: state.gameTime + placementCooldown }
+      : state.plantCooldowns;
+
+    if (base.instantEffect?.type === 'crossDamage') {
+      const stats = computePlantStats(base, level);
+      const tolerance = base.instantEffect.tolerance;
+      const damageColor = '#ef4444';
+      let bonusGold = 0;
+      const damagePopups = [...state.damagePopups];
+      const enemies = state.enemies.map(enemy => {
+        const inCross = Math.abs(enemy.pos.x - pos.x) <= tolerance || Math.abs(enemy.pos.y - pos.y) <= tolerance;
+        if (!inCross || enemy.hp <= 0) return enemy;
+
+        const nextEnemy: Enemy = { ...enemy };
+        const inflicted = applyDamageWithArmor(nextEnemy, stats.damage, state.gameTime);
+        damagePopups.push({
+          id: `popup-${Date.now()}-${Math.random()}`,
+          pos: { ...nextEnemy.pos },
+          damage: Math.round(inflicted),
+          color: damageColor,
+          until: state.gameTime + 0.6,
+        });
+        if (nextEnemy.hp <= 0 && !nextEnemy.rewardGiven) {
+          nextEnemy.rewardGiven = true;
+          bonusGold += rewardForEnemy(nextEnemy);
+        }
+        return nextEnemy;
+      }).filter(enemy => enemy.hp > 0);
+
+      set({
+        enemies,
+        damagePopups,
+        gold: state.gold - cost + bonusGold,
+        plantCooldowns: nextPlantCooldowns,
+      });
+      return;
+    }
+
     const tower: Tower = {
       id: `tower-${Date.now()}-${Math.random()}`,
       pos,
@@ -316,11 +356,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
     };
     ensureTowerStats(tower, state.labOverrides);
 
-    const placementCooldown = base.placementCooldown ?? 0;
-    const nextPlantCooldowns = placementCooldown > 0
-      ? { ...state.plantCooldowns, [type]: state.gameTime + placementCooldown }
-      : state.plantCooldowns;
-
     set({
       towers: [...state.towers, tower],
       gold: state.gold - cost,
@@ -340,6 +375,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     if (targetIndex !== -1) {
       const tower = state.towers[targetIndex];
+      const towerConfig = getPlantRuntimeConfig(tower.type, state.labOverrides);
+      if (towerConfig?.elementAllowed === false) return;
       if (tower.type === 'sunflower' && SUNFLOWER_ELEMENT_BLOCKLIST.has(elementType)) return;
 
       const towers = [...state.towers];
