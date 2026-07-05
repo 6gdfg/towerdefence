@@ -1,10 +1,9 @@
-import { STAR_REWARD_CONFIG } from '../../shared/rewards';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../../shared/unlocks';
 import { STAR_LABELS } from './appConfig';
-import { DIFFICULTY_CONFIG, LEVELS } from './levels';
+import { LEVELS } from './levels';
 import { MAPS } from './maps';
 import { getAllStars, getMaxStarSync } from './progress';
-import { resolveChestTypeLabel, resolveUnlockItemLabel } from './labels';
+import { resolveUnlockItemLabel } from './labels';
 
 type LevelSelectPageProps = {
   unlocked: number;
@@ -36,7 +35,6 @@ export default function LevelSelectPage({
           <div>
             <div className="eyebrow">Campaign</div>
             <h1>选择关卡</h1>
-            <p>每关可选择一星、二星、三星；星级越高，奖励越高。</p>
           </div>
           <div className="button-row">
             <div className="metric-pill" style={{ minWidth: 108 }}>
@@ -57,7 +55,6 @@ export default function LevelSelectPage({
           const selectedStar = (starSel[i] ?? 1) as 1 | 2 | 3;
           const levelNumber = i + 1;
           const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
-          const selectedReward = STAR_REWARD_CONFIG[selectedStar];
 
           return (
             <article
@@ -68,7 +65,7 @@ export default function LevelSelectPage({
                 animationDelay: `${0.04 + i * 0.035}s`,
               }}
             >
-              <div className="item-name" style={{ marginBottom: 8 }}>{`第${i + 1}关 ${L.name}`}</div>
+              <div className="item-name" style={{ marginBottom: 8 }}>{`第 ${i + 1} 关 ${L.name}`}</div>
               <div className="muted" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px' }}>
                 <span>地图：{M ? `#${M.id} ${M.name}` : `#${L.mapId}`}</span>
                 <span>金币：{L.startGold}</span>
@@ -84,17 +81,16 @@ export default function LevelSelectPage({
                     const starLabel = STAR_LABELS[info.star];
                     return (
                       <span key={`${info.level}-${info.itemId}`}>
-                        {starLabel}通关可解锁{itemLabel}{isItemUnlocked ? '（已获得）' : ''}
+                        {starLabel}通关解锁{itemLabel}{isItemUnlocked ? '（已获得）' : ''}
                       </span>
                     );
                   })}
                 </div>
               )}
 
-              <div className="button-row" style={{ marginTop: 12 }}>
+              <div className="button-row" style={{ marginTop: 12, marginBottom: 12 }}>
                 {[1, 2, 3].map((s) => {
                   const star = s as 1 | 2 | 3;
-                  const reward = STAR_REWARD_CONFIG[star];
                   const cleared = clearedMax >= s;
                   const active = selectedStar === star;
                   return (
@@ -103,7 +99,6 @@ export default function LevelSelectPage({
                       onClick={() => onSelectStar(i, star)}
                       disabled={isLocked}
                       className="star-button"
-                      title={`${STAR_LABELS[star]}：怪物等级 +${DIFFICULTY_CONFIG.STAR_LEVEL_ADD[star]}，奖励 ${reward.coins.min}-${reward.coins.max} 金币 + ${resolveChestTypeLabel(reward.chestType)}`}
                       style={{
                         border: active ? '2px solid #172033' : '1px solid rgba(148, 163, 184, 0.55)',
                         background: isLocked ? 'rgba(241,245,249,0.72)' : active ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.58)',
@@ -118,12 +113,6 @@ export default function LevelSelectPage({
                 <span className="muted">{STAR_LABELS[selectedStar]}</span>
               </div>
 
-              <div className="reward-panel" style={{ marginTop: 10, marginBottom: 12 }}>
-                <div className="muted">
-                  怪物等级 +{DIFFICULTY_CONFIG.STAR_LEVEL_ADD[selectedStar]}；奖励 {selectedReward.coins.min}-{selectedReward.coins.max} 金币 + {resolveChestTypeLabel(selectedReward.chestType)}
-                </div>
-              </div>
-
               <div className="button-row">
                 <button
                   onClick={() => onStartLevel(i)}
@@ -131,7 +120,7 @@ export default function LevelSelectPage({
                   className={isLocked ? 'action-button' : 'action-button primary'}
                   style={{ flex: 1, opacity: isLocked ? 0.54 : 1 }}
                 >
-                  {isLocked ? '未解锁' : `开始（★${selectedStar}）`}
+                  {isLocked ? '未解锁' : `开始（${STAR_LABELS[selectedStar]}）`}
                 </button>
                 {isLocked && magicKeys > 0 && (
                   <button onClick={() => onUnlockLevel(L.id, L.name)} className="action-button" style={{ color: '#b45309' }}>

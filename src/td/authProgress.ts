@@ -3,6 +3,8 @@ import type { CloudProgress } from './appTypes';
 import { readApiJson } from './apiClient';
 
 const KEY_PID = 'td_player_id';
+const KEY_TUTORIAL_NEEDED_PREFIX = 'td_tutorial_needed:';
+const KEY_TUTORIAL_SEEN_PREFIX = 'td_tutorial_seen:';
 
 export function getUsername(): string {
   return localStorage.getItem('td_username') || '';
@@ -16,6 +18,27 @@ function setPlayerId(playerId?: string): void {
   if (playerId) {
     localStorage.setItem(KEY_PID, playerId);
   }
+}
+
+function getTutorialKey(prefix: string): string {
+  const playerId = localStorage.getItem(KEY_PID) || getUsername() || 'local';
+  return `${prefix}${playerId}`;
+}
+
+export function markTutorialNeeded(): void {
+  localStorage.setItem(getTutorialKey(KEY_TUTORIAL_NEEDED_PREFIX), '1');
+}
+
+export function markTutorialSeen(): void {
+  localStorage.setItem(getTutorialKey(KEY_TUTORIAL_SEEN_PREFIX), '1');
+  localStorage.removeItem(getTutorialKey(KEY_TUTORIAL_NEEDED_PREFIX));
+}
+
+export function shouldShowTutorial(): boolean {
+  return (
+    localStorage.getItem(getTutorialKey(KEY_TUTORIAL_NEEDED_PREFIX)) === '1'
+    && localStorage.getItem(getTutorialKey(KEY_TUTORIAL_SEEN_PREFIX)) !== '1'
+  );
 }
 
 export async function loginUser(username: string, password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
@@ -48,6 +71,7 @@ export async function registerUser(username: string, password: string): Promise<
     localStorage.setItem('td_token', data.token);
     setUsername(username);
     setPlayerId(data.playerId);
+    markTutorialNeeded();
     return data;
   } catch (err) {
     throw err instanceof Error ? err : new Error('网络错误');

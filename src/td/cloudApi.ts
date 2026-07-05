@@ -8,6 +8,7 @@ export type ChestOpenResult = {
   coins: number;
   chestType: string;
   magicKeys?: number;
+  newUnlocks?: string[];
 };
 
 async function postCloudAction<T>(url: string, body: Record<string, unknown>): Promise<T | null> {
@@ -36,6 +37,10 @@ export function openChestReward(chestId: string) {
 
 export function skipChestUnlock(chestId: string) {
   return postCloudAction<{ ok: boolean; cost?: number; readyAt?: string }>('/api/chest', { action: 'skip', chestId });
+}
+
+export function craftLegendaryChest() {
+  return postCloudAction<{ ok: boolean; chestId: string; chestType: string }>('/api/chest', { action: 'craftLegendary' });
 }
 
 export function upgradeCloudTower(towerType: string) {

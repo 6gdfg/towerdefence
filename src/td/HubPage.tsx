@@ -15,6 +15,7 @@ type HubPageProps = {
   onStartUnlock: (chestId: string) => void;
   onOpenChest: (chestId: string) => void;
   onSkipChest: (chestId: string) => void;
+  onCraftLegendary: () => void;
   onStartGame: () => void;
   onOpenFunMode: () => void;
 };
@@ -36,12 +37,21 @@ export default function HubPage({
   onStartUnlock,
   onOpenChest,
   onSkipChest,
+  onCraftLegendary,
   onStartGame,
   onOpenFunMode,
 }: HubPageProps) {
   const unlockedSet = new Set(hub?.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
   const disableOpen = openingChestId !== null;
   const chests = hub?.chests ?? [];
+  const chestCounts = chests.reduce<Record<string, number>>((acc, chest) => {
+    const chestType = typeof chest.chest_type === 'string' ? chest.chest_type : 'common';
+    acc[chestType] = (acc[chestType] ?? 0) + 1;
+    return acc;
+  }, {});
+  const canCraftLegendary = (chestCounts.epic ?? 0) >= 2
+    && (chestCounts.rare ?? 0) >= 5
+    && (chestCounts.common ?? 0) >= 10;
 
   return (
     <main className="page-wrap">
@@ -153,6 +163,19 @@ export default function HubPage({
 
         <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.14s', padding: 16 }}>
           <div className="section-title">宝箱仓库</div>
+          <div className="button-row" style={{ marginBottom: 12 }}>
+            <button
+              onClick={onCraftLegendary}
+              disabled={!canCraftLegendary || disableOpen}
+              className="action-button"
+              style={{ opacity: canCraftLegendary && !disableOpen ? 1 : 0.52 }}
+            >
+              合成<span className="legendary-text">传奇宝箱</span>
+            </button>
+            <span className="muted">
+              普通 {chestCounts.common ?? 0}/10 · 稀有 {chestCounts.rare ?? 0}/5 · 史诗 {chestCounts.epic ?? 0}/2
+            </span>
+          </div>
           {chests.length === 0 ? (
             <div className="muted">暂无宝箱。</div>
           ) : (
@@ -210,7 +233,7 @@ export default function HubPage({
 
                 return (
                   <div key={c.chest_id} className="chest-card">
-                    <div className="item-name">{resolveChestTypeLabel(chestType)}</div>
+                    <div className={chestType === 'legendary' ? 'item-name legendary-text' : 'item-name'}>{resolveChestTypeLabel(chestType)}</div>
                     <div className="muted">状态：{statusLabel[status] ?? status}</div>
                     <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {action}

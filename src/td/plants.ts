@@ -5,6 +5,7 @@ export interface BasePlantConfig {
   name: string;
   icon: string;
   cost: number;
+  placementCooldown?: number;
   range: number;
   damage: number;
   fireRate: number;
@@ -90,6 +91,18 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     fireRate: 1.2,
     projectileSpeed: 8,
     description: '单体攻击，综合性能均衡。',
+  },
+  puffShroom: {
+    id: 'puffShroom',
+    name: '小喷菇',
+    icon: '□',
+    cost: 0,
+    placementCooldown: 7,
+    range: 3.2,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 8,
+    description: '免费放置，放置后需要短暂冷却；其余性能与瓶子草相同。',
   },
   fourLeafClover: {
     id: 'fourLeafClover',

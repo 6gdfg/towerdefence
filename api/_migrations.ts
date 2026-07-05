@@ -54,7 +54,7 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         unlock_start_at TIMESTAMPTZ,
         unlock_ready_at TIMESTAMPTZ,
         duration_seconds INTEGER DEFAULT 3600,
-        chest_type TEXT DEFAULT 'common' CHECK (chest_type IN ('common','rare','epic')),
+        chest_type TEXT DEFAULT 'common' CHECK (chest_type IN ('common','rare','epic','legendary')),
         coin_reward INTEGER DEFAULT 0,
         open_result JSONB
       )`,
@@ -100,6 +100,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
           AND NOT EXISTS (
             SELECT 1 FROM tower_levels t WHERE t.player_id = w.player_id AND t.level <> 1
           )`,
+    ],
+  },
+  {
+    id: '003_legendary_chests',
+    description: 'Allow legendary chest type',
+    statements: [
+      `ALTER TABLE chests DROP CONSTRAINT IF EXISTS chests_chest_type_check`,
+      `ALTER TABLE chests ADD CONSTRAINT chests_chest_type_check CHECK (chest_type IN ('common','rare','epic','legendary'))`,
     ],
   },
 ];

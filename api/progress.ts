@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { splitShardInventory } from '../shared/shards.js';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
-import { CHEST_REWARD_CONFIG, getStarRewardConfig } from '../shared/rewards.js';
+import { CHEST_REWARD_CONFIG, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig } from '../shared/rewards.js';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
@@ -135,9 +135,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let rewardMagicKeys = 0;
         const rewardConfig = getStarRewardConfig(parsedStar);
         const chestType = rewardConfig.chestType;
-        const chestConfig = CHEST_REWARD_CONFIG[chestType];
-        const rewardCoins = randInt(rewardConfig.coins.min, rewardConfig.coins.max);
-        const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
+        const newRecord = next > prev;
+        const repeatOneStar = !newRecord && parsedStar === 1;
+        const baseRewardCoins = randInt(rewardConfig.coins.min, rewardConfig.coins.max);
+        const rewardCoins = (newRecord || repeatOneStar)
+          ? baseRewardCoins
+          : Math.max(1, Math.floor(baseRewardCoins * REPEAT_CLEAR_COIN_MULTIPLIER));
+        const repeatChestChance = repeatOneStar ? 1 : getRepeatClearChestChance(levelNum);
+        const chestAwarded = newRecord || repeatOneStar || Math.random() < repeatChestChance;
 
         if (levelNum === 4 && parsedStar >= 1 && prev === 0) {
           rewardMagicKeys = 1;
@@ -146,9 +151,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, updated_at=NOW()
           WHERE player_id=${pid}`;
 
-        const chestId = createId('c');
-        await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-          VALUES (${chestId}, ${pid}, 'locked', ${chestConfig.unlockSeconds}, ${chestType}, ${chestCoinReward})`;
+        let chestId: string | null = null;
+        if (chestAwarded) {
+          const chestConfig = CHEST_REWARD_CONFIG[chestType];
+          const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
+          chestId = createId('c');
+          await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
+            VALUES (${chestId}, ${pid}, 'locked', ${chestConfig.unlockSeconds}, ${chestType}, ${chestCoinReward})`;
+        }
 
         return res.json({
           ok: true,
@@ -156,9 +166,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rewardCoins,
           rewardMagicKeys,
           chestId,
-          chestType,
+          chestType: chestAwarded ? chestType : null,
+          chestAwarded,
+          repeatChestChance,
           previousStar: prev,
-          newRecord: next > prev,
+          newRecord,
           newUnlocks,
         });
       }

@@ -12,14 +12,15 @@ import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
+import TutorialPage from './td/TutorialPage';
 import { useTDStore } from './td/store';
 import { LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
-import { fetchCloudProgress, getToken, clearAuth } from './td/authProgress';
+import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems, updateUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { ElementType, PlantType, TowerLevelMap } from './td/types';
-import { openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
+import { craftLegendaryChest, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES, PLANT_UNLOCK_TARGETS } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
@@ -27,7 +28,7 @@ import { buildElementBookData, buildPlantBookData } from './td/bookData';
 import { getErrorMessage } from './td/errors';
 import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
-type Stage = 'auth' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun';
+type Stage = 'auth' | 'tutorial' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 
 function App() {
@@ -46,14 +47,14 @@ function App() {
         return getToken() ? 'ranking' : 'auth';
       }
     }
-    return getToken() ? 'hub' : 'auth';
+    return getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth';
   });
   const lastNonBookStageRef = useRef<NonBookStage>(
     (() => {
       const initial = typeof window !== 'undefined' && (window.location.pathname === '/book' || window.location.pathname === '/ranking')
-        ? (getToken() ? 'hub' : 'auth')
+        ? (getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth')
         : stage;
-      return (initial === 'book' || initial === 'ranking') ? (getToken() ? 'hub' : 'auth') : initial;
+      return (initial === 'book' || initial === 'ranking') ? (getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth') : initial;
     })()
   );
   const navigateWithTransition = useCallback((targetStage: Stage) => {
@@ -85,7 +86,7 @@ function App() {
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
-    const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
+    const fallback = lastNonBookStageRef.current ?? (getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth');
     navigateWithTransition(fallback);
   }, [navigateWithTransition]);
 
@@ -103,7 +104,7 @@ function App() {
       } else if (window.location.pathname === '/ranking') {
         setStage('ranking');
       } else {
-        const fallback = lastNonBookStageRef.current ?? (getToken() ? 'hub' : 'auth');
+        const fallback = lastNonBookStageRef.current ?? (getToken() ? (shouldShowTutorial() ? 'tutorial' : 'hub') : 'auth');
         setStage(fallback);
       }
     };
@@ -214,6 +215,7 @@ function App() {
           coins: data.coins || 0,
           magicKeys: data.magicKeys || 0,
           chestType: data.chestType || 'common',
+          newUnlocks: data.newUnlocks || [],
         });
       }
     } catch (err) {
@@ -227,6 +229,14 @@ function App() {
     await skipChestUnlock(chestId);
     await loadHub();
   }
+  async function craftLegendary() {
+    try {
+      await craftLegendaryChest();
+      await loadHub();
+    } catch (err) {
+      alert('合成失败：' + getErrorMessage(err, '宝箱数量不足或网络错误'));
+    }
+  }
   async function upgradeTower(towerType: string) {
     await upgradeCloudTower(towerType);
     await loadHub();
@@ -238,7 +248,8 @@ function App() {
       return {
         groups: w.groups.map(g => {
           const baseStats = MONSTER_BASE_STATS[g.type];
-          const finalLevel = g.level + DIFFICULTY_CONFIG.STAR_LEVEL_ADD[star];
+          const addRange = DIFFICULTY_CONFIG.STAR_LEVEL_ADD_RANGE[star];
+          const finalLevel = g.level + getRandomInt(addRange.min, addRange.max);
           const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * finalLevel;
           return {
             ...g,
@@ -451,13 +462,21 @@ function App() {
         });
       }
       if (result && result.rewardCoins > 0) {
-        const chestTypeName = resolveChestTypeName(result.chestType || 'common');
+        const chestTypeName = result.chestType ? resolveChestTypeName(result.chestType) : '';
+        const chanceText = typeof result.repeatChestChance === 'number'
+          ? `（掉率 ${Math.round(result.repeatChestChance * 100)}%）`
+          : '';
         const rewardMsg = result.newRecord
           ? `🎉 新纪录！获得 ${result.rewardCoins} 金币和${chestTypeName}宝箱`
-          : `✨ 重复通关！获得 ${result.rewardCoins} 金币和${chestTypeName}宝箱`;
+          : result.chestType
+            ? `✨ 重复通关！获得 ${result.rewardCoins} 金币，额外掉落${chestTypeName}宝箱${chanceText}`
+            : `✨ 重复通关！获得 ${result.rewardCoins} 金币，宝箱未掉落${chanceText}`;
         setWinReward({
           coins: result.rewardCoins,
-          chestType: result.chestType || 'common',
+          chestType: result.chestType ?? null,
+          chestAwarded: Boolean(result.chestAwarded),
+          repeatChestChance: result.repeatChestChance,
+          newRecord: Boolean(result.newRecord),
           message: rewardMsg,
         });
       }
@@ -479,9 +498,14 @@ function App() {
     setAnimationFinished(false);
     setDataFinished(false);
     loadHub().then(() => {
-      navigateWithTransition('hub');
+      navigateWithTransition(shouldShowTutorial() ? 'tutorial' : 'hub');
     });
   }, [loadHub, navigateWithTransition]);
+
+  const handleTutorialComplete = useCallback(() => {
+    markTutorialSeen();
+    navigateWithTransition('hub');
+  }, [navigateWithTransition]);
 
   if (isLoading) {
     return <LoadingScreen onAnimationComplete={() => setAnimationFinished(true)} />;
@@ -496,12 +520,15 @@ function App() {
         {stage !== 'auth' && (
           <>
             {/* 简易登录/注册栏 - 游戏进行时不显示 */}
-            {stage !== 'playing' && (
+            {stage !== 'playing' && stage !== 'tutorial' && (
               <AuthBar
                 onShowAbout={() => setShowAbout(true)}
                 onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook}
                 onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking}
               />
+            )}
+            {stage === 'tutorial' && (
+              <TutorialPage onComplete={handleTutorialComplete} />
             )}
             {stage === 'hub' && (
               <HubPage
@@ -514,6 +541,7 @@ function App() {
                 onStartUnlock={startUnlock}
                 onOpenChest={openChest}
                 onSkipChest={skipChest}
+                onCraftLegendary={craftLegendary}
                 onStartGame={() => { setActiveFunMode(null); navigateWithTransition('select'); }}
                 onOpenFunMode={() => navigateWithTransition('fun')}
               />
@@ -570,6 +598,11 @@ function App() {
               <TDGame
                 onWin={handleGameWin}
                 onLose={() => setStage('lost')}
+                onExit={() => {
+                  setWinReward(null);
+                  setLevelIndex(null);
+                  navigateWithTransition(activeFunMode ? 'fun' : 'select');
+                }}
               />
             )}
 

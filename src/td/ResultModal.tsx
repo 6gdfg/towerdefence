@@ -68,12 +68,21 @@ export default function ResultModal({
               <span>金币</span>
               <span style={{ fontWeight:600, color:'#f59e0b' }}>+{winReward.coins}</span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, marginTop:4 }}>
-              <span>宝箱</span>
-              <span style={{ fontWeight:600, color:'#8b5cf6' }}>
-                {resolveChestTypeLabel(winReward.chestType)}
-              </span>
-            </div>
+            {winReward.chestType ? (
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, marginTop:4 }}>
+                <span>宝箱</span>
+                <span style={{ fontWeight:600, color:'#8b5cf6' }}>
+                  {resolveChestTypeLabel(winReward.chestType)}
+                </span>
+              </div>
+            ) : !winReward.newRecord ? (
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, marginTop:4 }}>
+                <span>宝箱</span>
+                <span style={{ fontWeight:600, color:'#94a3b8' }}>
+                  未掉落
+                </span>
+              </div>
+            ) : null}
           </div>
         )}
 

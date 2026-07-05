@@ -5,6 +5,7 @@ const CHEST_TYPE_NAMES: Record<string, string> = {
   common: '普通',
   rare: '稀有',
   epic: '史诗',
+  legendary: '传奇',
 };
 
 export function resolveChestTypeName(chestType: string): string {

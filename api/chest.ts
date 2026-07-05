@@ -1,14 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensurePlayer, ensureTables, getSql } from './_db.js';
+import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 import { getChestRewardConfig, isChestType, type ChestType } from '../shared/rewards.js';
 import { splitShardInventory } from '../shared/shards.js';
+import { ELEMENT_ITEM_IDS, PLANT_ITEM_IDS } from '../shared/unlocks.js';
 
 const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number }>> = {
   common: [
     { id: 'sunflower', weight: 20 },
     { id: 'bottleGrass', weight: 18 },
+    { id: 'puffShroom', weight: 18 },
     { id: 'fourLeafClover', weight: 8 },
     { id: 'rocket', weight: 6 },
     { id: 'element:fire', weight: 5 },
@@ -17,6 +19,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   rare: [
     { id: 'sunflower', weight: 10 },
     { id: 'bottleGrass', weight: 10 },
+    { id: 'puffShroom', weight: 10 },
     { id: 'fourLeafClover', weight: 10 },
     { id: 'rocket', weight: 10 },
     { id: 'machineGun', weight: 8 },
@@ -28,6 +31,21 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
   epic: [
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'puffShroom', weight: 6 },
+    { id: 'rocket', weight: 9 },
+    { id: 'machineGun', weight: 10 },
+    { id: 'sniper', weight: 10 },
+    { id: 'sunlightFlower', weight: 10 },
+    { id: 'element:gold', weight: 8 },
+    { id: 'element:fire', weight: 8 },
+    { id: 'element:electric', weight: 9 },
+    { id: 'element:ice', weight: 9 },
+    { id: 'element:wind', weight: 8 },
+    { id: 'element:light', weight: 9 },
+  ],
+  legendary: [
+    { id: 'fourLeafClover', weight: 8 },
+    { id: 'puffShroom', weight: 6 },
     { id: 'rocket', weight: 9 },
     { id: 'machineGun', weight: 10 },
     { id: 'sniper', weight: 10 },
@@ -41,6 +59,12 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
 };
 
+const LEGENDARY_CRAFT_COST = {
+  epic: 2,
+  rare: 5,
+  common: 10,
+} as const;
+
 type ChestDurationRow = {
   duration_seconds?: number | string;
 };
@@ -50,6 +74,15 @@ type ChestStatusRow = {
   unlock_ready_at?: string | number | Date | null;
   chest_type?: string | null;
   coin_reward?: number | string | null;
+};
+
+type ChestMaterialRow = {
+  chest_id: string;
+  chest_type?: string | null;
+};
+
+type UnlockedItemRow = {
+  item_id: string;
 };
 
 function randInt(min: number, max: number) {
@@ -65,6 +98,12 @@ function pickRewardId(chestType: ChestType): string {
     if (roll <= 0) return item.id;
   }
   return pool[0].id;
+}
+
+function pickLockedItem(candidates: readonly string[], unlocked: Set<string>): string | null {
+  const locked = candidates.filter(itemId => !unlocked.has(itemId));
+  if (locked.length === 0) return null;
+  return locked[Math.floor(Math.random() * locked.length)];
 }
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
@@ -88,6 +127,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await ensurePlayer(playerId);
 
     const { action, chestId } = req.body || {};
+
+    if (action === 'craftLegendary') {
+      const materialRows = await sql`SELECT chest_id, chest_type FROM chests
+        WHERE player_id=${playerId} AND chest_type IN ('common','rare','epic')
+        ORDER BY awarded_at ASC`;
+      const byType: Record<'common' | 'rare' | 'epic', ChestMaterialRow[]> = {
+        common: [],
+        rare: [],
+        epic: [],
+      };
+
+      (materialRows as ChestMaterialRow[]).forEach(row => {
+        if (row.chest_type === 'common' || row.chest_type === 'rare' || row.chest_type === 'epic') {
+          byType[row.chest_type].push(row);
+        }
+      });
+
+      const counts = {
+        common: byType.common.length,
+        rare: byType.rare.length,
+        epic: byType.epic.length,
+      };
+      const canCraft = counts.epic >= LEGENDARY_CRAFT_COST.epic
+        && counts.rare >= LEGENDARY_CRAFT_COST.rare
+        && counts.common >= LEGENDARY_CRAFT_COST.common;
+      if (!canCraft) {
+        return res.status(400).json({ error: 'CHESTS_NOT_ENOUGH', counts, required: LEGENDARY_CRAFT_COST });
+      }
+
+      const consumedIds = [
+        ...byType.epic.slice(0, LEGENDARY_CRAFT_COST.epic),
+        ...byType.rare.slice(0, LEGENDARY_CRAFT_COST.rare),
+        ...byType.common.slice(0, LEGENDARY_CRAFT_COST.common),
+      ].map(row => row.chest_id);
+      const chestConfig = getChestRewardConfig('legendary');
+      const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
+      const legendaryChestId = createId('c');
+
+      await sql.transaction(tx => [
+        ...consumedIds.map(id => tx`DELETE FROM chests WHERE chest_id=${id} AND player_id=${playerId}`),
+        tx`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
+          VALUES (${legendaryChestId}, ${playerId}, 'locked', ${chestConfig.unlockSeconds}, 'legendary', ${chestCoinReward})`,
+      ]);
+
+      return res.json({ ok: true, chestId: legendaryChestId, chestType: 'legendary', counts, required: LEGENDARY_CRAFT_COST });
+    }
+
     if (!chestId || typeof chestId !== 'string') return res.status(400).json({ error: 'chestId required' });
 
     if (action === 'startUnlock') {
@@ -169,6 +255,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ON CONFLICT (player_id, tower_type) DO UPDATE SET shards = inventory_shards.shards + EXCLUDED.shards`;
       }
 
+      const newUnlocks: string[] = [];
+      if (chestType === 'legendary') {
+        const unlockedRows = await sql`SELECT item_id FROM unlocked_items WHERE player_id=${playerId} AND unlocked=true`;
+        const unlockedSet = new Set((unlockedRows as UnlockedItemRow[]).map(row => row.item_id));
+        const plantUnlock = Math.random() < 0.2 ? pickLockedItem(PLANT_ITEM_IDS, unlockedSet) : null;
+        if (plantUnlock) {
+          await sql`INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
+            VALUES (${playerId}, ${plantUnlock}, TRUE, NOW())
+            ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`;
+          unlockedSet.add(plantUnlock);
+          newUnlocks.push(plantUnlock);
+        }
+
+        const elementUnlock = Math.random() < 0.1 ? pickLockedItem(ELEMENT_ITEM_IDS, unlockedSet) : null;
+        if (elementUnlock) {
+          await sql`INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
+            VALUES (${playerId}, ${elementUnlock}, TRUE, NOW())
+            ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`;
+          newUnlocks.push(elementUnlock);
+        }
+      }
+
       if (coinReward > 0 || magicKeyReward > 0) {
         await sql`UPDATE player_wallet
           SET coins = coins + ${coinReward}, magic_keys = magic_keys + ${magicKeyReward}, updated_at=NOW()
@@ -177,7 +285,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await sql`DELETE FROM chests WHERE chest_id=${chestId} AND player_id=${playerId}`;
 
-      return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, chestType });
+      return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, chestType, newUnlocks });
     }
 
     return res.status(400).json({ error: 'bad action' });

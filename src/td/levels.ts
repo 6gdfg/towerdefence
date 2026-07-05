@@ -80,11 +80,11 @@ export const MONSTER_BASE_STATS = {
 
 // 星级难度配置
 export const DIFFICULTY_CONFIG = {
-  STAR_LEVEL_ADD: {
-    1: 0,  
-    2: 50,  
-    3: 100,  
-  } as Record<1|2|3, number>,
+  STAR_LEVEL_ADD_RANGE: {
+    1: { min: 0, max: 0 },
+    2: { min: 45, max: 55 },
+    3: { min: 90, max: 120 },
+  } as Record<1|2|3, { min: number; max: number }>,
   
   LEVEL_MULTIPLIER: 0.02, 
 };

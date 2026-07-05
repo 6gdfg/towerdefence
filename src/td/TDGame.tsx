@@ -8,8 +8,14 @@ import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
-export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?: () => void } = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
+type TDGameProps = {
+  onWin?: () => void;
+  onLose?: () => void;
+  onExit?: () => void;
+};
+
+export default function TDGame({ onWin, onLose, onExit }: TDGameProps = {}) {
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [isMobile, setIsMobile] = useState(
@@ -25,6 +31,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
   const plantChoices = availablePlants.map(id => BASE_PLANTS_CONFIG[id]).filter(Boolean);
   const elementChoices = availableElements.map(id => ELEMENT_PLANT_CONFIG[id]).filter(Boolean);
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
+  const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
   const isFiniteMode = mode === 'campaign' || mode === 'random';
   const modeLabel = mode === 'endless'
@@ -73,6 +80,12 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         return (
           <svg width={28} height={28} viewBox="0 0 24 24">
             <rect x="5" y="5" width="14" height="14" rx="2" ry="2" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          </svg>
+        );
+      case 'puffShroom':
+        return (
+          <svg width={28} height={28} viewBox="0 0 24 24">
+            <rect x="7.5" y="7.5" width="9" height="9" rx="1.5" ry="1.5" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
           </svg>
         );
       case 'fourLeafClover':
@@ -195,6 +208,11 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
     }
   };
 
+  const handleExit = () => {
+    if (!window.confirm('退出当前对局？本局进度不会保存。')) return;
+    onExit?.();
+  };
+
 
   return (
     <div className="game-shell">
@@ -223,6 +241,9 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
             </button>
             <button onClick={togglePause} className="action-button">
               {running ? '⏸️ 暂停' : '▶️ 继续'}
+            </button>
+            <button onClick={handleExit} className="action-button danger">
+              退出
             </button>
             <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
           </div>
@@ -256,11 +277,19 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                 )}
                 {plantChoices.map(cfg => {
                   const active = selectedPlant === cfg.id;
+                  const cooldownReadyAt = plantCooldowns?.[cfg.id] ?? 0;
+                  const remaining = Math.max(0, cooldownReadyAt - gameTime);
+                  const onCooldown = remaining > 0.01;
                   return (
                     <button
                       key={cfg.id}
                       title={cfg.name}
-                      onClick={() => { setSelectedPlant(active ? null : cfg.id); setSelectedElement(null); }}
+                      disabled={onCooldown}
+                      onClick={() => {
+                        if (onCooldown) return;
+                        setSelectedPlant(active ? null : cfg.id);
+                        setSelectedElement(null);
+                      }}
                       style={{
                         display:'flex',
                         alignItems:'center',
@@ -270,13 +299,21 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                         border: active ? '2px solid #111827' : '1px solid #d1d5db',
                         background:'#ffffff',
                         color:'#111827',
-                        cursor:'pointer',
+                        cursor: onCooldown ? 'not-allowed' : 'pointer',
                         boxShadow: active ? '0 2px 6px rgba(17,24,39,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
                         flex: isMobile ? '1 0 calc(18% - 4px)' : undefined,
                         minWidth: isMobile ? 44 : undefined,
                         minHeight: isMobile ? 44 : undefined,
+                        position:'relative',
+                        overflow:'hidden',
+                        opacity: onCooldown ? 0.68 : 1,
                       }}
                     >
+                      {onCooldown && (
+                        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, color:'#ffffff', fontWeight:700, background:'rgba(15,23,42,0.48)', zIndex:1 }}>
+                          {Math.ceil(remaining)}s
+                        </div>
+                      )}
                       {isMobile ? (
                         <span style={{ fontSize:20 }}>{cfg.icon}</span>
                       ) : (
@@ -284,7 +321,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                           <span style={{ fontSize:18, color: active ? '#111827' : '#6b7280' }}>{cfg.icon}</span>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{cfg.name}</span>
-                            <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}</span>
+                            <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}{cfg.placementCooldown ? ` · ${cfg.placementCooldown}s` : ''}</span>
                           </div>
                         </>
                       )}
@@ -375,6 +412,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
             {selectedPlantInfo && (
               <div style={{ fontSize:12, color:'#6b7280', padding:'4px 0' }}>
                 当前操作：放置 {selectedPlantInfo.name}（消耗 {selectedPlantInfo.cost} 金币）
+                {selectedPlantRemaining > 0.01 ? `，冷却中 ${Math.ceil(selectedPlantRemaining)} 秒` : selectedPlantInfo.placementCooldown ? `，冷却 ${selectedPlantInfo.placementCooldown} 秒` : ''}
               </div>
             )}
           {!selectedPlantInfo && selectedElementInfo && (

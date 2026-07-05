@@ -33,7 +33,7 @@ export interface Enemy {
   speedBoostUntil?: number;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -146,6 +146,7 @@ export interface TDState {
   singleUseCasts: ElementCast[];
   damagePopups: DamagePopup[];
   elementCooldowns: Partial<Record<ElementType, number>>;
+  plantCooldowns: Partial<Record<PlantType, number>>;
   availablePlants: PlantType[];
   availableElements: ElementType[];
   // 波次

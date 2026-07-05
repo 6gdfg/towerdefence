@@ -1,5 +1,5 @@
 export type LevelStar = 1 | 2 | 3;
-export type ChestType = 'common' | 'rare' | 'epic';
+export type ChestType = 'common' | 'rare' | 'epic' | 'legendary';
 
 export type RewardRange = {
   min: number;
@@ -18,6 +18,8 @@ export type ChestRewardConfig = {
   magicKeyChance: number;
 };
 
+export const REPEAT_CLEAR_COIN_MULTIPLIER = 0.5;
+
 export const STAR_REWARD_CONFIG: Record<LevelStar, StarRewardConfig> = {
   1: { coins: { min: 500, max: 1000 }, chestType: 'common' },
   2: { coins: { min: 1000, max: 2000 }, chestType: 'rare' },
@@ -29,13 +31,13 @@ export const CHEST_REWARD_CONFIG: Record<ChestType, ChestRewardConfig> = {
     unlockSeconds: 30 * 60,
     coins: { min: 100, max: 300 },
     shardRolls: { min: 4, max: 8 },
-    magicKeyChance: 0,
+    magicKeyChance: 0.02,
   },
   rare: {
     unlockSeconds: 60 * 60,
     coins: { min: 300, max: 900 },
     shardRolls: { min: 8, max: 16 },
-    magicKeyChance: 0.03,
+    magicKeyChance: 0.05,
   },
   epic: {
     unlockSeconds: 2 * 60 * 60,
@@ -43,10 +45,16 @@ export const CHEST_REWARD_CONFIG: Record<ChestType, ChestRewardConfig> = {
     shardRolls: { min: 18, max: 32 },
     magicKeyChance: 0.1,
   },
+  legendary: {
+    unlockSeconds: 2 * 60 * 60,
+    coins: { min: 4000, max: 10000 },
+    shardRolls: { min: 90, max: 160 },
+    magicKeyChance: 0.2,
+  },
 };
 
 export function isChestType(value: unknown): value is ChestType {
-  return value === 'common' || value === 'rare' || value === 'epic';
+  return value === 'common' || value === 'rare' || value === 'epic' || value === 'legendary';
 }
 
 export function getStarRewardConfig(star: number): StarRewardConfig {
@@ -55,4 +63,9 @@ export function getStarRewardConfig(star: number): StarRewardConfig {
 
 export function getChestRewardConfig(chestType: string | null | undefined): ChestRewardConfig {
   return CHEST_REWARD_CONFIG[isChestType(chestType) ? chestType : 'common'];
+}
+
+export function getRepeatClearChestChance(levelNumber: number | null | undefined): number {
+  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  return Math.min(1, (9 + level) / 100);
 }

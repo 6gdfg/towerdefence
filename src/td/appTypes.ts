@@ -29,7 +29,10 @@ export type CloudChest = {
 
 export type WinReward = {
   coins: number;
-  chestType: string;
+  chestType?: string | null;
+  chestAwarded?: boolean;
+  repeatChestChance?: number;
+  newRecord?: boolean;
   message?: string;
 };
 
@@ -40,6 +43,7 @@ export type ChestReward = {
   coins: number;
   magicKeys?: number;
   chestType: string;
+  newUnlocks?: string[];
 };
 
 export type PlantBookEntry = {

@@ -207,7 +207,8 @@ const INITIAL_TD_STATE: TDState = {
   singleUseCasts: [],
   damagePopups: [],
   elementCooldowns: {},
-  availablePlants: ['sunflower', 'bottleGrass'] as PlantType[],
+  plantCooldowns: {},
+  availablePlants: ['sunflower', 'bottleGrass', 'puffShroom'] as PlantType[],
   availableElements: [] as ElementType[],
   // 波次
   waves: DEFAULT_WAVES,
@@ -256,6 +257,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       singleUseCasts: [],
       damagePopups: [],
       elementCooldowns: {},
+      plantCooldowns: {},
       availablePlants: opts?.allowedPlants && opts.allowedPlants.length > 0 ? [...opts.allowedPlants] : [...INITIAL_TD_STATE.availablePlants],
       availableElements: opts?.allowedElements ? [...opts.allowedElements] : [...INITIAL_TD_STATE.availableElements],
       waves: level.waves,
@@ -279,6 +281,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     if (!state.availablePlants.includes(type)) return;
     const cost = base.cost;
     if (state.gold < cost) return;
+    const cooldownReadyAt = state.plantCooldowns[type] ?? 0;
+    if (cooldownReadyAt > state.gameTime) return;
     if (!get().canPlaceTower(pos)) return;
 
     const level = state.towerLevelMap?.[type] || 1;
@@ -303,9 +307,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
     };
     ensureTowerStats(tower);
 
+    const placementCooldown = base.placementCooldown ?? 0;
+    const nextPlantCooldowns = placementCooldown > 0
+      ? { ...state.plantCooldowns, [type]: state.gameTime + placementCooldown }
+      : state.plantCooldowns;
+
     set({
       towers: [...state.towers, tower],
       gold: state.gold - cost,
+      plantCooldowns: nextPlantCooldowns,
     });
   },
 
@@ -427,6 +437,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let singleUseCasts = state.singleUseCasts.slice();
     let damagePopups = state.damagePopups.filter(p => p.until > gameTime);
     let elementCooldowns: Partial<Record<ElementType, number>> = { ...state.elementCooldowns };
+    let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
     let lives = state.lives;
     let waveIndex = state.waveIndex;
@@ -1031,6 +1042,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
     });
 
+    Object.keys(plantCooldowns).forEach(key => {
+      const t = plantCooldowns[key as PlantType];
+      if (t != null && t <= gameTime) {
+        delete plantCooldowns[key as PlantType];
+      }
+    });
+
     set({
       running: lives > 0,
       gameTime,
@@ -1040,6 +1058,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       singleUseCasts,
       damagePopups,
       elementCooldowns,
+      plantCooldowns,
       gold,
       lives,
       isWaveActive,
