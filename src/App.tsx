@@ -489,7 +489,7 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight:'100vh', background:'#f3f4f6', color:'#111827', fontFamily:'Arial, sans-serif' }}>
+    <div className="app-shell">
       {isTransitioning && <TransitionScreen onTransitionComplete={() => { /* Logic is now handled in navigateWithTransition */ }} />}
       <div key={stage} className={isTransitioning ? '' : 'stage-container-fade-in'}>
         {stage === 'auth' && <AuthPage onAuthed={handleAuth} />}

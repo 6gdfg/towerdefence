@@ -11,13 +11,13 @@ export default function ChestRewardModal({ reward, onClose }: ChestRewardModalPr
   const elementEntries = Object.entries(reward.elementShards).map(([element, count]) => [`element:${element}`, count] as const);
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-      <div style={{ width: 400, borderRadius: 12, background:'#ffffff', border:'1px solid #e5e7eb', padding:20, boxShadow:'0 10px 30px rgba(0,0,0,0.15)' }}>
+    <div className="modal-backdrop">
+      <div className="glass-panel modal-panel">
         <div style={{ fontWeight:700, fontSize:20, marginBottom:12, textAlign:'center' }}>🎁 宝箱开启成功！</div>
         <div style={{ fontSize:14, color:'#6b7280', marginBottom:16, textAlign:'center' }}>
           {resolveChestTypeLabel(reward.chestType)}
         </div>
-        <div style={{ background:'#f9fafb', borderRadius:8, padding:12, marginBottom:16 }}>
+        <div className="reward-panel">
           {plantEntries.length > 0 && (
             <>
               <div style={{ fontWeight:600, marginBottom:8 }}>获得植物碎片：</div>
@@ -53,7 +53,7 @@ export default function ChestRewardModal({ reward, onClose }: ChestRewardModalPr
             </div>
           )}
         </div>
-        <button onClick={onClose} style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid #111827', background:'#fff', fontWeight:600, cursor:'pointer' }}>确定</button>
+        <button onClick={onClose} className="action-button primary" style={{ width:'100%' }}>确定</button>
       </div>
     </div>
   );

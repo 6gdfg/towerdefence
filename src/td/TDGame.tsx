@@ -197,45 +197,45 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
 
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'stretch', padding:0, color:'#111827', background:'#f3f4f6', height:'100vh', width:'100%', overflow:'hidden' }}>
-      <div style={{ padding:'16px 24px 12px 24px', display:'flex', flexDirection:'column', gap:12, flexShrink:0 }}>
-        <header style={{ width:'100%', display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:12 }}>
-          <div>🪙 金币: {gold}</div>
-          <div>❤️ 生命: {lives}</div>
-          <div>🌊 波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
+    <div className="game-shell">
+      <header className="glass-panel game-topbar">
+        <div className="game-stats">
+          <div className="game-stat">金币: {gold}</div>
+          <div className="game-stat">生命: {lives}</div>
+          <div className="game-stat">波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
           {mode && mode !== 'campaign' && modeLabel && (
-            <div style={{ fontSize:12, color:'#f97316' }}>
+            <div className="game-stat" style={{ color:'#f97316' }}>
               模式：{modeLabel}
               {lifeBonusPerWave ? (
                 <span style={{ marginLeft:8, color:'#22c55e' }}>每波 +{lifeBonusPerWave} 生命</span>
               ) : null}
             </div>
           )}
-          <div style={{ display:'flex', gap:8, alignItems: 'center' }}>
-            <a href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" style={{ color: '#111827', display: 'flex', alignItems: 'center' }}>
+        </div>
+          <div style={{ display:'flex', gap:8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <a className="icon-button" href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
               <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
               </svg>
             </a>
-            <button onClick={() => setShowAbout(true)} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+            <button onClick={() => setShowAbout(true)} className="action-button">
               关于
             </button>
-            <button onClick={togglePause} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+            <button onClick={togglePause} className="action-button">
               {running ? '⏸️ 暂停' : '▶️ 继续'}
             </button>
-            <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="btn-hover" style={{ padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>开始/下一波</button>
+            <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
           </div>
-        </header>
-      </div>
+      </header>
 
       <div style={{ display:'flex', flex:'1 1 auto', minHeight:0, flexDirection: isMobile ? 'column' : 'row' }}>
         <aside
+          className="game-sidepanel"
           style={{
             width: isMobile ? '100%' : 280,
             padding: isMobile ? '12px 16px' : '12px 16px 20px 24px',
-            borderRight: isMobile ? 'none' : '1px solid #e5e7eb',
-            borderBottom: isMobile ? '1px solid #e5e7eb' : 'none',
-            background:'#f8fafc',
+            borderRight: isMobile ? 'none' : '1px solid rgba(203,213,225,0.68)',
+            borderBottom: isMobile ? '1px solid rgba(203,213,225,0.68)' : 'none',
             overflowY: isMobile ? 'visible' : 'auto',
             flexShrink:0,
           }}
@@ -387,32 +387,16 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
 
         <div
           ref={mapWrapperRef}
+          className="game-map-stage"
           style={{
-            flex: '1 1 0%',
-            width: '100%',
-            position: 'relative',
-            alignSelf: 'stretch',
-            minHeight: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            touchAction: 'none',
           }}
         >
         <svg
           ref={svgRef}
           onClick={handlePlace}
+          className="game-map-svg"
           style={{
-            width: '100%',
-            height: '100%',
-            background: '#F8FAFC',
-            borderRadius: 16,
-            overflow: 'hidden',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
             cursor: selectedPlant ? 'crosshair' : selectedElement ? 'cell' : 'default',
-            zIndex:1,
           }}
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
           preserveAspectRatio="xMidYMid meet"
@@ -717,18 +701,18 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
       </div>
 
       {!isWaveActive && waveIndex >= waves.length && (
-        <div style={{ padding:'16px 24px', color:'#a3e635', flexShrink:0 }}>全部波次完成！🎉</div>
+        <div style={{ padding:'12px 18px', color:'#059669', flexShrink:0, fontWeight:700 }}>全部波次完成！🎉</div>
       )}
       {showAbout && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '8px', width: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="modal-backdrop" style={{ zIndex: 100 }}>
+          <div className="glass-panel modal-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <h2>关于</h2>
             <p>Tower Defence Version 0.0.5</p>
             <h2>鸣谢</h2>
             <p>总策划:hebscyf</p>
             <p>代码:6gdfg</p>
             <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
-            <button onClick={() => setShowAbout(false)} className="btn-hover" style={{ alignSelf: 'flex-end', padding:'6px 12px', borderRadius:8, border:'1px solid #d1d5db', background:'#ffffff', color:'#111827', cursor:'pointer' }}>
+            <button onClick={() => setShowAbout(false)} className="action-button" style={{ alignSelf: 'flex-end' }}>
               关闭
             </button>
           </div>

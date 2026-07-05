@@ -6,9 +6,10 @@ type AuthPageProps = {
 
 export default function AuthPage({ onAuthed }: AuthPageProps) {
   return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width: 400, background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:20, boxShadow:'0 10px 30px rgba(0,0,0,0.08)' }}>
-        <div style={{ fontWeight:700, marginBottom:16, fontSize:18 }}>登录 / 注册</div>
+    <div className="auth-layout">
+      <div className="glass-panel hero-panel auth-card">
+        <div className="eyebrow">Tower Defense</div>
+        <h1 style={{ margin: '12px 0 18px', fontSize: 30, lineHeight: 1.12 }}>登录 / 注册</h1>
         <AuthBar variant="card" onAuthed={onAuthed} />
       </div>
     </div>

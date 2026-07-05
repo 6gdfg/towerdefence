@@ -22,11 +22,7 @@ type ResultModalProps = {
 };
 
 const secondaryButtonStyle: CSSProperties = {
-  padding:'6px 10px',
-  borderRadius:8,
-  border:'1px solid #d1d5db',
-  background:'#fff',
-  cursor:'pointer',
+  flex: '1 1 auto',
 };
 
 export default function ResultModal({
@@ -51,8 +47,8 @@ export default function ResultModal({
     : (activeFunMode ? `趣味模式 · ${funModeLabel}` : levelIndex != null ? `第${levelIndex + 1}关 ${LEVELS[levelIndex].name}` : '');
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999 }}>
-      <div style={{ width: 360, borderRadius: 12, background:'#ffffff', border:'1px solid #e5e7eb', padding:16, boxShadow:'0 10px 30px rgba(0,0,0,0.15)' }}>
+    <div className="modal-backdrop" style={{ zIndex: 999 }}>
+      <div className="glass-panel modal-panel">
         <div style={{ fontWeight:700, fontSize:18, marginBottom:8 }}>
           {isWon ? '关卡完成 🎉' : (activeFunMode ? `挑战结束 · ${funModeLabel}` : '挑战失败 💥')}
         </div>
@@ -63,7 +59,7 @@ export default function ResultModal({
         )}
 
         {isWon && winReward && winReward.coins > 0 && (
-          <div style={{ background:'#f9fafb', borderRadius:8, padding:12, marginBottom:12 }}>
+          <div className="reward-panel" style={{ marginBottom: 12 }}>
             <div style={{ fontWeight:600, marginBottom:6, color:'#059669' }}>🎁 通关奖励</div>
             {winReward.message && (
               <div style={{ fontSize:14, color:'#6b7280', marginBottom:6 }}>{winReward.message}</div>
@@ -91,24 +87,24 @@ export default function ResultModal({
           {isWon ? (
             <>
               {levelIndex != null && currentStar < 3 && (
-                <button onClick={onChallengeHigherStar} className="btn-hover" style={secondaryButtonStyle}>挑战更高星级</button>
+                <button onClick={onChallengeHigherStar} className="action-button" style={secondaryButtonStyle}>挑战更高星级</button>
               )}
-              <button onClick={onNextLevel} className="btn-hover" style={secondaryButtonStyle}>下一关</button>
-              <button onClick={onRestartLevel} className="btn-hover" style={secondaryButtonStyle}>重玩</button>
-              <button onClick={onBackToSelect} className="btn-hover" style={secondaryButtonStyle}>返回关卡</button>
-              <button onClick={onBackToHub} className="btn-hover" style={secondaryButtonStyle}>返回主界面</button>
+              <button onClick={onNextLevel} className="action-button primary" style={secondaryButtonStyle}>下一关</button>
+              <button onClick={onRestartLevel} className="action-button" style={secondaryButtonStyle}>重玩</button>
+              <button onClick={onBackToSelect} className="action-button" style={secondaryButtonStyle}>返回关卡</button>
+              <button onClick={onBackToHub} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
             </>
           ) : activeFunMode ? (
             <>
-              <button onClick={onRestartFunMode} className="btn-hover" style={{ ...secondaryButtonStyle, border:'1px solid #0f172a', background:'#0f172a', color:'#fff' }}>重新开始{funModeLabel}</button>
-              <button onClick={onBackToFunMode} className="btn-hover" style={secondaryButtonStyle}>返回趣味模式</button>
-              <button onClick={onBackToHub} className="btn-hover" style={secondaryButtonStyle}>返回主界面</button>
+              <button onClick={onRestartFunMode} className="action-button primary" style={secondaryButtonStyle}>重新开始{funModeLabel}</button>
+              <button onClick={onBackToFunMode} className="action-button" style={secondaryButtonStyle}>返回趣味模式</button>
+              <button onClick={onBackToHub} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
             </>
           ) : (
             <>
-              <button onClick={onRestartLevel} className="btn-hover" style={secondaryButtonStyle}>重玩</button>
-              <button onClick={onBackToSelect} className="btn-hover" style={secondaryButtonStyle}>返回关卡</button>
-              <button onClick={onBackToHub} className="btn-hover" style={secondaryButtonStyle}>返回主界面</button>
+              <button onClick={onRestartLevel} className="action-button primary" style={secondaryButtonStyle}>重玩</button>
+              <button onClick={onBackToSelect} className="action-button" style={secondaryButtonStyle}>返回关卡</button>
+              <button onClick={onBackToHub} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
             </>
           )}
         </div>
