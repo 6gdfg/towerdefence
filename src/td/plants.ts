@@ -1,4 +1,4 @@
-import { ElementType, PlantType } from './types';
+import { ElementType, LabOverrides, PlantType } from './types';
 
 export interface BasePlantConfig {
   id: PlantType;
@@ -6,6 +6,7 @@ export interface BasePlantConfig {
   icon: string;
   cost: number;
   placementCooldown?: number;
+  lifetimeSec?: number;
   range: number;
   damage: number;
   fireRate: number;
@@ -98,11 +99,12 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     icon: '□',
     cost: 0,
     placementCooldown: 7,
+    lifetimeSec: 10,
     range: 3.2,
     damage: 26,
     fireRate: 1.2,
     projectileSpeed: 8,
-    description: '免费放置，放置后需要短暂冷却；其余性能与瓶子草相同。',
+    description: '免费放置，10秒后消失，放置后需要短暂冷却；其余性能与瓶子草相同。',
   },
   fourLeafClover: {
     id: 'fourLeafClover',
@@ -256,6 +258,13 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
 export const SUNFLOWER_ELEMENT_BLOCKLIST = new Set<ElementType>(['gold', 'fire', 'electric', 'ice', 'wind', 'light']);
 
 const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.05, rangePerLevel: 0.01, fireRatePerLevel: 0.02 } as const;
+
+export function getPlantRuntimeConfig(type: PlantType, labOverrides?: LabOverrides | null): BasePlantConfig | undefined {
+  const base = BASE_PLANTS_CONFIG[type];
+  if (!base) return undefined;
+  const override = labOverrides?.plants?.[type];
+  return override ? { ...base, ...override } : base;
+}
 
 export function scalePlantStats(base: BasePlantConfig, level: number) {
   const lv = Math.max(1, Math.floor(level || 1));

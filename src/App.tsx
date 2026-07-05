@@ -8,12 +8,14 @@ import AuthPage from './td/AuthPage';
 import RankingPage from './td/RankingPage';
 import BookPage from './td/BookPage';
 import ChestRewardModal from './td/ChestRewardModal';
+import BalanceLabPage, { type BalanceLabConfig } from './td/BalanceLabPage';
+import ChapterSelectPage from './td/ChapterSelectPage';
 import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
 import { useTDStore } from './td/store';
-import { INTRODUCTION_LEVEL, LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
+import { INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems, updateUnlockedItems } from './td/progress';
@@ -27,7 +29,9 @@ import { buildElementBookData, buildPlantBookData } from './td/bookData';
 import { getErrorMessage } from './td/errors';
 import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
-type Stage = 'auth' | 'tutorial' | 'hub' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun';
+import { getChapterForLevelIndex } from './td/chapters';
+import { getLevelDifficultyRatings } from './td/levelRatings';
+type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 
 function App() {
@@ -114,6 +118,8 @@ function App() {
   const [unlocked, setUnlockedState] = useState<number>(() => getUnlocked());
   const [showAbout, setShowAbout] = useState(false);
   const [activeFunMode, setActiveFunMode] = useState<FunModeType | null>(null);
+  const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
+  const [selectedChapterId, setSelectedChapterId] = useState(1);
 
   const [starSel, setStarSel] = useState<Record<number, 1|2|3>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
@@ -242,27 +248,6 @@ function App() {
     await loadHub();
   }
 
-  // 根据怪物等级和星级计算实际数值
-  function scaleWaves(waves: import('./td/types').WaveDef[], star: 1|2|3): import('./td/types').WaveDef[] {
-    return waves.map((w) => {
-      return {
-        groups: w.groups.map(g => {
-          const baseStats = MONSTER_BASE_STATS[g.type];
-          const addRange = DIFFICULTY_CONFIG.STAR_LEVEL_ADD_RANGE[star];
-          const finalLevel = g.level + getRandomInt(addRange.min, addRange.max);
-          const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * finalLevel;
-          return {
-            ...g,
-            hp: Math.round(baseStats.hp * mul),
-            speed: baseStats.speed,
-            leakDamage: g.leakDamage ?? baseStats.leakDamage,
-            level: finalLevel,
-          };
-        }),
-      };
-    });
-  }
-
   const startIntroductionLevel = useCallback(() => {
     const M = MAPS.find(m => m.id === INTRODUCTION_LEVEL.mapId);
     if (!M) {
@@ -305,11 +290,11 @@ function App() {
 
   const startLevel = (idx: number, starOverride?: 1 | 2 | 3) => {
     setActiveFunMode(null);
+    setActiveLabConfig(null);
     const L = LEVELS[idx];
     const M = MAPS.find(m => m.id === L.mapId);
     if (!M) { console.warn('Map not found for level', L.mapId); return; }
     const chosenStar = starOverride ?? ((starSel[idx] ?? 1) as 1|2|3);
-    const wavesScaled = scaleWaves(L.waves, chosenStar);
     const plantGrid = getPlantGrid(M); // 获取可种植格子点
     const unlockedItems = getUnlockedItems();
     const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item));
@@ -319,7 +304,7 @@ function App() {
       .map(item => item.split(':')[1])
       .filter((el): el is ElementType => Object.prototype.hasOwnProperty.call(ELEMENT_PLANT_CONFIG, el)))) as ElementType[];
     loadLevel(
-      { startGold: L.startGold, lives: L.lives, waves: wavesScaled },
+      { startGold: L.startGold, lives: L.lives, waves: L.waves },
       { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
       {
         autoStartFirstWave: L.autoStartFirstWave,
@@ -339,10 +324,11 @@ function App() {
     if (levelIndex==null) return;
     const next = levelIndex + 1;
     if (next < LEVELS.length) {
+      setSelectedChapterId(getChapterForLevelIndex(next).id);
       startLevel(next);
     } else {
-      // 全部通关，回到关卡选择
-      navigateWithTransition('select');
+      // 全部通关，回到章节选择
+      navigateWithTransition('chapters');
       setLevelIndex(null);
     }
   };
@@ -353,6 +339,7 @@ function App() {
   };
 
   const startFunMode = useCallback((mode: FunModeType) => {
+    setActiveLabConfig(null);
     const finalizeStart = () => {
       setActiveFunMode(mode);
       setWinReward(null);
@@ -473,7 +460,42 @@ function App() {
     finalizeStart();
   }, [funMap, hub, loadLevel, navigateWithTransition, setCurrentStar, setLevelIndex, setWinReward]);
 
+  const startLabTest = useCallback((config: BalanceLabConfig) => {
+    const labMap = MAPS.find(m => m.id === config.mapId);
+    if (!labMap) {
+      alert('Lab map missing, cannot start');
+      return;
+    }
+    const plantGrid = getPlantGrid(labMap);
+    setActiveFunMode(null);
+    setActiveLabConfig(config);
+    setWinReward(null);
+    setCurrentStar(1);
+    setLevelIndex(null);
+    loadLevel(
+      { startGold: config.startGold, lives: config.lives, waves: config.waves },
+      { path: labMap.path, size: labMap.size, roadWidthCells: labMap.roadWidthCells, plantGrid },
+      {
+        autoStartFirstWave: config.autoStartFirstWave,
+        firstWaveDelaySec: config.firstWaveDelaySec,
+        towerLevels: config.towerLevels,
+        allowedPlants: [...PLANT_TYPES],
+        allowedElements: [...ELEMENT_TYPES],
+        mode: 'lab',
+      },
+    );
+    navigateWithTransition('playing');
+  }, [loadLevel, navigateWithTransition]);
+
   const funModeLabel = activeFunMode ? FUN_MODE_LABELS[activeFunMode] : '';
+  const currentDifficultyLabel = useMemo(() => {
+    if (levelIndex == null) return null;
+    const level = LEVELS[levelIndex];
+    const labels = { 1: 'EZ', 2: 'HD', 3: 'IN' } as const;
+    const difficulty = labels[currentStar];
+    const rating = getLevelDifficultyRatings(level.id, levelIndex + 1)[difficulty];
+    return `${difficulty} Lv.${rating}`;
+  }, [currentStar, levelIndex]);
 
   const handleGameWin = useCallback(async () => {
     if (levelIndex != null) {
@@ -524,12 +546,16 @@ function App() {
       if (levelIndex + 1 === prevUnlocked) {
         setUnlockedPersist(nextUnlock);
         setUnlockedState(nextUnlock);
+        const unlockedChapter = Math.ceil(nextUnlock / 10);
+        if (unlockedChapter > selectedChapterId) {
+          setSelectedChapterId(unlockedChapter);
+        }
       }
       await loadHub();
       setUnlockedState(getUnlocked());
     }
     setStage('won');
-  }, [currentStar, levelIndex, loadHub, unlockedItemsSet]);
+  }, [currentStar, levelIndex, loadHub, selectedChapterId, unlockedItemsSet]);
 
   const handleAuth = useCallback(() => {
     setIsLoading(true);
@@ -553,7 +579,16 @@ function App() {
     <div className="app-shell">
       {isTransitioning && <TransitionScreen onTransitionComplete={() => { /* Logic is now handled in navigateWithTransition */ }} />}
       <div key={stage} className={isTransitioning ? '' : 'stage-container-fade-in'}>
-        {stage === 'auth' && <AuthPage onAuthed={handleAuth} />}
+        {stage === 'auth' && (
+          <AuthPage
+            onAuthed={handleAuth}
+            onEnterLab={() => {
+              setActiveFunMode(null);
+              setActiveLabConfig(null);
+              navigateWithTransition('lab');
+            }}
+          />
+        )}
 
         {stage !== 'auth' && (
           <>
@@ -586,7 +621,7 @@ function App() {
                 onOpenChest={openChest}
                 onSkipChest={skipChest}
                 onCraftLegendary={craftLegendary}
-                onStartGame={() => { setActiveFunMode(null); navigateWithTransition('select'); }}
+                onStartGame={() => { setActiveFunMode(null); navigateWithTransition('chapters'); }}
                 onOpenFunMode={() => navigateWithTransition('fun')}
               />
             )}
@@ -595,6 +630,25 @@ function App() {
               <FunModePage
                 onBack={() => { setActiveFunMode(null); navigateWithTransition('hub'); }}
                 onStartMode={startFunMode}
+                onOpenLab={() => navigateWithTransition('lab')}
+              />
+            )}
+
+            {stage === 'lab' && (
+              <BalanceLabPage
+                onBack={() => { setActiveLabConfig(null); navigateWithTransition(getToken() ? 'fun' : 'auth'); }}
+                onStartTest={startLabTest}
+              />
+            )}
+
+            {stage === 'chapters' && (
+              <ChapterSelectPage
+                unlocked={unlocked}
+                onBack={() => navigateWithTransition('hub')}
+                onSelectChapter={(chapterId) => {
+                  setSelectedChapterId(chapterId);
+                  navigateWithTransition('select');
+                }}
               />
             )}
 
@@ -604,7 +658,8 @@ function App() {
                 magicKeys={hub?.magicKeys ?? 0}
                 starSel={starSel}
                 unlockedItemsSet={unlockedItemsSet}
-                onBack={() => navigateWithTransition('hub')}
+                chapterId={selectedChapterId}
+                onBack={() => navigateWithTransition('chapters')}
                 onSelectStar={(levelIdx, star) => setStarSel(prev => ({ ...prev, [levelIdx]: star }))}
                 onStartLevel={startLevel}
                 onUnlockLevel={async (levelId, levelName) => {
@@ -640,12 +695,13 @@ function App() {
 
             {stage === 'playing' && (
               <TDGame
-                onWin={handleGameWin}
-                onLose={() => setStage('lost')}
+                difficultyLabel={activeLabConfig ? `${activeLabConfig.targetDifficulty} Lv.${activeLabConfig.difficultyRatings[activeLabConfig.targetDifficulty] ?? ''}` : currentDifficultyLabel}
+                onWin={activeLabConfig ? () => navigateWithTransition('lab') : handleGameWin}
+                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => setStage('lost')}
                 onExit={() => {
                   setWinReward(null);
                   setLevelIndex(null);
-                  navigateWithTransition(activeFunMode ? 'fun' : 'select');
+                  navigateWithTransition(activeLabConfig ? 'lab' : activeFunMode ? 'fun' : 'select');
                 }}
               />
             )}

@@ -78,14 +78,7 @@ export const MONSTER_BASE_STATS = {
   summoner: { hp: 250, speed: 2.2, leakDamage: 2 },
 };
 
-// 星级难度配置
 export const DIFFICULTY_CONFIG = {
-  STAR_LEVEL_ADD_RANGE: {
-    1: { min: 0, max: 0 },
-    2: { min: 45, max: 55 },
-    3: { min: 90, max: 120 },
-  } as Record<1|2|3, { min: number; max: number }>,
-  
   LEVEL_MULTIPLIER: 0.02, 
 };
 
@@ -160,8 +153,8 @@ export const LEVELS: LevelSpec[] = [
 
 const NORMAL_MAP_IDS = Array.from({ length: 12 }, (_, index) => index + 1);
 
-// 生成4-52关（循环使用稳定的普通地图）
-for (let i = 0; i < 49; i++) {
+// 生成4-60关（循环使用稳定的普通地图）
+for (let i = 0; i < 57; i++) {
   const levelNum = i + 4; // 关卡编号从4开始
   const mapId = NORMAL_MAP_IDS[i % NORMAL_MAP_IDS.length];
   const pathCount = getPathCount(mapId); // 获取地图路径数量

@@ -9,7 +9,7 @@ export const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
   11: 'sunlightFlower',
 };
 
-export const STAR_LABELS: Record<1 | 2 | 3, string> = { 1: '一星', 2: '二星', 3: '三星' };
+export const STAR_LABELS: Record<1 | 2 | 3, string> = { 1: 'EZ', 2: 'HD', 3: 'IN' };
 
 export const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   circle: '圆形怪',

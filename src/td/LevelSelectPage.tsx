@@ -1,130 +1,174 @@
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../../shared/unlocks';
 import { STAR_LABELS } from './appConfig';
+import { getChapterById, getChapterLevelLabel } from './chapters';
 import { LEVELS } from './levels';
 import { MAPS } from './maps';
 import { getAllStars, getMaxStarSync } from './progress';
 import { resolveUnlockItemLabel } from './labels';
+import { getLevelDifficultyRatings } from './levelRatings';
 
 type LevelSelectPageProps = {
   unlocked: number;
   magicKeys: number;
   starSel: Record<number, 1 | 2 | 3>;
   unlockedItemsSet: Set<string>;
+  chapterId: number;
   onBack: () => void;
   onSelectStar: (levelIndex: number, star: 1 | 2 | 3) => void;
   onStartLevel: (levelIndex: number) => void;
   onUnlockLevel: (levelId: string, levelName: string) => void;
 };
 
+const CORE_DIFFICULTIES = [
+  { label: 'EZ', star: 1, tone: 'ez' },
+  { label: 'HD', star: 2, tone: 'hd' },
+  { label: 'IN', star: 3, tone: 'in' },
+] as const;
+
 export default function LevelSelectPage({
   unlocked,
   magicKeys,
   starSel,
   unlockedItemsSet,
+  chapterId,
   onBack,
   onSelectStar,
   onStartLevel,
   onUnlockLevel,
 }: LevelSelectPageProps) {
   const allStars = getAllStars();
+  const chapter = getChapterById(chapterId);
+  const chapterLevels = LEVELS
+    .map((level, index) => ({ level, index }))
+    .filter(({ index }) => {
+      const levelNumber = index + 1;
+      return levelNumber >= chapter.startLevel && levelNumber <= chapter.endLevel;
+    });
 
   return (
-    <main className="page-wrap">
-      <section className="glass-panel hero-panel card-enter" style={{ opacity: 0, animationDelay: '0s' }}>
+    <main className="page-wrap level-select-page">
+      <section className={`glass-panel hero-panel level-select-hero chapter-${chapter.element} card-enter`} style={{ opacity: 0, animationDelay: '0s' }}>
         <div className="page-title-row">
           <div>
-            <div className="eyebrow">Campaign</div>
-            <h1>选择关卡</h1>
+            <div className="eyebrow">Chapter {String(chapter.id).padStart(2, '0')} · {chapter.elementLabel}</div>
+            <h1>{chapter.name}</h1>
           </div>
           <div className="button-row">
-            <div className="metric-pill" style={{ minWidth: 108 }}>
+            <div className="metric-pill level-key-pill" style={{ minWidth: 108 }}>
               <span>神奇钥匙</span>
               <strong>{magicKeys}</strong>
             </div>
-            <button onClick={onBack} className="action-button">返回主界面</button>
+            <button onClick={onBack} className="action-button">返回章节</button>
           </div>
         </div>
       </section>
 
-      <section className="level-grid" style={{ marginTop: 16 }}>
-        {LEVELS.map((L, i) => {
+      <section className="phigros-level-list">
+        {chapterLevels.map(({ level: L, index: i }, displayIndex) => {
           const clearedMax = getMaxStarSync(L.id);
           const hasStarRecord = L.id in allStars;
           const isLocked = (i + 1 > unlocked) && !hasStarRecord;
           const M = MAPS.find(m => m.id === L.mapId);
           const selectedStar = (starSel[i] ?? 1) as 1 | 2 | 3;
+          const selectedLabel = STAR_LABELS[selectedStar];
           const levelNumber = i + 1;
+          const displayLabel = getChapterLevelLabel(i);
+          const ratings = getLevelDifficultyRatings(L.id, levelNumber);
+          const hasAt = typeof ratings.AT === 'number';
           const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
+          const progressLabel = isLocked
+            ? 'LOCKED'
+            : clearedMax > 0
+              ? `${STAR_LABELS[clearedMax as 1 | 2 | 3]} CLEAR`
+              : 'NO CLEAR';
 
           return (
             <article
               key={L.id}
-              className="soft-card level-card card-enter"
+              className={`phigros-level-card card-enter ${isLocked ? 'is-locked' : ''}`}
               style={{
                 opacity: 0,
-                animationDelay: `${0.04 + i * 0.035}s`,
+                animationDelay: `${0.04 + displayIndex * 0.028}s`,
               }}
             >
-              <div className="item-name" style={{ marginBottom: 8 }}>{`第 ${i + 1} 关 ${L.name}`}</div>
-              <div className="muted" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px' }}>
-                <span>地图：{M ? `#${M.id} ${M.name}` : `#${L.mapId}`}</span>
-                <span>金币：{L.startGold}</span>
-                <span>生命：{L.lives}</span>
-                <span>波数：{L.waves.length}</span>
+              <div className="phigros-level-main">
+                <div className="phigros-level-number">{displayLabel}</div>
+                <div className="phigros-level-copy">
+                  <div className="phigros-level-title">{L.name}</div>
+                  <div className="phigros-level-meta">
+                    <span>{M ? `MAP ${M.id}` : `MAP ${L.mapId}`}</span>
+                    <span>{L.waves.length} WAVES</span>
+                    <span>{L.lives} LIVES</span>
+                    <span>{progressLabel}</span>
+                  </div>
+                  {unlockInfos.length > 0 && (
+                    <div className="phigros-unlock-row">
+                      {unlockInfos.map(info => {
+                        const isItemUnlocked = unlockedItemsSet.has(info.itemId);
+                        const itemLabel = resolveUnlockItemLabel(info.itemId);
+                        const starLabel = STAR_LABELS[info.star];
+                        return (
+                          <span key={`${info.level}-${info.itemId}`}>
+                            {starLabel} CLEAR / {itemLabel}{isItemUnlocked ? ' 已获得' : ''}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {unlockInfos.length > 0 && (
-                <div className="muted warning-text" style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {unlockInfos.map(info => {
-                    const isItemUnlocked = unlockedItemsSet.has(info.itemId);
-                    const itemLabel = resolveUnlockItemLabel(info.itemId);
-                    const starLabel = STAR_LABELS[info.star];
-                    return (
-                      <span key={`${info.level}-${info.itemId}`}>
-                        {starLabel}通关解锁{itemLabel}{isItemUnlocked ? '（已获得）' : ''}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="button-row" style={{ marginTop: 12, marginBottom: 12 }}>
-                {[1, 2, 3].map((s) => {
-                  const star = s as 1 | 2 | 3;
-                  const cleared = clearedMax >= s;
-                  const active = selectedStar === star;
+              <div className="phigros-difficulty-strip" aria-label={`${L.name} difficulty`}>
+                {CORE_DIFFICULTIES.map(diff => {
+                  const active = selectedStar === diff.star;
+                  const cleared = clearedMax >= diff.star;
                   return (
                     <button
-                      key={s}
-                      onClick={() => onSelectStar(i, star)}
+                      key={diff.label}
+                      type="button"
+                      onClick={() => onSelectStar(i, diff.star)}
                       disabled={isLocked}
-                      className="star-button"
-                      style={{
-                        border: active ? '2px solid #172033' : '1px solid rgba(148, 163, 184, 0.55)',
-                        background: isLocked ? 'rgba(241,245,249,0.72)' : active ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.58)',
-                        color: cleared ? '#f59e0b' : active ? '#172033' : '#94a3b8',
-                        cursor: isLocked ? 'not-allowed' : 'pointer',
-                      }}
+                      className={`phigros-diff-tile diff-${diff.tone} ${active ? 'is-active' : ''} ${cleared ? 'is-cleared' : ''}`}
+                      aria-pressed={active}
                     >
-                      ★
+                      <span className="phigros-diff-content">
+                        <span className="phigros-diff-rating">{ratings[diff.label]}</span>
+                        <span className="phigros-diff-label">{diff.label}</span>
+                      </span>
                     </button>
                   );
                 })}
-                <span className="muted">{STAR_LABELS[selectedStar]}</span>
+                {hasAt && (
+                  <button
+                    type="button"
+                    disabled
+                    className="phigros-diff-tile diff-at is-disabled"
+                    aria-label={`${L.name} AT difficulty unavailable`}
+                  >
+                    <span className="phigros-diff-content">
+                      <span className="phigros-diff-rating">{ratings.AT}</span>
+                      <span className="phigros-diff-label">AT</span>
+                    </span>
+                  </button>
+                )}
               </div>
 
-              <div className="button-row">
+              <div className="phigros-level-actions">
                 <button
+                  type="button"
                   onClick={() => onStartLevel(i)}
                   disabled={isLocked}
-                  className={isLocked ? 'action-button' : 'action-button primary'}
-                  style={{ flex: 1, opacity: isLocked ? 0.54 : 1 }}
+                  className="phigros-play-button"
                 >
-                  {isLocked ? '未解锁' : `开始（${STAR_LABELS[selectedStar]}）`}
+                  {isLocked ? 'LOCKED' : `START ${selectedLabel}`}
                 </button>
                 {isLocked && magicKeys > 0 && (
-                  <button onClick={() => onUnlockLevel(L.id, L.name)} className="action-button" style={{ color: '#b45309' }}>
-                    解锁
+                  <button
+                    type="button"
+                    onClick={() => onUnlockLevel(L.id, L.name)}
+                    className="phigros-unlock-button"
+                  >
+                    UNLOCK
                   </button>
                 )}
               </div>

@@ -3,6 +3,7 @@ import type { FunModeType } from './funModes';
 type FunModePageProps = {
   onBack: () => void;
   onStartMode: (mode: FunModeType) => void;
+  onOpenLab: () => void;
 };
 
 const modes: Array<{
@@ -34,7 +35,7 @@ const modes: Array<{
   },
 ];
 
-export default function FunModePage({ onBack, onStartMode }: FunModePageProps) {
+export default function FunModePage({ onBack, onStartMode, onOpenLab }: FunModePageProps) {
   return (
     <main className="page-wrap">
       <section className="glass-panel hero-panel card-enter" style={{ opacity: 0, animationDelay: '0s' }}>
@@ -49,13 +50,35 @@ export default function FunModePage({ onBack, onStartMode }: FunModePageProps) {
       </section>
 
       <section className="mode-grid" style={{ marginTop: 16 }}>
+        <article
+          className="soft-card mode-card card-enter"
+          style={{
+            opacity: 0,
+            animationDelay: '0.04s',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div>
+            <div className="section-title" style={{ marginBottom: 6 }}>平衡实验室</div>
+            <p className="muted">全植物、全元素、自定义波次和数值，用来临时调关。</p>
+          </div>
+          <button
+            onClick={onOpenLab}
+            className="action-button primary"
+            style={{ marginTop: 'auto' }}
+          >
+            打开实验室
+          </button>
+        </article>
         {modes.map((mode, index) => (
           <article
             key={mode.id}
             className="soft-card mode-card card-enter"
             style={{
               opacity: 0,
-              animationDelay: `${0.08 + index * 0.06}s`,
+              animationDelay: `${0.12 + index * 0.06}s`,
               display: 'flex',
               flexDirection: 'column',
               gap: 12,

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTDStore } from './store';
 import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
-import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR } from './plants';
+import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 
@@ -14,10 +14,11 @@ type TDGameProps = {
   onExit?: () => void;
   tutorialMode?: boolean;
   onTutorialSkip?: () => void;
+  difficultyLabel?: string | null;
 };
 
-export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
+export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [isMobile, setIsMobile] = useState(
@@ -28,23 +29,27 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const announcedLoseRef = useRef(false);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const selectedPlantInfo = selectedPlant ? BASE_PLANTS_CONFIG[selectedPlant] : null;
+  const selectedPlantInfo = selectedPlant ? getPlantRuntimeConfig(selectedPlant, labOverrides) : null;
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
-  const plantChoices = availablePlants.map(id => BASE_PLANTS_CONFIG[id]).filter(Boolean);
+  const plantChoices = availablePlants
+    .map(id => getPlantRuntimeConfig(id, labOverrides))
+    .filter((cfg): cfg is NonNullable<ReturnType<typeof getPlantRuntimeConfig>> => Boolean(cfg));
   const elementChoices = availableElements.map(id => ELEMENT_PLANT_CONFIG[id]).filter(Boolean);
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
   const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
-  const isFiniteMode = mode === 'campaign' || mode === 'random';
+  const isFiniteMode = mode === 'campaign' || mode === 'random' || mode === 'lab';
   const modeLabel = mode === 'endless'
     ? '无尽模式'
     : mode === 'endlessTest'
       ? '测试模式'
-      : mode === 'random'
-        ? '随机模式'
-        : mode === 'campaign'
-          ? '关卡模式'
-          : null;
+      : mode === 'lab'
+        ? '平衡测试'
+        : mode === 'random'
+          ? '随机模式'
+          : mode === 'campaign'
+            ? '关卡模式'
+            : null;
   const tutorialCopy = (() => {
     if (!tutorialMode) return null;
     if (towers.length === 0) {
@@ -258,6 +263,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           <div className="game-stat">金币: {gold}</div>
           <div className="game-stat">生命: {lives}</div>
           <div className="game-stat">波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
+          {difficultyLabel && <div className="game-stat difficulty-stat">{difficultyLabel}</div>}
           {mode && mode !== 'campaign' && modeLabel && (
             <div className="game-stat" style={{ color:'#f97316' }}>
               模式：{modeLabel}
@@ -598,6 +604,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           {towers.map(t => {
             const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
             const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : '#9ca3af';
+            const lifetimeSec = getPlantRuntimeConfig(t.type, labOverrides)?.lifetimeSec;
+            const lifetimePercent = t.expiresAt != null && lifetimeSec
+              ? Math.max(0, Math.min(1, (t.expiresAt - gameTime) / lifetimeSec))
+              : 1;
+            const lifetimeOpacity = Math.max(0.25, Math.min(1, 0.25 + lifetimePercent * 0.7));
             const { left, top } = worldToPx(t.pos);
             return (
               <foreignObject
@@ -627,6 +638,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       background:'rgba(255,255,255,0.45)',
                       borderRadius:6,
                       border:'1px solid rgba(148,163,184,0.25)',
+                      opacity: lifetimeOpacity,
                     }}
                   >
                     {renderPlantIcon({ ...t, color: iconStroke })}

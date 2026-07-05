@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const unlockedItems = (unlockedRows as UnlockedItemRow[]).map(r => r.item_id);
 
       let unlocked = 1;
-      for (let i = 1; i <= 52; i++) {
+      for (let i = 1; i <= 60; i++) {
         const star = stars[`L${i}`];
         if (star !== undefined && star > 0) {
           unlocked = i + 1;

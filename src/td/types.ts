@@ -37,9 +37,15 @@ export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafCl
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
+export type LabPlantStatOverride = Partial<Record<'cost' | 'range' | 'damage' | 'fireRate' | 'projectileSpeed' | 'placementCooldown' | 'incomeInterval' | 'incomeBase' | 'incomeBonusPerLevel', number>>;
+export type LabMonsterStatOverride = Partial<Record<'hp' | 'speed' | 'leakDamage', number>>;
+export type LabOverrides = {
+  plants?: Partial<Record<PlantType, LabPlantStatOverride>>;
+  monsters?: Partial<Record<ShapeType, LabMonsterStatOverride>>;
+};
 
 export type TowerType = PlantType;
-export type GameMode = 'campaign' | 'endless' | 'endlessTest' | 'random';
+export type GameMode = 'campaign' | 'endless' | 'endlessTest' | 'random' | 'lab';
 
 export interface Tower {
   id: string;
@@ -62,6 +68,7 @@ export interface Tower {
   incomeBase?: number;
   incomeBonusPerLevel?: number;
   lastIncomeTime?: number;
+  expiresAt?: number;
   element?: {
     type: ElementType;
     level: number;
@@ -161,6 +168,7 @@ export interface TDState {
   } | null;
   // 玩家塔等级映射（用于放塔时按等级缩放面板）
   towerLevelMap?: TowerLevelMap;
+  labOverrides?: LabOverrides | null;
   mode?: GameMode;
   lifeBonusPerWave?: number;
   wavesCleared?: number;

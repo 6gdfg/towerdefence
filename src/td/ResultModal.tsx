@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { getChapterLevelLabel } from './chapters';
 import { LEVELS } from './levels';
 import type { WinReward } from './appTypes';
 import type { FunModeType } from './funModes';
@@ -43,8 +44,8 @@ export default function ResultModal({
 }: ResultModalProps) {
   const isWon = result === 'won';
   const summary = isWon
-    ? (levelIndex != null ? `第${levelIndex + 1}关 ${LEVELS[levelIndex].name}` : activeFunMode ? `趣味模式 · ${funModeLabel}` : '')
-    : (activeFunMode ? `趣味模式 · ${funModeLabel}` : levelIndex != null ? `第${levelIndex + 1}关 ${LEVELS[levelIndex].name}` : '');
+    ? (levelIndex != null ? `${getChapterLevelLabel(levelIndex)} ${LEVELS[levelIndex].name}` : activeFunMode ? `趣味模式 · ${funModeLabel}` : '')
+    : (activeFunMode ? `趣味模式 · ${funModeLabel}` : levelIndex != null ? `${getChapterLevelLabel(levelIndex)} ${LEVELS[levelIndex].name}` : '');
 
   return (
     <div className="modal-backdrop" style={{ zIndex: 999 }}>
@@ -90,7 +91,7 @@ export default function ResultModal({
           {isWon ? (
             <>
               {levelIndex != null && currentStar < 3 && (
-                <button onClick={onChallengeHigherStar} className="action-button" style={secondaryButtonStyle}>挑战更高星级</button>
+                <button onClick={onChallengeHigherStar} className="action-button" style={secondaryButtonStyle}>挑战更高难度</button>
               )}
               <button onClick={onNextLevel} className="action-button primary" style={secondaryButtonStyle}>下一关</button>
               <button onClick={onRestartLevel} className="action-button" style={secondaryButtonStyle}>重玩</button>

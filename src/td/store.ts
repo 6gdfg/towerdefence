@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
-import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats } from './plants';
+import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats, getPlantRuntimeConfig } from './plants';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
 
@@ -28,8 +28,14 @@ const DEFAULT_WAVES: WaveDef[] = [
 export const TOWERS_PRESET = BASE_PLANTS_CONFIG;
 
 // Tower level scaling config (per-level multipliers)
-function ensureTowerStats(tower: Tower) {
-  const base = BASE_PLANTS_CONFIG[tower.type];
+function getMonsterRuntimeStats(type: ShapeType, labOverrides?: LabOverrides | null) {
+  const base = MONSTER_BASE_STATS[type];
+  const override = labOverrides?.monsters?.[type];
+  return override ? { ...base, ...override } : base;
+}
+
+function ensureTowerStats(tower: Tower, labOverrides?: LabOverrides | null) {
+  const base = getPlantRuntimeConfig(tower.type, labOverrides);
   if (!base) return tower;
   const level = tower.level ?? 1;
   const stats = computePlantStats(base, level, tower.element);
@@ -46,9 +52,9 @@ function ensureTowerStats(tower: Tower) {
   return tower;
 }
 
-function createProjectileForTower(tower: Tower, target: Enemy): Projectile | null {
+function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: LabOverrides | null): Projectile | null {
   if (tower.damage <= 0) return null;
-  const baseConfig = BASE_PLANTS_CONFIG[tower.type];
+  const baseConfig = getPlantRuntimeConfig(tower.type, labOverrides);
   const projectile: Projectile = {
     id: `p-${Date.now()}-${Math.random()}`,
     pos: { ...tower.pos },
@@ -185,7 +191,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null }) => void;
   togglePause: () => void;
 }
 
@@ -217,6 +223,7 @@ const INITIAL_TD_STATE: TDState = {
   nextWaveStartTime: null,
   spawnCursor: null,
   towerLevelMap: {},
+  labOverrides: null,
   mode: 'campaign',
   lifeBonusPerWave: 0,
   wavesCleared: 0,
@@ -266,6 +273,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       nextWaveStartTime: opts?.autoStartFirstWave ? (0 + (opts.firstWaveDelaySec ?? 0.8)) : null,
       spawnCursor: null,
       towerLevelMap: opts?.towerLevels || {},
+      labOverrides: opts?.labOverrides ?? null,
       mode: opts?.mode ?? 'campaign',
       lifeBonusPerWave: opts?.lifeBonusPerWave ?? 0,
       wavesCleared: 0,
@@ -276,7 +284,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
   placeTower: (type, pos) => {
     const state = get();
-    const base = BASE_PLANTS_CONFIG[type as PlantType];
+    const base = getPlantRuntimeConfig(type as PlantType, state.labOverrides);
     if (!base) return;
     if (!state.availablePlants.includes(type)) return;
     const cost = base.cost;
@@ -302,10 +310,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
       incomeBase: base.incomeBase,
       incomeBonusPerLevel: base.incomeBonusPerLevel,
       lastIncomeTime: state.gameTime,
+      expiresAt: base.lifetimeSec ? state.gameTime + base.lifetimeSec : undefined,
       color: DEFAULT_PLANT_COLOR,
       bulletColor: DEFAULT_BULLET_COLOR,
     };
-    ensureTowerStats(tower);
+    ensureTowerStats(tower, state.labOverrides);
 
     const placementCooldown = base.placementCooldown ?? 0;
     const nextPlantCooldowns = placementCooldown > 0
@@ -351,7 +360,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         };
       }
 
-      ensureTowerStats(targetTower);
+      ensureTowerStats(targetTower, state.labOverrides);
       set({
         towers,
         gold: state.gold - elementCost,
@@ -385,19 +394,19 @@ export const useTDStore = create<TDStore>((set, get) => ({
     if (index === -1) return;
     const tower = state.towers[index];
     if (tower.type !== 'sunlightFlower') return;
-    const base = BASE_PLANTS_CONFIG[tower.type];
+    const base = getPlantRuntimeConfig(tower.type, state.labOverrides);
     const abilityCost = base?.activeAbilityCost ?? 10;
     if (state.gold < abilityCost) return;
 
     const towerCopy: Tower = { ...tower };
-    ensureTowerStats(towerCopy);
+    ensureTowerStats(towerCopy, state.labOverrides);
 
     const inRange = state.enemies
       .filter(e => getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
       .sort((a, b) => b.progress - a.progress);
     if (inRange.length === 0) return;
 
-    const projectile = createProjectileForTower(towerCopy, inRange[0]);
+    const projectile = createProjectileForTower(towerCopy, inRange[0], state.labOverrides);
     if (!projectile) return;
 
     const towers = [...state.towers];
@@ -449,7 +458,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const lifeBonusPerWave = state.lifeBonusPerWave ?? 0;
     const endlessWaveFactory = state.endlessWaveFactory ?? null;
     let wavesCleared = state.wavesCleared ?? 0;
-    towers.forEach(t => ensureTowerStats(t));
+    if (towers.some(tower => tower.expiresAt != null && tower.expiresAt <= gameTime)) {
+      towers = towers.filter(tower => tower.expiresAt == null || tower.expiresAt > gameTime);
+    }
+    towers.forEach(t => ensureTowerStats(t, state.labOverrides));
 
     towers.forEach(tw => {
       if (!tw.incomeInterval || tw.incomeInterval <= 0) return;
@@ -484,7 +496,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const wave = waves[waveIndex];
       const g = wave.groups[spawnCursor.groupIndex];
       if (gameTime >= spawnCursor.nextSpawnTime && spawnCursor.remaining > 0) {
-        const baseStats = MONSTER_BASE_STATS[g.type];
+        const baseStats = getMonsterRuntimeStats(g.type, state.labOverrides);
         const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * g.level;
         const hp = Math.round(baseStats.hp * mul);
         const pathId = g.pathId ?? 0; // 默认使用第一条路径
@@ -751,7 +763,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
 
           // 创建召唤的circle怪物
-          const baseStats = MONSTER_BASE_STATS['circle'];
+          const baseStats = getMonsterRuntimeStats('circle', state.labOverrides);
           const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * (enemy.level ?? 1);
           const summonedHp = Math.round(baseStats.hp * mul);
           const totalLen = totalPathLength(path);
@@ -788,7 +800,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     // ᚻ 植物发射子弹
     towers.forEach(tw => {
-      ensureTowerStats(tw);
+      ensureTowerStats(tw, state.labOverrides);
       if (tw.type === 'sniper') {
         const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId) : undefined;
         const lockedValid = locked && locked.hp > 0 && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
@@ -841,7 +853,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
       tw.lastShotTime = gameTime;
 
-      const projectile = target ? createProjectileForTower(tw, target) : null;
+      const projectile = target ? createProjectileForTower(tw, target, state.labOverrides) : null;
       if (projectile) {
         projectiles.push(projectile);
       }
