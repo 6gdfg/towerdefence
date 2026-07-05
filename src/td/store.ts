@@ -1,9 +1,11 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats } from './plants';
+import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
+import { normalizeMapPaths } from './mapPath';
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -21,15 +23,6 @@ const DEFAULT_WAVES: WaveDef[] = [
   { groups: [ { type: 'circle', count: 6, interval: 0.7, level: 3, reward: 6 }, { type: 'triangle', count: 6, interval: 0.6, level: 2, reward: 6 } ] },
   { groups: [ { type: 'square', count: 5, interval: 1.0, level: 4, reward: 10 }, { type: 'triangle', count: 10, interval: 0.5, level: 3, reward: 7 } ] },
 ];
-
-const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
-  ice: 20,
-  fire: 30,
-  wind: 20,
-  gold: 20,
-  electric: 30,
-  light: 30,
-};
 
 // 基础植物预设（灰度数值，后续可在 src/td/plants.ts 中调整）
 export const TOWERS_PRESET = BASE_PLANTS_CONFIG;
@@ -192,7 +185,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: Partial<Record<PlantType, number>>; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef }) => void;
   togglePause: () => void;
 }
 
@@ -245,12 +238,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
   },
 
   loadLevel: (level, map, opts) => {
-    // 处理单路径或多路径
-    const firstElement = (map.path as any)[0];
-    const isMultiPath = Array.isArray(firstElement) && firstElement.length > 0 && 'x' in firstElement[0];
-    const paths: Position[][] = isMultiPath
-      ? map.path as Position[][] // 已经是多路径
-      : [map.path as Position[]]; // 单路径，包装成数组
+    const paths = normalizeMapPaths(map.path);
 
     set({
       running: true,
@@ -293,7 +281,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     if (state.gold < cost) return;
     if (!get().canPlaceTower(pos)) return;
 
-    const level = (state.towerLevelMap && (state.towerLevelMap as any)[type]) || 1;
+    const level = state.towerLevelMap?.[type] || 1;
     const tower: Tower = {
       id: `tower-${Date.now()}-${Math.random()}`,
       pos,
@@ -363,8 +351,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     const cooldownReadyAt = state.elementCooldowns[elementType] ?? 0;
     if (cooldownReadyAt > state.gameTime) return;
-    const levelKey = `element:${elementType}`;
-    const elementLevel = Math.max(1, Math.floor((state.towerLevelMap && (state.towerLevelMap as any)[levelKey]) || 1));
+    const levelKey = `element:${elementType}` as const;
+    const elementLevel = Math.max(1, Math.floor(state.towerLevelMap?.[levelKey] || 1));
 
     const cast: ElementCast = {
       id: `cast-${Date.now()}-${Math.random()}`,
@@ -498,6 +486,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           speed: baseStats.speed,
           shape: g.type,
           leakDamage: g.leakDamage ?? baseStats.leakDamage,
+          reward: g.reward,
           level: g.level,
           pathIndex: 0,
           t: 0,
@@ -562,7 +551,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         // reached end -> lose life
         const path = state.paths[e.pathId]; // 使用敌人自己的路径
         const atEnd = e.pathIndex >= path.length - 2 && e.t >= 1;
-        if (atEnd) lives -= (e as any).leakDamage != null ? (e as any).leakDamage : 1;
+        if (atEnd) lives -= e.leakDamage ?? 1;
         return !atEnd && e.hp > 0;
       });
 
@@ -770,6 +759,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             speed: baseStats.speed,
             shape: 'circle',
             leakDamage: baseStats.leakDamage,
+            reward: rewardForShape('circle'),
             level: enemy.level,
             pathIndex: spawnPathIndex,
             t: spawnT,
@@ -1068,9 +1058,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
 }));
 
 function rewardForEnemy(e: Enemy): number {
-  // 基础奖励按照形状区分，并整体提升倍数
+  if (typeof e.reward === 'number' && Number.isFinite(e.reward)) {
+    return Math.max(0, Math.round(e.reward));
+  }
+  return rewardForShape(e.shape);
+}
+
+function rewardForShape(shape: Enemy['shape']): number {
   let base = 5;
-  switch (e.shape) {
+  switch (shape) {
     case 'square':
       base = 10;
       break;

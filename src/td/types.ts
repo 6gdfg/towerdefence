@@ -10,6 +10,7 @@ export interface Enemy {
   speed: number; // 格/秒
   shape: ShapeType;
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
+  reward?: number; // 击杀奖励，优先来自波次配置
   level?: number; // 怪物等级（显示用，可选，默认1）
   // 路径进度
   pathIndex: number; // 当前处于 path[pathIndex] -> path[pathIndex+1] 之间
@@ -34,6 +35,8 @@ export interface Enemy {
 
 export type PlantType = 'sunflower' | 'bottleGrass' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
+export type TowerLevelKey = PlantType | `element:${ElementType}`;
+export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 
 export type TowerType = PlantType;
 export type GameMode = 'campaign' | 'endless' | 'endlessTest' | 'random';
@@ -156,7 +159,7 @@ export interface TDState {
     remaining: number; // 当前小组剩余
   } | null;
   // 玩家塔等级映射（用于放塔时按等级缩放面板）
-  towerLevelMap?: Partial<Record<PlantType, number>>;
+  towerLevelMap?: TowerLevelMap;
   mode?: GameMode;
   lifeBonusPerWave?: number;
   wavesCleared?: number;

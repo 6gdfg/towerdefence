@@ -1,113 +1,43 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
-import crypto from 'crypto';
+import { splitShardInventory } from '../shared/shards';
+import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks';
+import { CHEST_REWARD_CONFIG, getStarRewardConfig } from '../shared/rewards';
+import { createId, ensurePlayer, ensureTables, getSql } from './_db';
+import { getAuthPlayerId } from './_auth';
+import { getErrorMessage } from './_errors';
 
-// === Inline DB utilities ===
-function getDbUrl() {
-  if (typeof process === 'undefined' || !process.env) return '';
-  return process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.NEON_DATABASE_URL || '';
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-let _sql: any = null;
-function getSql() {
-  if (!_sql) {
-    const CONN = getDbUrl();
-    if (!CONN) throw new Error('No DB URL configured');
-    _sql = neon(CONN);
-  }
-  return _sql;
+function parseLevelNumber(levelId: string) {
+  const levelNum = Number(String(levelId || '').replace(/^L/i, ''));
+  return Number.isNaN(levelNum) ? null : levelNum;
 }
 
-const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass'] as const;
-const UNLOCK_RULES: Array<{ level: number; star: 1|2|3; itemId: string }> = [
-  { level: 1, star: 1, itemId: 'element:fire' },
-  { level: 3, star: 3, itemId: 'fourLeafClover' },
-  { level: 4, star: 3, itemId: 'rocket' },
-  { level: 6, star: 3, itemId: 'element:wind' },
-  { level: 15, star: 3, itemId: 'machineGun' },
-  { level: 20, star: 3, itemId: 'element:ice' },
-  { level: 23, star: 3, itemId: 'sniper' },
-  { level: 11, star: 3, itemId: 'sunlightFlower' },
-  { level: 27, star: 3, itemId: 'element:electric' },
-  { level: 30, star: 3, itemId: 'element:gold' },
-];
+type ProgressRow = { level_id: string; max_star: number | string };
+type WalletRow = { coins?: number | string; magic_keys?: number | string };
+type ShardRow = { tower_type: string; shards: number | string };
+type TowerLevelRow = { tower_type: string; level: number | string };
+type UnlockedItemRow = { item_id: string };
 
-let tablesEnsured = false;
-async function ensureTables() {
-  if (tablesEnsured) return;
-  const sql = getSql();
-  await Promise.all([
-    sql`CREATE TABLE IF NOT EXISTS players (player_id TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT NOW())`,
-    sql`CREATE TABLE IF NOT EXISTS player_progress (player_id TEXT, level_id TEXT, max_star INTEGER CHECK (max_star BETWEEN 0 AND 3), updated_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (player_id, level_id))`,
-    sql`CREATE TABLE IF NOT EXISTS player_wallet (player_id TEXT PRIMARY KEY, coins BIGINT DEFAULT 0, magic_keys INTEGER DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW())`,
-    sql`CREATE TABLE IF NOT EXISTS inventory_shards (player_id TEXT, tower_type TEXT, shards BIGINT DEFAULT 0, PRIMARY KEY (player_id, tower_type))`,
-    sql`CREATE TABLE IF NOT EXISTS tower_levels (player_id TEXT, tower_type TEXT, level INTEGER DEFAULT 1, PRIMARY KEY (player_id, tower_type))`,
-    sql`CREATE TABLE IF NOT EXISTS chests (chest_id TEXT PRIMARY KEY, player_id TEXT, status TEXT CHECK (status IN ('locked','unlocking','ready','opened')) DEFAULT 'locked', awarded_at TIMESTAMPTZ DEFAULT NOW(), unlock_start_at TIMESTAMPTZ, unlock_ready_at TIMESTAMPTZ, duration_seconds INTEGER DEFAULT 3600, chest_type TEXT DEFAULT 'common' CHECK (chest_type IN ('common','rare','epic')), coin_reward INTEGER DEFAULT 0, open_result JSONB)`,
-    sql`CREATE TABLE IF NOT EXISTS unlocked_items (player_id TEXT, item_id TEXT, unlocked BOOLEAN DEFAULT TRUE, unlocked_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (player_id, item_id))`
-  ]);
-  tablesEnsured = true;
-}
-
-async function ensureDefaultUnlocks(playerId: string) {
-  const sql = getSql();
-  for (const item of DEFAULT_UNLOCKED_ITEMS) {
-    await sql`INSERT INTO unlocked_items (player_id, item_id, unlocked) VALUES (${playerId}, ${item}, TRUE)
-      ON CONFLICT (player_id, item_id) DO NOTHING`;
-  }
-}
-
-async function ensurePlayer(playerId: string) {
-  const sql = getSql();
-  await ensureTables();
-  await sql`INSERT INTO players (player_id) VALUES (${playerId}) ON CONFLICT (player_id) DO NOTHING`;
-  await sql`INSERT INTO player_wallet (player_id, coins) VALUES (${playerId}, 0) ON CONFLICT (player_id) DO NOTHING`;
-  await ensureDefaultUnlocks(playerId);
-}
-
-// === Inline Auth utilities ===
-function getSecret() {
-  if (typeof process === 'undefined' || !process.env) return 'dev-secret-change-me';
-  return process.env.AUTH_SECRET || process.env.JWT_SECRET || 'dev-secret-change-me';
-}
-
-function verifyToken(token?: string): any | null {
-  if (!token) return null;
-  const [b64, sig] = token.split('.') as [string, string];
-  if (!b64 || !sig) return null;
-  const expect = crypto.createHmac('sha256', getSecret()).update(b64).digest('base64url');
-  if (expect !== sig) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(b64, 'base64url').toString());
-    if (payload.exp && Date.now() > payload.exp) return null;
-    return payload;
-  } catch {
+function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
+  const playerId = getAuthPlayerId(req);
+  if (!playerId) {
+    res.status(401).json({ error: 'unauthorized' });
     return null;
   }
-}
-
-function getAuthPlayerId(req: VercelRequest): string | null {
-  const auth = req.headers['authorization'];
-  if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
-    const token = auth.slice('Bearer '.length).trim();
-    const payload = verifyToken(token);
-    if (payload?.pid) return String(payload.pid);
-  }
-  return null;
-}
-
-function randInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-function resolvePlayerId(req: VercelRequest): string | null {
-  return getAuthPlayerId(req) || (typeof req.query.playerId === 'string' ? req.query.playerId : (req.body?.playerId ?? null));
+  return playerId;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await ensureTables();
     const sql = getSql();
+
     if (req.method === 'GET') {
-      const playerId = resolvePlayerId(req);
-      if (!playerId) return res.status(400).json({ error: 'playerId required' });
+      const playerId = getRequiredPlayerId(req, res);
+      if (!playerId) return;
       await ensurePlayer(playerId);
 
       const [prog, wallet, shards, levels, chests, unlockedRows] = await Promise.all([
@@ -115,78 +45,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sql`SELECT coins, magic_keys FROM player_wallet WHERE player_id=${playerId}`,
         sql`SELECT tower_type, shards FROM inventory_shards WHERE player_id=${playerId}`,
         sql`SELECT tower_type, level FROM tower_levels WHERE player_id=${playerId}`,
-        sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
+        sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds, chest_type, coin_reward FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
         sql`SELECT item_id FROM unlocked_items WHERE player_id=${playerId} AND unlocked=true`,
       ]);
-      const stars: Record<string, number> = {};
-      (prog as any[]).forEach((r: any) => stars[r.level_id] = r.max_star);
-      const coins = (wallet as any[])[0]?.coins ?? 0;
-      const magicKeys = (wallet as any[])[0]?.magic_keys ?? 0;
-      const shardInv: Record<string, number> = {};
-      (shards as any[]).forEach((r: any) => shardInv[r.tower_type] = Number(r.shards));
-      const towerLv: Record<string, number> = {};
-      (levels as any[]).forEach((r: any) => towerLv[r.tower_type] = Number(r.level));
-      const unlockedItems = (unlockedRows as any[]).map((r: any) => r.item_id);
 
-      // 计算 unlocked：只考虑连续通关的关卡
-      let unlocked = 1; // 默认至少解锁第1关
+      const stars: Record<string, number> = {};
+      (prog as ProgressRow[]).forEach(r => stars[r.level_id] = Number(r.max_star));
+      const coins = Number((wallet as WalletRow[])[0]?.coins ?? 0);
+      const magicKeys = Number((wallet as WalletRow[])[0]?.magic_keys ?? 0);
+      const shardInv: Record<string, number> = {};
+      (shards as ShardRow[]).forEach(r => shardInv[r.tower_type] = Number(r.shards));
+      const splitShards = splitShardInventory(shardInv);
+      const towerLv: Record<string, number> = {};
+      (levels as TowerLevelRow[]).forEach(r => towerLv[r.tower_type] = Number(r.level));
+      const unlockedItems = (unlockedRows as UnlockedItemRow[]).map(r => r.item_id);
+
+      let unlocked = 1;
       for (let i = 1; i <= 52; i++) {
-        const levelId = `L${i}`;
-        const star = stars[levelId];
+        const star = stars[`L${i}`];
         if (star !== undefined && star > 0) {
-          // 通关了，解锁下一关
           unlocked = i + 1;
         } else {
-          // 未通关或钥匙解锁（0星），停止连续计数
           break;
         }
       }
 
-      return res.json({ stars, coins, magicKeys, shards: shardInv, towerLevels: towerLv, chests, unlocked, unlockedItems });
+      return res.json({ stars, coins, magicKeys, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
     }
 
     if (req.method === 'POST') {
-      const { action } = req.body || {};
-      if (action === 'unlockWithKey') {
-        const pid = resolvePlayerId(req);
-        const { levelId } = req.body as { levelId: string };
-        if (!pid || !levelId) return res.status(400).json({ error: 'params' });
-        await ensurePlayer(pid);
+      const pid = getRequiredPlayerId(req, res);
+      if (!pid) return;
+      await ensurePlayer(pid);
 
-        // 检查钥匙数量
+      const { action } = req.body || {};
+
+      if (action === 'unlockWithKey') {
+        const { levelId } = req.body as { levelId?: string };
+        if (!levelId) return res.status(400).json({ error: 'params' });
+
         const wallet = await sql`SELECT magic_keys FROM player_wallet WHERE player_id=${pid}`;
-        const keys = (wallet as any[])[0]?.magic_keys ?? 0;
+        const keys = Number((wallet as WalletRow[])[0]?.magic_keys ?? 0);
         if (keys < 1) return res.status(400).json({ error: 'not enough keys' });
 
-        // 检查是否已解锁
         const prog = await sql`SELECT max_star FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
-        if ((prog as any[])[0]?.max_star > 0) {
+        if (Number((prog as ProgressRow[])[0]?.max_star ?? 0) > 0) {
           return res.status(400).json({ error: 'already unlocked' });
         }
 
-        // 消耗钥匙，标记关卡为已解锁（0星）
-        await sql`UPDATE player_wallet SET magic_keys = magic_keys - 1, updated_at=NOW() WHERE player_id=${pid}`;
+        const spent = await sql`UPDATE player_wallet SET magic_keys = magic_keys - 1, updated_at=NOW()
+          WHERE player_id=${pid} AND magic_keys >= 1 RETURNING magic_keys`;
+        if (spent.length === 0) return res.status(400).json({ error: 'not enough keys' });
+
         await sql`INSERT INTO player_progress (player_id, level_id, max_star) VALUES (${pid}, ${levelId}, 0)
           ON CONFLICT (player_id, level_id) DO NOTHING`;
 
-        return res.json({ ok: true, remainingKeys: keys - 1 });
+        return res.json({ ok: true, remainingKeys: Number(spent[0].magic_keys ?? 0) });
       }
 
       if (action === 'setStar') {
-        const pid = resolvePlayerId(req);
-        const { levelId, star } = req.body as { playerId?: string; levelId: string; star: 1|2|3 };
-        if (!pid || !levelId || !star) return res.status(400).json({ error: 'params' });
-        await ensurePlayer(pid);
-        // upsert star
+        const { levelId, star } = req.body as { levelId?: string; star?: number };
+        const parsedStar = Number(star);
+        if (!levelId || ![1, 2, 3].includes(parsedStar)) return res.status(400).json({ error: 'params' });
+
         const cur = await sql`SELECT max_star FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
-        const prev = (cur as any[])[0]?.max_star ?? 0;
-        const next = Math.max(prev, star);
+        const prev = Number((cur as ProgressRow[])[0]?.max_star ?? 0);
+        const next = Math.max(prev, parsedStar);
+
         await sql`INSERT INTO player_progress (player_id, level_id, max_star) VALUES (${pid}, ${levelId}, ${next})
           ON CONFLICT (player_id, level_id) DO UPDATE SET max_star=excluded.max_star, updated_at=NOW()`;
+
         const newUnlocks: string[] = [];
-        const levelNum = Number(String(levelId || '').replace(/^L/i, ''));
-        if (!Number.isNaN(levelNum)) {
-          for (const rule of UNLOCK_RULES) {
+        const levelNum = parseLevelNumber(levelId);
+        if (levelNum !== null) {
+          for (const rule of LEVEL_UNLOCK_REQUIREMENTS) {
             if (rule.level === levelNum && next >= rule.star) {
               const existed = await sql`SELECT unlocked FROM unlocked_items WHERE player_id=${pid} AND item_id=${rule.itemId}`;
               const isUnlocked = Boolean(existed[0]?.unlocked);
@@ -200,50 +132,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-        // 每次通关都给奖励
-        let rewardCoins = 0;
-        let chestType = 'common';
-        let chestCoinReward = 0;
         let rewardMagicKeys = 0;
+        const rewardConfig = getStarRewardConfig(parsedStar);
+        const chestType = rewardConfig.chestType;
+        const chestConfig = CHEST_REWARD_CONFIG[chestType];
+        const rewardCoins = randInt(rewardConfig.coins.min, rewardConfig.coins.max);
+        const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
 
-        // 根据当前获得的星级给奖励
-        if (star >= 1) {
-          // 根据星级给予奖励
-          if (star === 1) {
-            rewardCoins = randInt(100, 200);
-            chestType = 'common';
-          } else if (star === 2) {
-            rewardCoins = randInt(500, 1000);
-            chestType = 'rare';
-          } else if (star === 3) {
-            rewardCoins = randInt(800, 1500);
-            chestType = 'epic';
-          }
-
-          // L4通关1星给神奇钥匙
-          if (levelNum === 4 && star >= 1 && prev === 0) {
-            rewardMagicKeys = 1;
-          }
-
-          await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, updated_at=NOW() WHERE player_id=${pid}`;
-
-          // 每次通关都给宝箱（锁定状态，需要解锁）
-          const chestId = `c_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-          await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-            VALUES (${chestId}, ${pid}, 'locked', 3600, ${chestType}, ${chestCoinReward})`;
-
-          return res.json({ ok: true, star: next, rewardCoins, rewardMagicKeys, chestId, chestType, previousStar: prev, newRecord: next > prev, newUnlocks });
+        if (levelNum === 4 && parsedStar >= 1 && prev === 0) {
+          rewardMagicKeys = 1;
         }
 
-        return res.json({ ok: true, star: next, rewardCoins: 0, newUnlocks });
+        await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, updated_at=NOW()
+          WHERE player_id=${pid}`;
+
+        const chestId = createId('c');
+        await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
+          VALUES (${chestId}, ${pid}, 'locked', ${chestConfig.unlockSeconds}, ${chestType}, ${chestCoinReward})`;
+
+        return res.json({
+          ok: true,
+          star: next,
+          rewardCoins,
+          rewardMagicKeys,
+          chestId,
+          chestType,
+          chestCoinReward,
+          previousStar: prev,
+          newRecord: next > prev,
+          newUnlocks,
+        });
       }
 
       return res.status(400).json({ error: 'bad action' });
     }
 
     return res.status(405).json({ error: 'method' });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error(e);
-    return res.status(500).json({ error: e?.message || String(e) });
+    return res.status(500).json({ error: getErrorMessage(e) });
   }
 }

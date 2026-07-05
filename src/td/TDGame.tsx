@@ -4,17 +4,9 @@ import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR } from './plants';
 import { PlantType, ElementType } from './types';
+import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
-
-const ELEMENT_SINGLE_USE_COOLDOWN: Record<ElementType, number> = {
-  ice: 20,
-  fire: 30,
-  wind: 20,
-  gold: 20,
-  electric: 30,
-  light: 25,
-};
 
 export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?: () => void } = {}) {
   const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
@@ -672,7 +664,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
                 <div style={{ width:shapeSize, height:shapeSize, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   {shapeNode}
                 </div>
-                <div style={{ position:'absolute', left:'50%', top: shapeSize + 2, transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280' }}>lv.{(e as any).level ?? 1}</div>
+                <div style={{ position:'absolute', left:'50%', top: shapeSize + 2, transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280' }}>lv.{e.level ?? 1}</div>
               </foreignObject>
             );
           })}

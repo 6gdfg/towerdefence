@@ -1,10 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
+import { getErrorMessage } from './_errors';
+import { getDbUrl } from './_db';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
-    const hasDbUrl = !!(env.DATABASE_URL || env.POSTGRES_URL || env.NEON_DATABASE_URL);
+    const hasDbUrl = !!getDbUrl();
     const hasAuthSecret = !!(env.AUTH_SECRET || env.JWT_SECRET);
 
     let dbConnected = false;
@@ -12,12 +14,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (hasDbUrl) {
       try {
-        const dbUrl = env.DATABASE_URL || env.POSTGRES_URL || env.NEON_DATABASE_URL || '';
-        const sql = neon(dbUrl);
+        const sql = neon(getDbUrl());
         await sql`SELECT 1 as test`;
         dbConnected = true;
-      } catch (e: any) {
-        dbError = e?.message || String(e);
+      } catch (e: unknown) {
+        dbError = getErrorMessage(e);
       }
     }
 
@@ -35,11 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         platform: process.platform
       }
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return res.status(500).json({
       status: 'error',
-      error: e?.message || String(e),
-      stack: e?.stack
+      error: getErrorMessage(e),
+      stack: e instanceof Error ? e.stack : undefined
     });
   }
 }

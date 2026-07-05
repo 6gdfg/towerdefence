@@ -74,7 +74,7 @@ export interface Unit {
   isMoving: boolean;
   // 特殊能力相关
   ability?: AbilityType;
-  abilityData?: any; // 能力特定数据
+  abilityData?: unknown; // 能力特定数据
   statusEffects: StatusEffect[]; // 状态效果列表
   // 动能冲锋猪专用
   currentSpeed?: number; // 当前速度

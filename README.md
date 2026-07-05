@@ -15,3 +15,15 @@ npm install
 npm run dev
 ```
 
+Vercel + Postgres 部署：
+
+1. 在 Vercel 项目里添加 Storage / Postgres，确保项目环境变量里有 `POSTGRES_URL`。
+2. 设置 `AUTH_SECRET`，用一段足够长的随机字符串。
+3. 部署时 Vercel 会执行 `npm run vercel-build`，它会先跑 `npm run db:migrate`，再构建前端。
+4. API 冷启动时也会调用同一套迁移作为兜底，所以不需要手动复制 SQL 到数据库控制台。
+
+本地手动同步数据库结构：
+```bash
+npm run db:migrate
+```
+

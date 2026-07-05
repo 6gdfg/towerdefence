@@ -1,5 +1,6 @@
 import { WaveDef, WaveGroup } from './types';
 import { MAPS } from './maps';
+import { countMapPaths } from './mapPath';
 
 export interface LevelSpec {
   id: string;
@@ -15,15 +16,7 @@ export interface LevelSpec {
 // 获取地图的路径数量
 function getPathCount(mapId: number): number {
   const map = MAPS.find(m => m.id === mapId);
-  if (!map) return 1;
-
-  const firstElement = (map.path as any)[0];
-  const isMultiPath = Array.isArray(firstElement) && firstElement.length > 0 && 'x' in firstElement[0];
-
-  if (isMultiPath) {
-    return (map.path as any[][]).length;
-  }
-  return 1;
+  return countMapPaths(map);
 }
 
 function createFinalBossWave(mapId: number, opts: { bossLevel: number; smallReward: number; bossReward: number; intensity?: number }): WaveDef {
@@ -151,15 +144,12 @@ export const LEVELS: LevelSpec[] = [
 
 ];
 
-// 49个同学地图的ID（7-55）打乱顺序
-const studentMapIds = [15, 42, 28, 51, 19, 33, 8, 46, 22, 37, 11, 54, 25, 40, 14, 49, 18, 31, 7, 44,
-  23, 38, 12, 53, 26, 41, 16, 50, 20, 34, 9, 47, 24, 39, 13, 52, 27, 43, 17, 32, 10, 48, 21, 36,
-  29, 45, 30, 55, 35];
+const NORMAL_MAP_IDS = Array.from({ length: 12 }, (_, index) => index + 1);
 
-// 生成4-52关（使用49张同学地图）
+// 生成4-52关（循环使用稳定的普通地图）
 for (let i = 0; i < 49; i++) {
   const levelNum = i + 4; // 关卡编号从4开始
-  const mapId = studentMapIds[i];
+  const mapId = NORMAL_MAP_IDS[i % NORMAL_MAP_IDS.length];
   const pathCount = getPathCount(mapId); // 获取地图路径数量
 
   // 基础参数随关卡递增

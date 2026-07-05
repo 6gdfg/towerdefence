@@ -161,7 +161,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
     cost: 100,
     color: '#fbbf24',
     bulletColor: '#f59e0b',
-    fireRatePenalty: 1,
+    fireRatePenalty: 0.5,
     breakArmor: {
       multiplier: 1.5,
       bonusPerLevel: 0.1,
@@ -273,7 +273,7 @@ export function computePlantStats(base: BasePlantConfig, level: number, element?
         fireRate = Number((fireRate * elementCfg.fireRateMultiplier).toFixed(2));
       }
       if (elementCfg.fireRatePenalty != null) {
-        fireRate = Math.max(0, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
+        fireRate = Math.max(0.1, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
       }
       let damageMul = elementCfg.damageMultiplier ?? 1;
       if (elementCfg.damageBonusPerLevel) {

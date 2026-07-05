@@ -1,4 +1,5 @@
-import { Position } from '../types/game';
+import type { Position } from '../types/game';
+import { normalizeMapPaths, type MapPath } from './mapPath';
 
 export interface MapSpec {
   id: number;
@@ -6,463 +7,128 @@ export interface MapSpec {
   desc?: string;
   size: { w: number; h: number };
   roadWidthCells: number;
-  path: Position[] | Position[][];
+  path: MapPath;
   plantGrid?: Position[];
 }
 
-const DEFAULT_MAP_WIDTH = 24;
-const DEFAULT_MAP_HEIGHT = 40;
+type GridPoint = readonly [number, number];
+type GridPath = readonly GridPoint[];
+type GridMapDef = {
+  id: number;
+  name: string;
+  desc?: string;
+  size?: { w: number; h: number };
+  roadWidthCells?: number;
+  path: GridPath | readonly GridPath[];
+};
+
+const DEFAULT_MAP_SIZE = { w: 24, h: 36 } as const;
+const DEFAULT_ROAD_WIDTH_CELLS = 2;
+const PLANT_ROAD_PADDING_CELLS = 1;
 export const SPIRAL_MAP_ID = 1000;
-const SPIRAL_MAP_SIZE = { w: 36, h: 36 } as const;
 
-function createSquareSpiralPath(size: { w: number; h: number }): Position[] {
-  const centerX = (size.w - 1) / 2;
-  const centerY = (size.h - 1) / 2;
-  const maxRadius = Math.min(size.w, size.h) / 2 - 3;
-  const a = 0.4;
-  const b = 1.2;
-  const thetaStep = 0.18;
-  const positions: Position[] = [{ x: centerX, y: centerY }];
-
-  for (let theta = thetaStep; theta <= 14; theta += thetaStep) {
-    const radius = a + b * theta;
-    if (radius > maxRadius) break;
-    const x = centerX + radius * Math.cos(theta);
-    const y = centerY + radius * Math.sin(theta);
-    positions.push({ x: Number(x.toFixed(3)), y: Number(y.toFixed(3)) });
-  }
-
-  // 让路径在最外圈向右延伸到终点
-  const last = positions[positions.length - 1];
-  if (last) {
-    positions.push({ x: size.w - 2.5, y: last.y });
-  }
-
-  return positions;
+function keyOf(col: number, row: number): string {
+  return `${col},${row}`;
 }
 
-// 字母模板的原始设计尺寸和布局参数
-const LETTER_TEMPLATE_WIDTH = 10; // 每个字母占据的区域宽度（包含字母本身+内部padding）
-const LETTER_TEMPLATE_HEIGHT = 36; // 地图高度（增加上下padding，确保y:2-30的字母完整显示）
-const LETTER_SPACING = 1; // 字母区域之间的间距
-const LETTER_VERTICAL_OFFSET = 2; // 字母在垂直方向的偏移（增加顶部空间）
-
-// 字母路径配置：需要反转的字母（从下往上出怪，单路径）
-const REVERSED_LETTERS = new Set(['B', 'E', 'F', 'L']);
-
-// 字母路径配置：多路径字母（分兵）
-const MULTI_PATH_LETTERS: Record<string, Position[][]> = {
-  'A': [
-    // 路径1：顶部尖点→中间横杠→左下
-    [{ x: 4, y: 2 }, { x: 3, y: 14 }, { x: 2, y: 30 }],
-    // 路径2：顶部尖点→中间横杠→右下
-    [{ x: 4, y: 2 }, { x: 3, y: 14 }, { x: 6, y: 30 }],
-  ],
-  'H': [
-    // 路径1：左上→沿左竖线到中间横杠（家）
-    [{ x: 2, y: 2 }, { x: 2, y: 16 }, { x: 4, y: 16 }],
-    // 路径2：左下→沿左竖线到中间横杠（家）
-    [{ x: 2, y: 30 }, { x: 2, y: 16 }, { x: 4, y: 16 }],
-    // 路径3：右上→沿右竖线到中间横杠（家）
-    [{ x: 6, y: 2 }, { x: 6, y: 16 }, { x: 4, y: 16 }],
-    // 路径4：右下→沿右竖线到中间横杠（家）
-    [{ x: 6, y: 30 }, { x: 6, y: 16 }, { x: 4, y: 16 }],
-  ],
-  'M': [
-    // 路径1：左下→左峰→中间谷
-    [{ x: 2, y: 30 }, { x: 2, y: 2 }, { x: 4, y: 10 }],
-    // 路径2：右下→右峰→中间谷
-    [{ x: 6, y: 30 }, { x: 6, y: 2 }, { x: 4, y: 10 }],
-  ],
-  'P': [
-    // 路径1：底部到顶部左侧经过圆弧左侧
-    [{ x: 2, y: 30 }, { x: 2, y: 12 }, { x: 5, y: 5 }, { x: 2, y: 2 }],
-    // 路径2：底部中间到圆弧右侧再到顶部
-    [{ x: 3, y: 30 }, { x: 5, y: 20 }, { x: 5, y: 5 }, { x: 3, y: 2 }],
-  ],
-  'Q': [
-    // 路径1：顶部→左侧→底部→右侧→右下汇合点→尾巴底部（家）
-    [{ x: 4, y: 2 }, { x: 2, y: 8 }, { x: 2, y: 24 }, { x: 4, y: 30 }, { x: 6, y: 24 }, { x: 6.5, y: 26 }, { x: 7, y: 30 }],
-    // 路径2：顶部→右侧→右下汇合点→尾巴底部（家）
-    [{ x: 4, y: 2 }, { x: 6, y: 8 }, { x: 6, y: 24 }, { x: 6.5, y: 26 }, { x: 7, y: 30 }],
-  ],
-  'R': [
-    // 路径1：左下→沿左竖线→经过半圆弯道→顶部家
-    [{ x: 2, y: 30 }, { x: 2, y: 12 }, { x: 5, y: 5 }, { x: 2, y: 2 }],
-    // 路径2：右下→沿斜线到中间→沿左竖线→顶部家
-    [{ x: 6, y: 30 }, { x: 2, y: 14 }, { x: 2, y: 2 }],
-  ],
-  'T': [
-    // 路径1：底部→顶部中心→沿横杠到左端（家1）
-    [{ x: 4, y: 30 }, { x: 4, y: 4 }, { x: 4, y: 2 }, { x: 2, y: 2 }],
-    // 路径2：底部→顶部中心→沿横杠到右端（家2）
-    [{ x: 4, y: 30 }, { x: 4, y: 4 }, { x: 4, y: 2 }, { x: 6, y: 2 }],
-  ],
-  'U': [
-    // 路径1：左上到底部
-    [{ x: 2, y: 2 }, { x: 2, y: 24 }, { x: 4, y: 30 }],
-    // 路径2：右上到底部
-    [{ x: 6, y: 2 }, { x: 6, y: 24 }, { x: 4, y: 30 }],
-  ],
-  'V': [
-    // 路径1：左上到底部中心
-    [{ x: 2, y: 2 }, { x: 4, y: 22 }, { x: 4, y: 30 }],
-    // 路径2：右上到底部中心
-    [{ x: 6, y: 2 }, { x: 4, y: 22 }, { x: 4, y: 30 }],
-  ],
-  'W': [
-    // 路径1：左上→左谷→中间峰
-    [{ x: 2, y: 2 }, { x: 2, y: 22 }, { x: 4, y: 16 }],
-    // 路径2：右上→右谷→中间峰
-    [{ x: 6, y: 2 }, { x: 6, y: 22 }, { x: 4, y: 16 }],
-  ],
-  'X': [
-    // 路径1：左上到右下
-    [{ x: 2, y: 2 }, { x: 6, y: 30 }],
-    // 路径2：右上到左下  
-    [{ x: 6, y: 2 }, { x: 2, y: 30 }],
-  ],
-  'Y': [
-    // 路径1：左上→沿左斜边→汇合点→底部
-    [{ x: 2, y: 2 }, { x: 3, y: 8 }, { x: 4, y: 14 }, { x: 4, y: 30 }],
-    // 路径2：右上→沿右斜边→汇合点→底部
-    [{ x: 6, y: 2 }, { x: 5, y: 8 }, { x: 4, y: 14 }, { x: 4, y: 30 }],
-  ],
-};
-
-const LETTER_TEMPLATES: Record<string, Position[]> = {
-  'A': [
-    // 默认路径（备用）
-    { x: 4, y: 2 }, { x: 3, y: 14 }, { x: 2, y: 30 },
-  ],
-  'B': [
-    { x: 2, y: 2 }, { x: 5, y: 5 }, { x: 2, y: 12 }, { x: 5, y: 20 }, { x: 2, y: 30 },
-  ],
-  'C': [
-    { x: 6, y: 4 }, { x: 3, y: 2 }, { x: 2, y: 8 }, { x: 2, y: 24 }, { x: 3, y: 30 }, { x: 6, y: 28 },
-  ],
-  'D': [
-    { x: 2, y: 2 }, { x: 6, y: 6 }, { x: 6, y: 24 }, { x: 2, y: 30 },
-  ],
-  'E': [
-    { x: 2, y: 2 }, { x: 2, y: 30 }, { x: 6, y: 30 }, { x: 2, y: 30 }, { x: 2, y: 16 }, { x: 5, y: 16 }, { x: 2, y: 16 }, { x: 2, y: 2 }, { x: 6, y: 2 },
-  ],
-  'F': [
-    { x: 2, y: 2 }, { x: 2, y: 30 }, { x: 2, y: 16 }, { x: 5, y: 16 }, { x: 2, y: 16 }, { x: 2, y: 2 }, { x: 6, y: 2 },
-  ],
-  'G': [
-    { x: 6, y: 4 }, { x: 3, y: 2 }, { x: 2, y: 8 }, { x: 2, y: 24 }, { x: 6, y: 28 }, { x: 6, y: 20 }, { x: 4, y: 20 },
-  ],
-  'H': [
-    // 默认路径（备用）
-    { x: 2, y: 30 }, { x: 2, y: 2 },
-  ],
-  'I': [
-    { x: 2, y: 2 }, { x: 6, y: 2 }, { x: 4, y: 2 }, { x: 4, y: 30 }, { x: 2, y: 30 }, { x: 6, y: 30 },
-  ],
-  'J': [
-    { x: 6, y: 2 }, { x: 6, y: 24 }, { x: 4, y: 30 }, { x: 2, y: 24 },
-  ],
-  'K': [
-    { x: 2, y: 2 }, { x: 2, y: 30 }, { x: 2, y: 16 }, { x: 6, y: 2 }, { x: 2, y: 16 }, { x: 6, y: 30 },
-  ],
-  'L': [
-    { x: 2, y: 2 }, { x: 2, y: 30 }, { x: 6, y: 30 },
-  ],
-  'M': [
-    // 默认路径（备用）
-    { x: 2, y: 30 }, { x: 2, y: 2 }, { x: 4, y: 10 },
-  ],
-  'N': [
-    { x: 2, y: 2 }, { x: 2, y: 22 }, { x: 6, y: 10 }, { x: 6, y: 30 },
-  ],
-  'O': [
-    { x: 4, y: 2 }, { x: 2, y: 8 }, { x: 2, y: 24 }, { x: 4, y: 30 }, { x: 6, y: 24 }, { x: 6, y: 8 }, { x: 4, y: 2 },
-  ],
-  'P': [
-    // 默认路径（备用）
-    { x: 2, y: 30 }, { x: 2, y: 12 }, { x: 5, y: 5 }, { x: 2, y: 2 },
-  ],
-  'Q': [
-    // 默认路径（如果没有使用多路径配置）
-    { x: 4, y: 2 }, { x: 2, y: 8 }, { x: 2, y: 24 }, { x: 4, y: 30 }, { x: 6, y: 24 }, { x: 6, y: 8 }, { x: 4, y: 2 },
-  ],
-  'R': [
-    // 默认路径（备用）
-    { x: 2, y: 30 }, { x: 2, y: 12 }, { x: 5, y: 5 }, { x: 2, y: 2 },
-  ],
-  'S': [
-    { x: 6, y: 2 }, { x: 2, y: 8 }, { x: 6, y: 16 }, { x: 2, y: 24 }, { x: 6, y: 30 },
-  ],
-  'T': [
-    // 默认路径（备用）
-    { x: 4, y: 30 }, { x: 4, y: 4 }, { x: 4, y: 2 }, { x: 2, y: 2 },
-  ],
-  'U': [
-    // 默认路径（备用）
-    { x: 2, y: 2 }, { x: 2, y: 24 }, { x: 4, y: 30 },
-  ],
-  'V': [
-    // 默认路径（备用）
-    { x: 2, y: 2 }, { x: 4, y: 22 }, { x: 4, y: 30 },
-  ],
-  'W': [
-    // 默认路径（备用）
-    { x: 2, y: 2 }, { x: 2, y: 22 }, { x: 4, y: 16 },
-  ],
-  'X': [
-    // 默认路径（如果没有使用多路径配置）
-    { x: 2, y: 2 }, { x: 4, y: 16 }, { x: 6, y: 30 },
-  ],
-  'Y': [
-    // 默认路径（备用）
-    { x: 2, y: 2 }, { x: 3, y: 8 }, { x: 4, y: 14 }, { x: 4, y: 30 },
-  ],
-  'Z': [
-    { x: 2, y: 2 }, { x: 6, y: 2 }, { x: 2, y: 30 }, { x: 6, y: 30 },
-  ],
-};
-
-function fitTemplateToSection(
-  template: Position[] | undefined, 
-  sectionStartX: number
-): Position[] {
-  // 如果没有模板，返回一条竖直线（居中）
-  if (!template || template.length === 0) {
-    const centerX = sectionStartX + LETTER_TEMPLATE_WIDTH / 2;
-    return [
-      { x: centerX, y: 2 + LETTER_VERTICAL_OFFSET },
-      { x: centerX, y: 30 + LETTER_VERTICAL_OFFSET },
-    ];
-  }
-
-  // 计算字母模板的x范围
-  const minX = Math.min(...template.map(p => p.x));
-  const maxX = Math.max(...template.map(p => p.x));
-  
-  // 计算字母在区域内的居中偏移
-  // 字母模板中心点相对于minX的偏移
-  const templateCenterOffset = (maxX + minX) / 2 - minX;
-  // 区域中心点
-  const sectionCenter = LETTER_TEMPLATE_WIDTH / 2;
-  // 最终偏移 = 区域起始位置 + (区域中心 - 字母中心偏移)
-  const finalOffsetX = sectionStartX + sectionCenter - templateCenterOffset;
-
-  // 应用平移（包括垂直偏移）
-  return template.map(point => snapPoint({
-    x: point.x - minX + finalOffsetX,
-    y: point.y + LETTER_VERTICAL_OFFSET,
-  }));
+function toCenter([col, row]: GridPoint): Position {
+  return { x: col + 0.5, y: row + 0.5 };
 }
 
-function snapPoint(point: Position): Position {
-  const snap = (value: number) => Math.round(value * 2) / 2;
-  return { x: snap(point.x), y: snap(point.y) };
+function isGridPathList(path: GridPath | readonly GridPath[]): path is readonly GridPath[] {
+  const first = path[0];
+  return Array.isArray(first) && Array.isArray(first[0]);
 }
 
-function reversePathPoints(path: Position[]): Position[] {
-  return [...path].reverse();
+function normalizeGridPaths(path: GridPath | readonly GridPath[]): readonly GridPath[] {
+  return isGridPathList(path) ? path : [path];
 }
 
-function generateLetterPath(letters: string): Position[][] {
-  const upper = letters.toUpperCase();
-  const allPaths: Position[][] = [];
-  
-  upper.split('').forEach((letter, index) => {
-    // 每个字母区域的起始x坐标
-    const sectionStartX = LETTER_SPACING + index * (LETTER_TEMPLATE_WIDTH + LETTER_SPACING);
-    
-    // 检查是否有多路径配置
-    const multiPaths = MULTI_PATH_LETTERS[letter];
-    if (multiPaths) {
-      // 对于多路径字母，需要统一计算所有路径的转换基准
-      // 收集所有路径的所有点
-      const allPoints: Position[] = [];
-      multiPaths.forEach(pathTemplate => {
-        allPoints.push(...pathTemplate);
-      });
-      
-      // 计算统一的x范围
-      const minX = Math.min(...allPoints.map(p => p.x));
-      const maxX = Math.max(...allPoints.map(p => p.x));
-      const templateCenterOffset = (maxX + minX) / 2 - minX;
-      const sectionCenter = LETTER_TEMPLATE_WIDTH / 2;
-      const finalOffsetX = sectionStartX + sectionCenter - templateCenterOffset;
-      
-      // 对每条路径应用统一的转换
-      multiPaths.forEach(pathTemplate => {
-        const fittedPath = pathTemplate.map(point => snapPoint({
-          x: point.x - minX + finalOffsetX,
-          y: point.y + LETTER_VERTICAL_OFFSET,
-        }));
-        allPaths.push(fittedPath);
-      });
-    } else {
-      // 使用单路径
-      let path = fitTemplateToSection(LETTER_TEMPLATES[letter], sectionStartX);
-      
-      // 检查是否需要反转
-      if (REVERSED_LETTERS.has(letter)) {
-        path = reversePathPoints(path);
-      }
-      
-      allPaths.push(path.map(snapPoint));
-    }
-  });
-  
-  return allPaths.map(path => path.map(snapPoint));
+function toMapPath(path: GridPath | readonly GridPath[]): MapPath {
+  const paths = normalizeGridPaths(path).map(singlePath => singlePath.map(toCenter));
+  return paths.length === 1 ? paths[0] : paths;
 }
 
-function createLetterMap(id: number, name: string, desc: string, letters: string): MapSpec {
-  const letterCount = Math.max(1, letters.length);
-  
-  // 地图宽度 = 字母数量 × (字母宽度 + 间距) - 最后一个字母后不需要间距 + 间距作为首尾padding
-  const width = letterCount * LETTER_TEMPLATE_WIDTH + (letterCount + 1) * LETTER_SPACING;
-
+function toCellPoint(point: Position): { col: number; row: number } {
   return {
-    id,
-    name,
-    desc,
-    size: { w: width, h: LETTER_TEMPLATE_HEIGHT },
-    roadWidthCells: 2,
-    path: generateLetterPath(letters),
+    col: Math.round(point.x - 0.5),
+    row: Math.round(point.y - 0.5),
   };
 }
 
-export const MAPS: MapSpec[] = [
-  {
-    id: SPIRAL_MAP_ID,
-    name: '究极回环',
-    desc: '螺旋式无尽挑战专用地图',
-    size: { w: SPIRAL_MAP_SIZE.w, h: SPIRAL_MAP_SIZE.h },
-    roadWidthCells: 2,
-    path: createSquareSpiralPath(SPIRAL_MAP_SIZE),
-  },
-  {
-    id: 1,
-    name: '折线小道',
-    desc: '入门简单路线',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 2, y: 28 }, { x: 2, y: 20 }, { x: 8, y: 20 }, { x: 8, y: 10 }, { x: 14, y: 10 }, { x: 14, y: 4 },
-    ],
-  },
-  {
-    id: 2,
-    name: '双拐角',
-    desc: '两次大拐角',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 3, y: 30 }, { x: 3, y: 24 }, { x: 10, y: 24 }, { x: 10, y: 14 }, { x: 5, y: 14 }, { x: 5, y: 8 }, { x: 14, y: 8 }, { x: 14, y: 3 },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Z字回廊',
-    desc: 'Z 字折返',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 1, y: 29 }, { x: 1, y: 23 }, { x: 6, y: 23 }, { x: 6, y: 17 }, { x: 12, y: 17 }, { x: 12, y: 11 }, { x: 16, y: 11 }, { x: 16, y: 4 },
-    ],
-  },
-  {
-    id: 4,
-    name: '蛇形长廊',
-    desc: '多段小折返',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 2, y: 30 }, { x: 2, y: 26 }, { x: 6, y: 26 }, { x: 6, y: 22 }, { x: 10, y: 22 }, { x: 10, y: 18 }, { x: 14, y: 18 }, { x: 14, y: 14 }, { x: 8, y: 14 }, { x: 8, y: 10 }, { x: 12, y: 10 }, { x: 12, y: 6 }, { x: 4, y: 6 },
-    ],
-  },
-  {
-    id: 5,
-    name: 'U形回环',
-    desc: '上下各一次 U 回折',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 4, y: 30 }, { x: 4, y: 24 }, { x: 14, y: 24 }, { x: 14, y: 20 }, { x: 6, y: 20 }, { x: 6, y: 14 }, { x: 12, y: 14 }, { x: 12, y: 8 }, { x: 15, y: 8 }, { x: 15, y: 3 },
-    ],
-  },
-  {
-    id: 6,
-    name: '弯弓射日',
-    desc: '上窄下宽的弧形折返',
-    size: { w: DEFAULT_MAP_WIDTH, h: DEFAULT_MAP_HEIGHT },
-    roadWidthCells: 2,
-    path: [
-      { x: 2, y: 31 }, { x: 2, y: 25 }, { x: 5, y: 25 }, { x: 5, y: 19 }, { x: 9, y: 19 }, { x: 9, y: 13 }, { x: 13, y: 13 }, { x: 13, y: 7 }, { x: 16, y: 7 }, { x: 16, y: 3 },
-    ],
-  },
-  ...[
-    ['CJX', '陈同学'], ['CX', '陈同学'], ['CYF', '陈同学'], ['CYK', '陈同学'], ['CYX', '陈同学'],
-    ['CZJ', '陈同学'], ['CZL', '陈同学'], ['FFY', '冯同学'], ['GYR', '郭同学'], ['HML', '黄同学'],
-    ['HZM', '黄同学'], ['LFY', '李同学'], ['LHC', '李同学'], ['LRE', '李同学'], ['LSQ', '李同学'],
-    ['LXL', '李同学'], ['LYD', '李同学'], ['LZH', '李同学'], ['MRY', '马同学'], ['MYN', '马同学'],
-    ['PFY', '潘同学'], ['SGJW', '宋同学'], ['SQQ', '宋同学'], ['SZT', '宋同学'], ['THC', '唐同学'],
-    ['TS', '唐同学'], ['WSY', '王同学'], ['WFX', '王同学'], ['WJC', '王同学'], ['WSH', '王同学'],
-    ['WYY', '王同学'], ['WZC', '王同学'], ['WZK', '王同学'], ['WZS', '王同学'], ['YD', '杨同学'],
-    ['YMQ', '杨同学'], ['YRZ', '杨同学'], ['YAN', '杨同学'], ['ZJW', '张同学'], ['ZQH', '张同学'],
-    ['ZRR', '张同学'], ['ZSQ', '张同学'], ['ZWZ', '张同学'], ['ZYA', '张同学'], ['ZYC', '张同学'],
-    ['ZYH', '张同学'], ['ZZM', '张同学'], ['ZZN', '张同学'], ['ZZQ', '张同学'],
-  ].map(([letters, owner], index) =>
-    createLetterMap(7 + index, letters, owner, letters)
-  )
-];
-
-export type { Position };
-
-const GRID_SPACING = 1.5;
-
-function nearestDistanceToSinglePath(pos: Position, path: Position[]): number {
-  let minDist = Infinity;
-  for (let i = 0; i < path.length - 1; i++) {
-    const p1 = path[i];
-    const p2 = path[i + 1];
-    const dist = distanceToSegment(pos, p1, p2);
-    if (dist < minDist) minDist = dist;
-  }
-  return minDist;
+function isCellCenter(point: Position): boolean {
+  const col = point.x - 0.5;
+  const row = point.y - 0.5;
+  return Number.isInteger(col) && Number.isInteger(row);
 }
 
-function nearestDistanceToPath(pos: Position, path: Position[] | Position[][]): number {
-  if (Array.isArray(path[0])) {
-    return (path as Position[][]).reduce((min, singlePath) => {
-      const dist = nearestDistanceToSinglePath(pos, singlePath);
-      return Math.min(min, dist);
-    }, Infinity);
+function expandSegmentCells(a: Position, b: Position): string[] {
+  const start = toCellPoint(a);
+  const end = toCellPoint(b);
+  const cells: string[] = [];
+
+  if (start.col === end.col) {
+    const from = Math.min(start.row, end.row);
+    const to = Math.max(start.row, end.row);
+    for (let row = from; row <= to; row++) {
+      cells.push(keyOf(start.col, row));
+    }
+    return cells;
   }
-  return nearestDistanceToSinglePath(pos, path as Position[]);
+
+  if (start.row === end.row) {
+    const from = Math.min(start.col, end.col);
+    const to = Math.max(start.col, end.col);
+    for (let col = from; col <= to; col++) {
+      cells.push(keyOf(col, start.row));
+    }
+    return cells;
+  }
+
+  throw new Error(`Map path segment must be horizontal or vertical: (${a.x},${a.y}) -> (${b.x},${b.y})`);
 }
 
-function distanceToSegment(p: Position, a: Position, b: Position): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  const projX = a.x + t * dx;
-  const projY = a.y + t * dy;
-  return Math.hypot(p.x - projX, p.y - projY);
+function collectRoadCells(map: MapSpec): Set<string> {
+  const cells = new Set<string>();
+
+  for (const path of normalizeMapPaths(map.path)) {
+    for (let i = 0; i < path.length - 1; i++) {
+      for (const key of expandSegmentCells(path[i], path[i + 1])) {
+        cells.add(key);
+      }
+    }
+  }
+
+  return cells;
+}
+
+function collectBlockedPlantCells(map: MapSpec): Set<string> {
+  const roadCells = collectRoadCells(map);
+  const blocked = new Set<string>();
+
+  for (const key of roadCells) {
+    const [colText, rowText] = key.split(',');
+    const col = Number(colText);
+    const row = Number(rowText);
+    for (let dy = -PLANT_ROAD_PADDING_CELLS; dy <= PLANT_ROAD_PADDING_CELLS; dy++) {
+      for (let dx = -PLANT_ROAD_PADDING_CELLS; dx <= PLANT_ROAD_PADDING_CELLS; dx++) {
+        blocked.add(keyOf(col + dx, row + dy));
+      }
+    }
+  }
+
+  return blocked;
 }
 
 export function generatePlantGrid(map: MapSpec): Position[] {
-  const { size, path, roadWidthCells } = map;
+  const blocked = collectBlockedPlantCells(map);
   const grid: Position[] = [];
-  const threshold = Math.max(0.8, roadWidthCells * 0.55);
 
-  for (let y = 0.5; y < size.h - 0.5; y += GRID_SPACING) {
-    for (let x = 0.5; x < size.w - 0.5; x += GRID_SPACING) {
-      const pos = { x, y };
-      const dist = nearestDistanceToPath(pos, path);
-      if (dist >= threshold) {
-        grid.push(pos);
-      }
+  for (let row = 1; row < map.size.h - 1; row++) {
+    for (let col = 1; col < map.size.w - 1; col++) {
+      if (blocked.has(keyOf(col, row))) continue;
+      if ((col + row) % 2 !== 0) continue;
+      grid.push(toCenter([col, row]));
     }
   }
 
@@ -470,5 +136,186 @@ export function generatePlantGrid(map: MapSpec): Position[] {
 }
 
 export function getPlantGrid(map: MapSpec): Position[] {
-  return map.plantGrid || generatePlantGrid(map);
+  return map.plantGrid ?? generatePlantGrid(map);
 }
+
+function createMap(def: GridMapDef): MapSpec {
+  const map: MapSpec = {
+    id: def.id,
+    name: def.name,
+    desc: def.desc,
+    size: def.size ?? DEFAULT_MAP_SIZE,
+    roadWidthCells: def.roadWidthCells ?? DEFAULT_ROAD_WIDTH_CELLS,
+    path: toMapPath(def.path),
+  };
+
+  map.plantGrid = generatePlantGrid(map);
+  return map;
+}
+
+function validateMap(map: MapSpec): void {
+  if (!Number.isInteger(map.id)) {
+    throw new Error(`Map id must be an integer: ${map.name}`);
+  }
+  if (!Number.isInteger(map.size.w) || !Number.isInteger(map.size.h) || map.size.w < 8 || map.size.h < 8) {
+    throw new Error(`Map ${map.id} has an invalid size`);
+  }
+  if (!Number.isInteger(map.roadWidthCells) || map.roadWidthCells < 1) {
+    throw new Error(`Map ${map.id} has an invalid road width`);
+  }
+
+  const margin = Math.max(1, Math.ceil(map.roadWidthCells / 2));
+  const paths = normalizeMapPaths(map.path);
+  if (paths.length === 0) {
+    throw new Error(`Map ${map.id} has no path`);
+  }
+
+  for (const [pathIndex, path] of paths.entries()) {
+    if (path.length < 2) {
+      throw new Error(`Map ${map.id} path ${pathIndex} must contain at least two points`);
+    }
+
+    for (const point of path) {
+      if (!isCellCenter(point)) {
+        throw new Error(`Map ${map.id} path ${pathIndex} has a non-center point: (${point.x},${point.y})`);
+      }
+
+      const { col, row } = toCellPoint(point);
+      if (col < margin || row < margin || col >= map.size.w - margin || row >= map.size.h - margin) {
+        throw new Error(`Map ${map.id} path ${pathIndex} point is too close to the edge: (${col},${row})`);
+      }
+    }
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i];
+      const b = path[i + 1];
+      if (a.x === b.x && a.y === b.y) {
+        throw new Error(`Map ${map.id} path ${pathIndex} has a zero-length segment at index ${i}`);
+      }
+      if (a.x !== b.x && a.y !== b.y) {
+        throw new Error(`Map ${map.id} path ${pathIndex} has a diagonal segment at index ${i}`);
+      }
+    }
+  }
+
+  const plantGrid = getPlantGrid(map);
+  if (plantGrid.length === 0) {
+    throw new Error(`Map ${map.id} has no plant cells`);
+  }
+
+  const blocked = collectBlockedPlantCells(map);
+  for (const point of plantGrid) {
+    if (!isCellCenter(point)) {
+      throw new Error(`Map ${map.id} has a non-center plant cell: (${point.x},${point.y})`);
+    }
+    const { col, row } = toCellPoint(point);
+    if (col < 0 || row < 0 || col >= map.size.w || row >= map.size.h) {
+      throw new Error(`Map ${map.id} has an out-of-bounds plant cell: (${col},${row})`);
+    }
+    if (blocked.has(keyOf(col, row))) {
+      throw new Error(`Map ${map.id} has a plant cell too close to the road: (${col},${row})`);
+    }
+  }
+}
+
+function validateMaps(maps: readonly MapSpec[]): void {
+  const ids = new Set<number>();
+
+  for (const map of maps) {
+    if (ids.has(map.id)) {
+      throw new Error(`Duplicate map id: ${map.id}`);
+    }
+    ids.add(map.id);
+    validateMap(map);
+  }
+}
+
+export const MAPS: MapSpec[] = [
+  createMap({
+    id: 1,
+    name: '新手折线',
+    desc: '基础横竖折线，适合确认放置和行进对齐',
+    path: [[3, 33], [3, 26], [9, 26], [9, 18], [15, 18], [15, 10], [20, 10], [20, 3]],
+  }),
+  createMap({
+    id: 2,
+    name: '双弯小道',
+    desc: '两段宽回折，给中距离塔留出空间',
+    path: [[4, 33], [4, 28], [18, 28], [18, 22], [8, 22], [8, 15], [19, 15], [19, 8], [12, 8], [12, 3]],
+  }),
+  createMap({
+    id: 3,
+    name: '长廊回折',
+    desc: '长横道和竖道交替，路线清晰不交叉',
+    path: [[2, 33], [2, 29], [20, 29], [20, 24], [5, 24], [5, 18], [18, 18], [18, 12], [7, 12], [7, 6], [21, 6], [21, 3]],
+  }),
+  createMap({
+    id: 4,
+    name: '中心回廊',
+    desc: '主路围绕中部来回推进',
+    path: [[12, 33], [12, 29], [5, 29], [5, 23], [19, 23], [19, 17], [7, 17], [7, 11], [17, 11], [17, 5], [12, 5], [12, 2]],
+  }),
+  createMap({
+    id: 5,
+    name: '外圈绕行',
+    desc: '外圈长路后切回内侧，避免斜线和自由曲线',
+    path: [[3, 33], [3, 4], [20, 4], [20, 31], [7, 31], [7, 11], [16, 11], [16, 2]],
+  }),
+  createMap({
+    id: 6,
+    name: '内外穿插',
+    desc: '左右穿插但不自交，适合测试索敌范围',
+    path: [[20, 33], [20, 28], [6, 28], [6, 22], [17, 22], [17, 16], [5, 16], [5, 10], [19, 10], [19, 4], [13, 4], [13, 2]],
+  }),
+  createMap({
+    id: 7,
+    name: '左右蛇形',
+    desc: '规整蛇形长路，所有弯点都落在格子中心',
+    path: [[2, 33], [21, 33], [21, 29], [4, 29], [4, 25], [20, 25], [20, 21], [3, 21], [3, 17], [19, 17], [19, 13], [5, 13], [5, 9], [21, 9], [21, 3]],
+  }),
+  createMap({
+    id: 8,
+    name: '上路压迫',
+    desc: '后半段靠上推进，保留下方建设空间',
+    path: [[6, 33], [6, 30], [17, 30], [17, 26], [10, 26], [10, 21], [21, 21], [21, 16], [13, 16], [13, 11], [20, 11], [20, 6], [9, 6], [9, 2]],
+  }),
+  createMap({
+    id: 9,
+    name: '下路绕行',
+    desc: '下半区多次折返，终点从左上收束',
+    path: [[18, 33], [18, 31], [4, 31], [4, 26], [14, 26], [14, 22], [7, 22], [7, 18], [20, 18], [20, 14], [11, 14], [11, 9], [3, 9], [3, 3]],
+  }),
+  createMap({
+    id: 10,
+    name: '交错回环',
+    desc: '多段交错回环，但路径本身不交叉',
+    path: [[11, 33], [11, 30], [3, 30], [3, 25], [20, 25], [20, 20], [5, 20], [5, 15], [18, 15], [18, 10], [7, 10], [7, 5], [16, 5], [16, 2]],
+  }),
+  createMap({
+    id: 11,
+    name: '双入口合流',
+    desc: '两条入口在中段合流，用来稳定测试多路径',
+    path: [
+      [[3, 33], [3, 27], [10, 27], [10, 20], [15, 20], [15, 13], [12, 13], [12, 3]],
+      [[20, 33], [20, 27], [14, 27], [14, 20], [15, 20], [15, 13], [12, 13], [12, 3]],
+    ],
+  }),
+  createMap({
+    id: 12,
+    name: '双线并进',
+    desc: '两条独立路线并进，终点分离但坐标规则一致',
+    path: [
+      [[5, 33], [5, 29], [11, 29], [11, 24], [6, 24], [6, 18], [12, 18], [12, 12], [5, 12], [5, 3]],
+      [[18, 33], [18, 29], [12, 29], [12, 24], [17, 24], [17, 18], [11, 18], [11, 12], [18, 12], [18, 3]],
+    ],
+  }),
+  createMap({
+    id: SPIRAL_MAP_ID,
+    name: '训练回环',
+    desc: '无尽和测试模式使用的稳定长路线',
+    size: { w: 28, h: 36 },
+    path: [[2, 33], [25, 33], [25, 29], [4, 29], [4, 25], [23, 25], [23, 21], [6, 21], [6, 17], [21, 17], [21, 13], [8, 13], [8, 9], [19, 9], [19, 5], [11, 5], [11, 2]],
+  }),
+];
+
+validateMaps(MAPS);

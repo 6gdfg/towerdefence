@@ -1,6 +1,5 @@
-import { fetchCloudProgress, getToken, getPlayerId } from './authProgress';
-
-export const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass'];
+import { fetchCloudProgress, getToken } from './authProgress';
+import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
 
 // 添加缓存变量（内存中，不使用localStorage）
 let cloudDataCache: { stars: Record<string, number>; unlocked: number; unlockedItems: string[] } | null = null;
@@ -68,13 +67,12 @@ export function getMaxStarSync(levelId: string): 0|1|2|3 {
   return (v === 1 || v === 2 || v === 3) ? v : 0;
 }
 
-export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; newRecord?: boolean; newUnlocks?: string[]} | null> {
+export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; chestCoinReward?: number; newRecord?: boolean; newUnlocks?: string[]} | null> {
   try {
-    const playerId = getPlayerId();
     const token = getToken();
     const resp = await fetch('/api/progress', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ action: 'setStar', playerId, levelId, star })
+      body: JSON.stringify({ action: 'setStar', levelId, star })
     });
     if (resp.ok) {
       const data = await resp.json();

@@ -2,26 +2,58 @@ import type { VercelRequest } from '@vercel/node';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
+export interface AuthPayload {
+  pid: string;
+  u?: string;
+  exp?: number;
+}
+
 export function getSecret() {
-  return process.env.AUTH_SECRET || process.env.JWT_SECRET || 'dev-secret-change-me';
+  const secret = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AUTH_SECRET or JWT_SECRET is required');
+    }
+    return 'dev-secret-change-me';
+  }
+  return secret;
 }
 
-// Simple HMAC token: base64url(payload).signature
-export function issueToken(payload: any) {
+function signPayload(encodedPayload: string) {
+  return crypto.createHmac('sha256', getSecret()).update(encodedPayload).digest('base64url');
+}
+
+function constantTimeEqual(a: string, b: string) {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+  if (aBuffer.length !== bBuffer.length) return false;
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
+export function issueToken(payload: AuthPayload) {
   const json = JSON.stringify(payload);
-  const b64 = Buffer.from(json).toString('base64url');
-  const sig = crypto.createHmac('sha256', getSecret()).update(b64).digest('base64url');
-  return `${b64}.${sig}`;
+  const encodedPayload = Buffer.from(json).toString('base64url');
+  const signature = signPayload(encodedPayload);
+  return `${encodedPayload}.${signature}`;
 }
 
-export function verifyToken(token?: string): any | null {
+export function verifyToken(token?: string): AuthPayload | null {
   if (!token) return null;
-  const [b64, sig] = token.split('.') as [string, string];
-  if (!b64 || !sig) return null;
-  const expect = crypto.createHmac('sha256', getSecret()).update(b64).digest('base64url');
-  if (expect !== sig) return null;
+  const [encodedPayload, signature] = token.split('.') as [string, string];
+  if (!encodedPayload || !signature) return null;
+
+  let expectedSignature: string;
   try {
-    const payload = JSON.parse(Buffer.from(b64, 'base64url').toString());
+    expectedSignature = signPayload(encodedPayload);
+  } catch {
+    return null;
+  }
+
+  if (!constantTimeEqual(expectedSignature, signature)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString()) as AuthPayload;
+    if (!payload.pid) return null;
     if (payload.exp && Date.now() > payload.exp) return null;
     return payload;
   } catch {
@@ -29,22 +61,19 @@ export function verifyToken(token?: string): any | null {
   }
 }
 
-export async function hashPassword(pw: string) {
+export async function hashPassword(password: string) {
   const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(pw, salt);
+  return bcrypt.hash(password, salt);
 }
 
-export async function verifyPassword(pw: string, hash: string) {
-  return bcrypt.compare(pw, hash);
+export async function verifyPassword(password: string, hash: string) {
+  return bcrypt.compare(password, hash);
 }
 
 export function getAuthPlayerId(req: VercelRequest): string | null {
-  const auth = req.headers['authorization'];
-  if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
-    const token = auth.slice('Bearer '.length).trim();
-    const payload = verifyToken(token);
-    if (payload?.pid) return String(payload.pid);
-  }
-  return null;
+  const auth = req.headers.authorization;
+  if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) return null;
+  const token = auth.slice('Bearer '.length).trim();
+  const payload = verifyToken(token);
+  return payload?.pid ? String(payload.pid) : null;
 }
-
