@@ -12,9 +12,11 @@ type TDGameProps = {
   onWin?: () => void;
   onLose?: () => void;
   onExit?: () => void;
+  tutorialMode?: boolean;
+  onTutorialSkip?: () => void;
 };
 
-export default function TDGame({ onWin, onLose, onExit }: TDGameProps = {}) {
+export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip }: TDGameProps = {}) {
   const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
@@ -43,6 +45,41 @@ export default function TDGame({ onWin, onLose, onExit }: TDGameProps = {}) {
         : mode === 'campaign'
           ? '关卡模式'
           : null;
+  const tutorialCopy = (() => {
+    if (!tutorialMode) return null;
+    if (towers.length === 0) {
+      return {
+        title: 'Introduction',
+        body: selectedPlant
+          ? '在地图上的灰色小点附近点击，就能把当前植物种下去。先把攻击植物放在道路拐角旁边。'
+          : '先从左侧选择一个初始植物。瓶子草负责攻击，小喷菇免费但有冷却，向日葵负责产金币。',
+      };
+    }
+    if (!isWaveActive && waveIndex === 0) {
+      return {
+        title: '准备开波',
+        body: '已经有植物了。点击右上角“开始/下一波”，怪物会沿着白色道路前进。',
+      };
+    }
+    if (isWaveActive) {
+      return {
+        title: '观察战斗',
+        body: enemies.length > 0
+          ? '植物会自动攻击进入射程的怪物。漏怪会扣生命，击败怪物会获得本局金币。'
+          : '这一波正在结束。等场上怪物和子弹清空后，就可以开始下一波。',
+      };
+    }
+    if (waveIndex < waves.length) {
+      return {
+        title: '继续布置',
+        body: '用击败怪物获得的金币补植物，然后继续下一波。正式关卡也是这个循环。',
+      };
+    }
+    return {
+      title: '训练完成',
+      body: '这就是基础流程：选植物、种在可种植点、开波、防住全部怪物。',
+    };
+  })();
 
   useEffect(() => {
     if (selectedPlant && !availablePlants.includes(selectedPlant)) {
@@ -248,6 +285,20 @@ export default function TDGame({ onWin, onLose, onExit }: TDGameProps = {}) {
             <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
           </div>
       </header>
+
+      {tutorialCopy && (
+        <div className="tutorial-game-tip">
+          <div>
+            <strong>{tutorialCopy.title}</strong>
+            <span>{tutorialCopy.body}</span>
+          </div>
+          {onTutorialSkip && (
+            <button onClick={onTutorialSkip} className="action-button">
+              跳过教程
+            </button>
+          )}
+        </div>
+      )}
 
       <div style={{ display:'flex', flex:'1 1 auto', minHeight:0, flexDirection: isMobile ? 'column' : 'row' }}>
         <aside

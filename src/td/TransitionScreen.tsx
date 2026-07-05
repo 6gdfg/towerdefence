@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './TransitionScreen.css';
 
 interface TransitionScreenProps {
@@ -7,29 +7,34 @@ interface TransitionScreenProps {
 
 const TransitionScreen: React.FC<TransitionScreenProps> = ({ onTransitionComplete }) => {
   const [fadingOut, setFadingOut] = useState(false);
-  const randomColor = useMemo(() => {
-    const colors = ['#2563eb', '#db2777', '#c026d3', '#7c3aed', '#2563eb', '#059669', '#ea580c'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  }, []);
+  const [dotCount, setDotCount] = useState(1);
 
   useEffect(() => {
-    const fadeTimer = setTimeout(() => {
+    const dotTimer = window.setInterval(() => {
+      setDotCount((current) => (current >= 3 ? 1 : current + 1));
+    }, 350);
+
+    const fadeTimer = window.setTimeout(() => {
       setFadingOut(true);
     }, 1000); // Start fading out after 1s
 
-    const completeTimer = setTimeout(() => {
+    const completeTimer = window.setTimeout(() => {
       onTransitionComplete();
     }, 1500); // Complete transition after 1.5s
 
     return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(completeTimer);
+      window.clearInterval(dotTimer);
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(completeTimer);
     };
   }, [onTransitionComplete]);
 
   return (
     <div className={`transition-screen ${fadingOut ? 'fading-out' : ''}`}>
-      <div style={{ marginBottom: '20px', fontSize: '1.2rem', color: randomColor }}>Loading...</div>
+      <div className="transition-screen-content">
+        <div className="transition-title">TOWER DEFENCE</div>
+        <div className="transition-status">Loading{'.'.repeat(dotCount)}</div>
+      </div>
     </div>
   );
 };

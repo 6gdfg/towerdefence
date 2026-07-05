@@ -110,4 +110,11 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `ALTER TABLE chests ADD CONSTRAINT chests_chest_type_check CHECK (chest_type IN ('common','rare','epic','legendary'))`,
     ],
   },
+  {
+    id: '004_remove_puff_shroom_default_unlock',
+    description: 'Remove puff shroom from mistaken default unlocks',
+    statements: [
+      `DELETE FROM unlocked_items WHERE item_id = 'puffShroom'`,
+    ],
+  },
 ];

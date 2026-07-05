@@ -1,12 +1,12 @@
 export const PLANT_ITEM_IDS = ['sunflower', 'bottleGrass', 'puffShroom', 'fourLeafClover', 'machineGun', 'sniper', 'rocket', 'sunlightFlower'] as const;
 export const ELEMENT_ITEM_IDS = ['element:fire', 'element:wind', 'element:ice', 'element:electric', 'element:gold', 'element:light'] as const;
-export const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass', 'puffShroom'] as const;
+export const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass'] as const;
 export const INITIAL_PLAYER_COINS = 1000;
 
 export function getUpgradeCost(currentLevel: number) {
   const level = Math.max(1, Math.floor(currentLevel || 1));
   return {
-    fragments: 5 + 3 * (level - 1),
+    fragments: 5 + 5 * (level - 1),
     coins: 100 * level,
   };
 }

@@ -255,7 +255,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
 
 export const SUNFLOWER_ELEMENT_BLOCKLIST = new Set<ElementType>(['gold', 'fire', 'electric', 'ice', 'wind', 'light']);
 
-const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.08, rangePerLevel: 0.03, fireRatePerLevel: 0.05 } as const;
+const TOWER_LEVEL_CONFIG = { damagePerLevel: 0.05, rangePerLevel: 0.01, fireRatePerLevel: 0.02 } as const;
 
 export function scalePlantStats(base: BasePlantConfig, level: number) {
   const lv = Math.max(1, Math.floor(level || 1));

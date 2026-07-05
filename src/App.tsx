@@ -12,9 +12,8 @@ import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
-import TutorialPage from './td/TutorialPage';
 import { useTDStore } from './td/store';
-import { LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
+import { INTRODUCTION_LEVEL, LEVELS, DIFFICULTY_CONFIG, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems, updateUnlockedItems } from './td/progress';
@@ -138,6 +137,7 @@ function App() {
 
   const monsterEntries = useMemo(() => Object.entries(MONSTER_BASE_STATS) as [keyof typeof MONSTER_BASE_STATS, typeof MONSTER_BASE_STATS[keyof typeof MONSTER_BASE_STATS]][], []);
   const funMap = useMemo(() => MAPS.find(m => m.id === SPIRAL_MAP_ID), []);
+  const introductionLoadedRef = useRef(false);
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
   const loadHub = useCallback(async () => {
     try {
@@ -262,6 +262,44 @@ function App() {
       };
     });
   }
+
+  const startIntroductionLevel = useCallback(() => {
+    const M = MAPS.find(m => m.id === INTRODUCTION_LEVEL.mapId);
+    if (!M) {
+      console.warn('Introduction map not found', INTRODUCTION_LEVEL.mapId);
+      return;
+    }
+    const plantGrid = getPlantGrid(M);
+    const allowedPlants = DEFAULT_UNLOCKED_ITEMS
+      .filter(item => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item))
+      .map(item => item as PlantType);
+
+    setActiveFunMode(null);
+    setWinReward(null);
+    setCurrentStar(1);
+    setLevelIndex(null);
+    loadLevel(
+      { startGold: INTRODUCTION_LEVEL.startGold, lives: INTRODUCTION_LEVEL.lives, waves: INTRODUCTION_LEVEL.waves },
+      { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
+      {
+        autoStartFirstWave: INTRODUCTION_LEVEL.autoStartFirstWave,
+        firstWaveDelaySec: INTRODUCTION_LEVEL.firstWaveDelaySec,
+        allowedPlants,
+        allowedElements: [],
+        mode: 'campaign',
+      },
+    );
+  }, [loadLevel]);
+
+  useEffect(() => {
+    if (stage !== 'tutorial') {
+      introductionLoadedRef.current = false;
+      return;
+    }
+    if (introductionLoadedRef.current) return;
+    startIntroductionLevel();
+    introductionLoadedRef.current = true;
+  }, [stage, startIntroductionLevel]);
 
 
 
@@ -528,7 +566,13 @@ function App() {
               />
             )}
             {stage === 'tutorial' && (
-              <TutorialPage onComplete={handleTutorialComplete} />
+              <TDGame
+                tutorialMode
+                onTutorialSkip={handleTutorialComplete}
+                onWin={handleTutorialComplete}
+                onLose={startIntroductionLevel}
+                onExit={handleTutorialComplete}
+              />
             )}
             {stage === 'hub' && (
               <HubPage

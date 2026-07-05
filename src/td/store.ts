@@ -208,7 +208,7 @@ const INITIAL_TD_STATE: TDState = {
   damagePopups: [],
   elementCooldowns: {},
   plantCooldowns: {},
-  availablePlants: ['sunflower', 'bottleGrass', 'puffShroom'] as PlantType[],
+  availablePlants: ['sunflower', 'bottleGrass'] as PlantType[],
   availableElements: [] as ElementType[],
   // 波次
   waves: DEFAULT_WAVES,

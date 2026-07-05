@@ -13,20 +13,37 @@
   color: #111827;
 }
 
-.loading-text {
-  font-size: 3.0rem;
-  font-weight: 300;
+.loading-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   animation: zoom-in 0.35s ease-out forwards;
-  letter-spacing: 0.5em;
+}
+
+.loading-title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+}
+
+.loading-status {
+  min-width: 7.5em;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #4b5563;
+  text-align: left;
 }
 
 @keyframes zoom-in {
   from {
-    transform: scale(0.5);
+    transform: translateY(8px);
     opacity: 0;
   }
   to {
-    transform: scale(0.7);
+    transform: translateY(0);
     opacity: 1;
   }
 }

@@ -92,6 +92,20 @@ export const DIFFICULTY_CONFIG = {
 // 配置说明：每个 group 只需配置 level（怪物等级），HP和速度自动计算
 // 每关最后一波是 BOSS（1个怪，1000级起步）
 
+export const INTRODUCTION_LEVEL: LevelSpec = {
+  id: 'introduction',
+  name: 'Introduction',
+  startGold: 260,
+  lives: 20,
+  mapId: 1,
+  waves: [
+    { groups: [{ type: 'circle', count: 6, interval: 0.65, level: 1, reward: 4 }] },
+    { groups: [{ type: 'circle', count: 8, interval: 0.55, level: 1, reward: 4 }, { type: 'triangle', count: 4, interval: 0.7, level: 1, reward: 5 }] },
+    { groups: [{ type: 'square', count: 3, interval: 0.9, level: 1, reward: 8 }] },
+  ],
+  autoStartFirstWave: false,
+};
+
 export const LEVELS: LevelSpec[] = [
   {
     id: 'L1',

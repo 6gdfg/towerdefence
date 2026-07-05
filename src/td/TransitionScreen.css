@@ -18,3 +18,26 @@
 .transition-screen.fading-out {
   opacity: 0;
 }
+
+.transition-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.transition-title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+}
+
+.transition-status {
+  min-width: 7.5em;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #4b5563;
+  text-align: left;
+}

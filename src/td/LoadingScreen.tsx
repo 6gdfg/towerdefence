@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import './LoadingScreen.css';
 
 interface LoadingScreenProps {
@@ -6,19 +6,27 @@ interface LoadingScreenProps {
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({ onAnimationComplete }) => {
-  const randomColor = useMemo(() => {
-    const colors = ['#2563eb', '#db2777', '#c026d3', '#7c3aed', '#2563eb', '#059669', '#ea580c'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  }, []);
+  const [dotCount, setDotCount] = useState(1);
 
   useEffect(() => {
-    const timer = window.setTimeout(onAnimationComplete, 350);
-    return () => window.clearTimeout(timer);
+    const dotTimer = window.setInterval(() => {
+      setDotCount((current) => (current >= 3 ? 1 : current + 1));
+    }, 350);
+
+    const completeTimer = window.setTimeout(onAnimationComplete, 1000);
+
+    return () => {
+      window.clearInterval(dotTimer);
+      window.clearTimeout(completeTimer);
+    };
   }, [onAnimationComplete]);
 
   return (
     <div className="loading-screen">
-      <div className="loading-text" style={{ color: randomColor }}>TOWER DEFENSE</div>
+      <div className="loading-screen-content">
+        <div className="loading-title">TOWER DEFENCE</div>
+        <div className="loading-status">Loading{'.'.repeat(dotCount)}</div>
+      </div>
     </div>
   );
 };
