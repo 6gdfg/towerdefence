@@ -1,5 +1,6 @@
 import { fetchCloudProgress, getToken } from './authProgress';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
+import { readApiJson } from './apiClient';
 
 // 添加缓存变量（内存中，不使用localStorage）
 let cloudDataCache: { stars: Record<string, number>; unlocked: number; unlockedItems: string[] } | null = null;
@@ -75,7 +76,7 @@ export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok:
       body: JSON.stringify({ action: 'setStar', levelId, star })
     });
     if (resp.ok) {
-      const data = await resp.json();
+      const data = await readApiJson<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; chestCoinReward?: number; newRecord?: boolean; newUnlocks?: string[]}>(resp, 'Failed to save progress');
 
       // 更新内存缓存
       if (cloudDataCache) {

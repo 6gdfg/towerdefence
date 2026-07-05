@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { readApiJson } from './apiClient';
 import { getErrorMessage } from './errors';
 
 export default function RankingPage({ onBack }: { onBack: () => void }) {
@@ -12,10 +13,7 @@ export default function RankingPage({ onBack }: { onBack: () => void }) {
         setLoading(true);
         setError(null);
         const response = await fetch('/api/ranking');
-        if (!response.ok) {
-          throw new Error('Failed to fetch ranking');
-        }
-        const data = await response.json();
+        const data = await readApiJson<{ ranking?: Array<{ rank: number; username: string; clearedLevels: number }> }>(response, 'Failed to fetch ranking');
         setRanking(data.ranking || []);
       } catch (err: unknown) {
         setError(getErrorMessage(err, 'Failed to load ranking'));

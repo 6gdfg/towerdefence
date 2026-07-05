@@ -9,10 +9,13 @@ export interface AuthPayload {
 }
 
 export function getSecret() {
-  const secret = process.env.AUTH_SECRET || process.env.JWT_SECRET;
+  const secret = process.env.AUTH_SECRET
+    || process.env.AUTHSECRET
+    || process.env.authsecret
+    || process.env.JWT_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('AUTH_SECRET or JWT_SECRET is required');
+      throw new Error('AUTH_SECRET, AUTHSECRET, authsecret, or JWT_SECRET is required');
     }
     return 'dev-secret-change-me';
   }

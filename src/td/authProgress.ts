@@ -1,5 +1,6 @@
 // 认证相关函数
 import type { CloudProgress } from './appTypes';
+import { readApiJson } from './apiClient';
 
 const KEY_PID = 'td_player_id';
 
@@ -24,7 +25,7 @@ export async function loginUser(username: string, password: string): Promise<{ o
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'login', username, password })
     });
-    const data = await resp.json();
+    const data = await readApiJson<{ ok: boolean; token?: string; playerId?: string; error?: string }>(resp, '登录失败');
     if (!resp.ok || !data?.token) throw new Error(data?.error || '登录失败');
     localStorage.setItem('td_token', data.token);
     setUsername(username);
@@ -42,7 +43,7 @@ export async function registerUser(username: string, password: string): Promise<
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'register', username, password })
     });
-    const data = await resp.json();
+    const data = await readApiJson<{ ok: boolean; token?: string; playerId?: string; error?: string }>(resp, '注册失败');
     if (!resp.ok || !data?.token) throw new Error(data?.error || '注册失败');
     localStorage.setItem('td_token', data.token);
     setUsername(username);
@@ -59,8 +60,7 @@ export async function fetchCloudProgress(): Promise<CloudProgress> {
   const resp = await fetch('/api/progress', {
     headers: { Authorization: `Bearer ${token}` }
   });
-  if (!resp.ok) throw new Error('Failed to fetch progress');
-  return resp.json() as Promise<CloudProgress>;
+  return readApiJson<CloudProgress>(resp, 'Failed to fetch progress');
 }
 
 export function clearAuth(): void {

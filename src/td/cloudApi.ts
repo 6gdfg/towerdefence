@@ -1,4 +1,5 @@
 import { getToken } from './authProgress';
+import { readApiJson } from './apiClient';
 
 export type ChestOpenResult = {
   shards: Record<string, number>;
@@ -22,11 +23,7 @@ async function postCloudAction<T>(url: string, body: Record<string, unknown>): P
     body: JSON.stringify(body),
   });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-  return data as T;
+  return readApiJson<T>(response, `Request failed: ${response.status}`);
 }
 
 export function startChestUnlock(chestId: string) {

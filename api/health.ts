@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
     const hasDbUrl = !!getDbUrl();
-    const hasAuthSecret = !!(env.AUTH_SECRET || env.JWT_SECRET);
+    const hasAuthSecret = !!(env.AUTH_SECRET || env.AUTHSECRET || env.authsecret || env.JWT_SECRET);
 
     let dbConnected = false;
     let dbError = null;
