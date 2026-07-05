@@ -25,13 +25,11 @@ export type CloudChest = {
   unlock_ready_at?: string | null;
   duration_seconds?: number;
   chest_type?: string | null;
-  coin_reward?: number | string | null;
 };
 
 export type WinReward = {
   coins: number;
   chestType: string;
-  chestCoins?: number;
   message?: string;
 };
 

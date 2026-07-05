@@ -68,7 +68,7 @@ export function getMaxStarSync(levelId: string): 0|1|2|3 {
   return (v === 1 || v === 2 || v === 3) ? v : 0;
 }
 
-export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; chestCoinReward?: number; newRecord?: boolean; newUnlocks?: string[]} | null> {
+export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; newRecord?: boolean; newUnlocks?: string[]} | null> {
   try {
     const token = getToken();
     const resp = await fetch('/api/progress', {
@@ -76,7 +76,7 @@ export async function setStarCleared(levelId: string, star: 1|2|3): Promise<{ok:
       body: JSON.stringify({ action: 'setStar', levelId, star })
     });
     if (resp.ok) {
-      const data = await readApiJson<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; chestCoinReward?: number; newRecord?: boolean; newUnlocks?: string[]}>(resp, 'Failed to save progress');
+      const data = await readApiJson<{ok: boolean; star: number; rewardCoins: number; chestId?: string; chestType?: string; newRecord?: boolean; newUnlocks?: string[]}>(resp, 'Failed to save progress');
 
       // 更新内存缓存
       if (cloudDataCache) {

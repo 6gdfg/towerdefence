@@ -458,7 +458,6 @@ function App() {
         setWinReward({
           coins: result.rewardCoins,
           chestType: result.chestType || 'common',
-          chestCoins: result.chestCoinReward || 0,
           message: rewardMsg,
         });
       }

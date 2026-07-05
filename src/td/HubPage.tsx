@@ -161,7 +161,6 @@ export default function HubPage({
                 const status = c.status;
                 const isOpening = openingChestId === c.chest_id;
                 const chestType = typeof c.chest_type === 'string' ? c.chest_type : 'common';
-                const chestCoinReward = Number(c.coin_reward ?? 0);
                 let action: ReactNode = null;
                 let extraAction: ReactNode = null;
 
@@ -213,9 +212,6 @@ export default function HubPage({
                   <div key={c.chest_id} className="chest-card">
                     <div className="item-name">{resolveChestTypeLabel(chestType)}</div>
                     <div className="muted">状态：{statusLabel[status] ?? status}</div>
-                    {chestCoinReward > 0 && (
-                      <div className="muted" style={{ color: '#b45309' }}>箱内金币：+{chestCoinReward}</div>
-                    )}
                     <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {action}
                       {extraAction}

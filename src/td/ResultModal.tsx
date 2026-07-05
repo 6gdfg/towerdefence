@@ -74,12 +74,6 @@ export default function ResultModal({
                 {resolveChestTypeLabel(winReward.chestType)}
               </span>
             </div>
-            {winReward.chestCoins ? (
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, marginTop:4 }}>
-                <span>宝箱内金币</span>
-                <span style={{ fontWeight:600, color:'#b45309' }}>+{winReward.chestCoins}</span>
-              </div>
-            ) : null}
           </div>
         )}
 

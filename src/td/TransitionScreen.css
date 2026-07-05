@@ -18,28 +18,3 @@
 .transition-screen.fading-out {
   opacity: 0;
 }
-
-.transition-progress-bar-container {
-  width: 40%;
-  height: 15px;
-  background-color: #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.transition-progress-bar {
-  width: 0;
-  height: 100%;
-  background-color: #2563eb;
-  border-radius: 8px;
-  animation: transition-progress 1s linear forwards;
-}
-
-@keyframes transition-progress {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import './LoadingScreen.css';
 
 interface LoadingScreenProps {
@@ -11,16 +11,14 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onAnimationComplete }) =>
     return colors[Math.floor(Math.random() * colors.length)];
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(onAnimationComplete, 350);
+    return () => window.clearTimeout(timer);
+  }, [onAnimationComplete]);
+
   return (
     <div className="loading-screen">
       <div className="loading-text" style={{ color: randomColor }}>TOWER DEFENSE</div>
-      <div className="progress-bar-container">
-        <div
-          className="progress-bar"
-          style={{ backgroundColor: randomColor }}
-          onAnimationEnd={onAnimationComplete}
-        ></div>
-      </div>
     </div>
   );
 };

@@ -30,9 +30,6 @@ const TransitionScreen: React.FC<TransitionScreenProps> = ({ onTransitionComplet
   return (
     <div className={`transition-screen ${fadingOut ? 'fading-out' : ''}`}>
       <div style={{ marginBottom: '20px', fontSize: '1.2rem', color: randomColor }}>Loading...</div>
-      <div className="transition-progress-bar-container">
-        <div className="transition-progress-bar" style={{ backgroundColor: randomColor, animationDuration: '1s' }}></div>
-      </div>
     </div>
   );
 };

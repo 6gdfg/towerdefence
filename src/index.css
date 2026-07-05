@@ -456,7 +456,7 @@ input {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 6px;
   touch-action: none;
 }
 
@@ -509,7 +509,7 @@ input {
   }
 
   .game-map-stage {
-    padding: 8px;
+    padding: 6px;
   }
 }
 

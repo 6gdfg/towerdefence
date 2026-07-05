@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sql`SELECT coins, magic_keys FROM player_wallet WHERE player_id=${playerId}`,
         sql`SELECT tower_type, shards FROM inventory_shards WHERE player_id=${playerId}`,
         sql`SELECT tower_type, level FROM tower_levels WHERE player_id=${playerId}`,
-        sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds, chest_type, coin_reward FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
+        sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds, chest_type FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
         sql`SELECT item_id FROM unlocked_items WHERE player_id=${playerId} AND unlocked=true`,
       ]);
 
@@ -157,7 +157,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rewardMagicKeys,
           chestId,
           chestType,
-          chestCoinReward,
           previousStar: prev,
           newRecord: next > prev,
           newUnlocks,

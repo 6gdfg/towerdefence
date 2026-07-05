@@ -232,7 +232,7 @@ export default function TDGame({ onWin, onLose }: { onWin?: () => void; onLose?:
         <aside
           className="game-sidepanel"
           style={{
-            width: isMobile ? '100%' : 280,
+            width: isMobile ? '100%' : 240,
             padding: isMobile ? '12px 16px' : '12px 16px 20px 24px',
             borderRight: isMobile ? 'none' : '1px solid rgba(203,213,225,0.68)',
             borderBottom: isMobile ? '1px solid rgba(203,213,225,0.68)' : 'none',
