@@ -86,10 +86,11 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   igniter: { hp: 50, speed: 2.5, leakDamage: 1 },
   armored: { hp: 80, armorHp: 200, speed: 1.8, leakDamage: 2 },
   iceShell: { hp: 280, speed: 2.5, leakDamage: 1 },
+  purifier: { hp: 80, speed: 1.5, leakDamage: 1 },
 };
 
 export const DIFFICULTY_CONFIG = {
-  LEVEL_MULTIPLIER: 0.02, 
+  LEVEL_MULTIPLIER: 0.05,
 };
 
 // 配置说明：每个 group 只需配置 level（怪物等级），HP和速度自动计算
@@ -161,7 +162,7 @@ export const LEVELS: LevelSpec[] = [
 
 ];
 
-const NORMAL_MAP_IDS = Array.from({ length: 12 }, (_, index) => index + 1);
+const NORMAL_MAP_IDS = Array.from({ length: 17 }, (_, index) => index + 1);
 
 // 生成4-60关（循环使用稳定的普通地图）
 for (let i = 0; i < 57; i++) {

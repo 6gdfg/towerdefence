@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'purifier';
 
 export interface Enemy {
   id: string;
@@ -37,7 +37,7 @@ export interface Enemy {
   speedBoostUntil?: number;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -73,6 +73,8 @@ export interface Tower {
   incomeBonusPerLevel?: number;
   lastIncomeTime?: number;
   controlAuraLastPulseTime?: number;
+  channelDamagePct?: number;
+  channelNextTickTime?: number;
   expiresAt?: number;
   element?: {
     type: ElementType;
@@ -97,6 +99,7 @@ export interface Projectile {
   piercing?: boolean;
   pierced?: Record<string, boolean>;
   sourceTowerId?: string;
+  elementType?: ElementType;
   breakArmorDuration?: number;
   breakArmorDamageMultiplier?: number;
   burnDamagePerSec?: number;

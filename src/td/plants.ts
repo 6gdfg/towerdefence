@@ -9,6 +9,7 @@ export interface BasePlantConfig {
   lifetimeSec?: number;
   range: number;
   damage: number;
+  damageScalePerLevel?: number;
   fireRate: number;
   projectileSpeed: number;
   penetration?: boolean;
@@ -20,6 +21,11 @@ export interface BasePlantConfig {
   incomeInterval?: number;
   incomeBase?: number;
   incomeBonusPerLevel?: number;
+  sunflowerBoostAura?: {
+    radiusCells: number;
+    speedBonus: number;
+    bonusPerLevel: number;
+  };
   elementAllowed?: boolean;
   allowedElementTypes?: ElementType[];
   controlAura?: {
@@ -28,6 +34,12 @@ export interface BasePlantConfig {
     pulseInterval: number;
     knockbackDistance: number;
     knockbackBonusPerLevel: number;
+  };
+  channelAttack?: {
+    tickInterval: number;
+    initialDamagePct: number;
+    rampPctPerTick: number;
+    color: string;
   };
   instantEffect?: {
     type: 'crossDamage';
@@ -189,6 +201,22 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     activeAbilityCost: 10,
     description: '主动技能植物：点击时消耗10金币发射高伤害子弹，平时不会自动攻击。',
   },
+  holyFlower: {
+    id: 'holyFlower',
+    name: '圣辉花',
+    icon: '✦',
+    cost: 180,
+    range: 99,
+    damage: 10,
+    fireRate: 2,
+    projectileSpeed: 14,
+    sunflowerBoostAura: {
+      radiusCells: 2,
+      speedBonus: 0.2,
+      bonusPerLevel: 0.03,
+    },
+    description: '辅助攻击植物：全屏索敌；自身周围 5x5 区域内金盏花产速提升，多个圣辉花不叠加。',
+  },
   hotPepper: {
     id: 'hotPepper',
     name: '火爆辣椒',
@@ -258,6 +286,25 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     breakArmorDuration: 1.5,
     targetPriority: 'armorFirst',
     description: '优先攻击拥有护甲的怪物，命中后施加 1.5 秒破甲，使后续伤害直接攻击本体。',
+  },
+  electricFlower: {
+    id: 'electricFlower',
+    name: '电击花',
+    icon: '◇',
+    cost: 250,
+    range: 3.5,
+    damage: 500,
+    damageScalePerLevel: 0.03,
+    fireRate: 2.5,
+    projectileSpeed: 0,
+    allowedElementTypes: ['gold', 'ice', 'wind'],
+    channelAttack: {
+      tickInterval: 0.4,
+      initialDamagePct: 0.008,
+      rampPctPerTick: 0.004,
+      color: '#7c3aed',
+    },
+    description: '持续锁定射程内目标，每 0.4 秒造成一次伤害；首次为最高伤害 0.8%，之后每次提高 0.4%，目标离开射程后重置。',
   },
 };
 
@@ -361,13 +408,13 @@ export function getPlantRuntimeConfig(type: PlantType, labOverrides?: LabOverrid
 
 export function scalePlantStats(base: BasePlantConfig, level: number) {
   const lv = Math.max(1, Math.floor(level || 1));
-  const dmgMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.damagePerLevel;
+  const dmgMul = 1 + (lv - 1) * (base.damageScalePerLevel ?? TOWER_LEVEL_CONFIG.damagePerLevel);
   const rngMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.rangePerLevel;
   const frMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.fireRatePerLevel;
   return {
     damage: Number((base.damage * dmgMul).toFixed(2)),
     range: Number((base.range * rngMul).toFixed(2)),
-    fireRate: base.fireRate === 0 ? 0 : Number((base.fireRate * frMul).toFixed(2)),
+    fireRate: base.fireRate === 0 || base.channelAttack ? base.fireRate : Number((base.fireRate * frMul).toFixed(2)),
   };
 }
 
@@ -384,18 +431,20 @@ export function computePlantStats(base: BasePlantConfig, level: number, element?
   if (element) {
     const elementCfg = ELEMENT_PLANT_CONFIG[element.type];
     if (elementCfg) {
-      if (elementCfg.fireRateMultiplier != null) {
-        fireRate = Number((fireRate * elementCfg.fireRateMultiplier).toFixed(2));
+      if (!base.channelAttack) {
+        if (elementCfg.fireRateMultiplier != null) {
+          fireRate = Number((fireRate * elementCfg.fireRateMultiplier).toFixed(2));
+        }
+        if (elementCfg.fireRatePenalty != null) {
+          fireRate = Math.max(0.1, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
+        }
+        let damageMul = elementCfg.damageMultiplier ?? 1;
+        if (elementCfg.damageBonusPerLevel) {
+          damageMul += elementCfg.damageBonusPerLevel * (element.level - 1);
+        }
+        damage = Number((damage * damageMul).toFixed(2));
+        penetration = penetration || !!elementCfg.penetration;
       }
-      if (elementCfg.fireRatePenalty != null) {
-        fireRate = Math.max(0.1, Number((fireRate - elementCfg.fireRatePenalty).toFixed(2)));
-      }
-      let damageMul = elementCfg.damageMultiplier ?? 1;
-      if (elementCfg.damageBonusPerLevel) {
-        damageMul += elementCfg.damageBonusPerLevel * (element.level - 1);
-      }
-      damage = Number((damage * damageMul).toFixed(2));
-      penetration = penetration || !!elementCfg.penetration;
       color = elementCfg.color;
       bulletColor = elementCfg.bulletColor;
     }

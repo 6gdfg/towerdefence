@@ -1,7 +1,7 @@
 import { MONSTER_BASE_STATS } from './levels';
 import { ElementType, PlantType } from './types';
 
-export const PLANT_TYPES: PlantType[] = ['sunflower', 'bottleGrass', 'puffShroom', 'fourLeafClover', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle'];
+export const PLANT_TYPES: PlantType[] = ['sunflower', 'bottleGrass', 'puffShroom', 'fourLeafClover', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'];
 export const ELEMENT_TYPES: ElementType[] = ['fire', 'wind', 'ice', 'electric', 'gold', 'light'];
 
 export const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
@@ -22,4 +22,5 @@ export const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   igniter: '引燃怪',
   armored: '铁甲怪',
   iceShell: '冰壳怪',
+  purifier: '净化使',
 };

@@ -3,6 +3,7 @@ import { ELEMENT_TYPES, MONSTER_LABELS, PLANT_TYPES } from './appConfig';
 import { LEVELS } from './levels';
 import { getLevelDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
 import { MAPS } from './maps';
+import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
 import type { ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef, WaveGroup } from './types';
 
@@ -41,7 +42,7 @@ type BalanceLabPageProps = {
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
-const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell'];
+const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier'];
 const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'EZ', label: 'EZ' },
   { code: 'HD', label: 'HD' },
@@ -162,7 +163,7 @@ function buildExportSource(config: BalanceLabConfig) {
 }
 
 function createDefaultGroup(): WaveGroup {
-  return { type: 'circle', count: 10, interval: 0.4, level: 1, reward: 5, pathId: 0 };
+  return { type: 'circle', count: 10, interval: 0.4, level: 1, reward: 5 };
 }
 
 export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPageProps) {
@@ -171,6 +172,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const [saveStatus, setSaveStatus] = useState('');
   const selectedLevelIndex = getLevelIndexById(config.sourceLevelId);
   const draftRating = getDraftRating(config);
+  const selectedMap = MAPS.find(map => map.id === config.mapId);
+  const selectedMapPathCount = Math.max(1, countMapPaths(selectedMap));
   const exportSource = useMemo(() => buildExportSource(config), [config]);
 
   useEffect(() => {
@@ -493,7 +496,21 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     </label>
                     <label>
                       <span>路径</span>
-                      <input type="number" value={group.pathId ?? 0} onChange={event => updateWaveGroup(waveIndex, groupIndex, { pathId: Math.max(0, Math.floor(readNumber(event.target.value, group.pathId ?? 0))) })} />
+                      <select
+                        value={group.pathId == null ? 'auto' : String(group.pathId)}
+                        onChange={event => updateWaveGroup(
+                          waveIndex,
+                          groupIndex,
+                          event.target.value === 'auto'
+                            ? { pathId: undefined }
+                            : { pathId: Math.max(0, Math.floor(readNumber(event.target.value, group.pathId ?? 0))) },
+                        )}
+                      >
+                        <option value="auto">自动分流</option>
+                        {Array.from({ length: selectedMapPathCount }, (_, pathIndex) => (
+                          <option key={pathIndex} value={pathIndex}>{`路径 ${pathIndex + 1}`}</option>
+                        ))}
+                      </select>
                     </label>
                     <button onClick={() => removeGroup(waveIndex, groupIndex)} className="lab-mini-button danger">删</button>
                   </div>

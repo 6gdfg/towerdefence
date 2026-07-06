@@ -10,6 +10,11 @@ import { normalizeMapPaths } from './mapPath';
 const IGNITER_DEATH_RADIUS = 2.8;
 const IGNITER_DEATH_SPEED_MULTIPLIER = 1.6;
 const IGNITER_DEATH_DURATION = 4;
+const HEALER_SPECIAL_INTERVAL = 3.5;
+const EVIL_SNIPER_SPECIAL_INTERVAL = 20;
+const SUMMONER_SPECIAL_INTERVAL = 5;
+const PURIFIER_CLEANSE_INTERVAL = 3;
+const PURIFIER_CLEANSE_RADIUS = 3;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -56,6 +61,22 @@ function ensureTowerStats(tower: Tower, labOverrides?: LabOverrides | null) {
   return tower;
 }
 
+function getSunflowerSpeedBoost(tower: Tower, towers: Tower[], labOverrides?: LabOverrides | null) {
+  if (tower.type !== 'sunflower') return 0;
+  let bestBoost = 0;
+  towers.forEach(source => {
+    const config = getPlantRuntimeConfig(source.type, labOverrides);
+    const aura = config?.sunflowerBoostAura;
+    if (!aura) return;
+    if (Math.abs(source.pos.x - tower.pos.x) > aura.radiusCells) return;
+    if (Math.abs(source.pos.y - tower.pos.y) > aura.radiusCells) return;
+    const level = Math.max(1, source.level ?? 1);
+    const boost = aura.speedBonus + aura.bonusPerLevel * (level - 1);
+    bestBoost = Math.max(bestBoost, boost);
+  });
+  return bestBoost;
+}
+
 function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: LabOverrides | null): Projectile | null {
   if (tower.damage <= 0) return null;
   const baseConfig = getPlantRuntimeConfig(tower.type, labOverrides);
@@ -96,6 +117,7 @@ function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: La
 
   const elementState = tower.element;
   if (elementState) {
+    projectile.elementType = elementState.type;
     const elementCfg = ELEMENT_PLANT_CONFIG[elementState.type];
     if (elementCfg) {
       if (elementCfg.breakArmor) {
@@ -202,6 +224,39 @@ function applyArmorBreak(enemy: Enemy, until: number, damageMultiplier?: number)
   }
 }
 
+function resetElectricSensitiveSpecial(enemy: Enemy, gameTime: number) {
+  if (enemy.shape === 'healer') {
+    enemy.specialTimer = gameTime + HEALER_SPECIAL_INTERVAL;
+  } else if (enemy.shape === 'evilSniper') {
+    enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
+  }
+}
+
+function cleanseNegativeStatuses(enemy: Enemy) {
+  enemy.slowPct = undefined;
+  enemy.slowUntil = undefined;
+  enemy.freezeUntil = undefined;
+  enemy.armorBreakUntil = undefined;
+  enemy.armorBreakDamageMultiplier = undefined;
+  enemy.burnDamagePerSec = undefined;
+  enemy.burnUntil = undefined;
+  enemy.burnAccumulator = undefined;
+}
+
+function applyChannelElementEffect(tower: Tower, enemy: Enemy, gameTime: number, tickInterval: number) {
+  if (!tower.element) return;
+  const cfg = ELEMENT_PLANT_CONFIG[tower.element.type];
+  if (!cfg) return;
+  const until = gameTime + tickInterval + 0.05;
+
+  if (tower.element.type === 'gold' && cfg.breakArmor) {
+    const multiplier = cfg.breakArmor.multiplier + cfg.breakArmor.bonusPerLevel * (tower.element.level - 1);
+    applyArmorBreak(enemy, until, multiplier);
+  } else if (tower.element.type === 'ice' && cfg.slow) {
+    applySlow(enemy, cfg.slow.pct, until);
+  }
+}
+
 function clearExpiredArmorBreak(enemy: Enemy, gameTime: number) {
   if (enemy.armorBreakUntil && gameTime >= enemy.armorBreakUntil) {
     enemy.armorBreakUntil = undefined;
@@ -253,6 +308,26 @@ function totalPathLength(path: Position[]): number {
   let s = 0;
   for (let i = 0; i < path.length - 1; i++) s += segmentLength(path[i], path[i + 1]);
   return s;
+}
+
+function resolveSpawnPathId(pathId: number | undefined, paths: Position[][], enemies: Enemy[]) {
+  const pathCount = paths.length;
+  if (pathCount <= 1) return 0;
+  if (Number.isInteger(pathId) && pathId != null && pathId >= 0 && pathId < pathCount) {
+    return pathId;
+  }
+
+  let bestPathId = 0;
+  let bestScore = Infinity;
+  for (let index = 0; index < pathCount; index++) {
+    const pathEnemies = enemies.filter(enemy => enemy.hp > 0 && enemy.pathId === index);
+    const pressureScore = pathEnemies.length * 100 + pathEnemies.reduce((sum, enemy) => sum + enemy.progress, 0);
+    if (pressureScore < bestScore) {
+      bestScore = pressureScore;
+      bestPathId = index;
+    }
+  }
+  return bestPathId;
 }
 
 export interface TDStore extends TDState {
@@ -478,7 +553,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     ensureTowerStats(towerCopy, state.labOverrides);
 
     const inRange = state.enemies
-      .filter(e => getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
+      .filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
       .sort((a, b) => b.progress - a.progress);
     if (inRange.length === 0) return;
 
@@ -614,7 +689,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     towers.forEach(tw => {
       if (!tw.incomeInterval || tw.incomeInterval <= 0) return;
-      const interval = tw.incomeInterval;
+      const speedBoost = getSunflowerSpeedBoost(tw, towers, state.labOverrides);
+      const interval = tw.incomeInterval / (1 + speedBoost);
       const lastIncomeTime = tw.lastIncomeTime ?? prevGameTime;
       if (gameTime - lastIncomeTime < interval) return;
       const cycles = Math.floor((gameTime - lastIncomeTime) / interval);
@@ -649,7 +725,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const mul = getMonsterLevelMultiplier(g.level);
         const hp = Math.round(baseStats.hp * mul);
         const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
-        const pathId = g.pathId ?? 0; // 默认使用第一条路径
+        const pathId = resolveSpawnPathId(g.pathId, state.paths, enemies);
         const path = state.paths[pathId];
         const enemy: Enemy = {
           id: `e-${Date.now()}-${Math.random()}`,
@@ -669,11 +745,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
           pathId, // 记录该敌人走的路径ID
         };
         if (enemy.shape === 'healer') {
-          enemy.specialTimer = gameTime + 3.5;
+          enemy.specialTimer = gameTime + HEALER_SPECIAL_INTERVAL;
         } else if (enemy.shape === 'evilSniper') {
-          enemy.specialTimer = gameTime + 20;
+          enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
         } else if (enemy.shape === 'summoner') {
-          enemy.specialTimer = gameTime + 5;
+          enemy.specialTimer = gameTime + SUMMONER_SPECIAL_INTERVAL;
+        } else if (enemy.shape === 'purifier') {
+          enemy.specialTimer = gameTime + PURIFIER_CLEANSE_INTERVAL;
         }
         enemies.push(enemy);
         spawnCursor.remaining -= 1;
@@ -854,7 +932,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let towersModified = false;
     enemies.forEach(enemy => {
       if (enemy.shape === 'healer') {
-        const interval = 3.5;
+        const interval = HEALER_SPECIAL_INTERVAL;
         if ((enemy.specialTimer ?? 0) <= gameTime) {
           const healRadius = 2.8;
           const healAmount = Math.max(18, Math.ceil(enemy.maxHp * 0.06));
@@ -875,7 +953,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             towers = newTowers;
             towersModified = true;
           }
-          enemy.specialTimer = gameTime + 20;
+          enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
         }
       } else if (enemy.shape === 'rager') {
         const auraRadius = 3.6;
@@ -889,7 +967,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
         });
       } else if (enemy.shape === 'summoner') {
-        const interval = 5;
+        const interval = SUMMONER_SPECIAL_INTERVAL;
         if ((enemy.specialTimer ?? 0) <= gameTime) {
           // 召唤一个与自己等级相同的circle怪，出现在召唤者前方0.5格
           const path = state.paths[enemy.pathId];
@@ -945,6 +1023,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
           enemies.push(summonedEnemy);
           enemy.specialTimer = gameTime + interval;
         }
+      } else if (enemy.shape === 'purifier') {
+        if ((enemy.specialTimer ?? 0) <= gameTime) {
+          enemies.forEach(target => {
+            if (target.hp <= 0) return;
+            if (getDistance(target.pos.x, target.pos.y, enemy.pos.x, enemy.pos.y) > PURIFIER_CLEANSE_RADIUS) return;
+            cleanseNegativeStatuses(target);
+          });
+          enemy.specialTimer = gameTime + PURIFIER_CLEANSE_INTERVAL;
+        }
       }
     });
     if (towersModified) {
@@ -954,13 +1041,54 @@ export const useTDStore = create<TDStore>((set, get) => ({
     // ᚻ 植物发射子弹
     towers.forEach(tw => {
       ensureTowerStats(tw, state.labOverrides);
+      const baseConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
+      const channelAttack = baseConfig?.channelAttack;
+      if (channelAttack) {
+        const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId && e.hp > 0) : undefined;
+        const lockedValid = locked && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
+        let target: Enemy | undefined = lockedValid ? locked : undefined;
+
+        if (!target) {
+          tw.lockedTargetId = undefined;
+          tw.channelDamagePct = undefined;
+          tw.channelNextTickTime = undefined;
+
+          const inRange = enemies
+            .filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range)
+            .sort((a, b) => b.progress - a.progress);
+          target = inRange[0];
+          if (target) {
+            tw.lockedTargetId = target.id;
+            tw.channelDamagePct = channelAttack.initialDamagePct;
+            tw.channelNextTickTime = gameTime;
+          }
+        }
+
+        if (!target) return;
+        applyChannelElementEffect(tw, target, gameTime, channelAttack.tickInterval);
+        const nextTick = tw.channelNextTickTime ?? gameTime;
+        if (gameTime + 0.0001 < nextTick) return;
+
+        const pct = Math.max(channelAttack.initialDamagePct, tw.channelDamagePct ?? channelAttack.initialDamagePct);
+        const damage = tw.damage * Math.min(1, pct);
+        dealDamage(target, damage, channelAttack.color);
+        tw.lastShotTime = gameTime;
+        tw.channelDamagePct = Math.min(1, pct + channelAttack.rampPctPerTick);
+        tw.channelNextTickTime = gameTime + channelAttack.tickInterval;
+        if (target.hp <= 0) {
+          tw.lockedTargetId = undefined;
+          tw.channelDamagePct = undefined;
+          tw.channelNextTickTime = undefined;
+        }
+        return;
+      }
       if (tw.type === 'sniper') {
         const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId) : undefined;
         const lockedValid = locked && locked.hp > 0 && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
         if (!lockedValid) {
           let best: Enemy | null = null;
           for (const enemy of enemies) {
-            if (getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+            if (enemy.hp > 0 && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
               if (!best || enemy.hp > best.hp) {
                 best = enemy;
               }
@@ -983,7 +1111,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (!target) {
           let best: Enemy | null = null;
           for (const enemy of enemies) {
-            if (getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+            if (enemy.hp > 0 && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
               if (!best || enemy.hp > best.hp) {
                 best = enemy;
               }
@@ -998,7 +1126,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
         }
       } else {
-        const inRange = enemies.filter(e => getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
+        const inRange = enemies.filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
         if (inRange.length === 0) return;
         const towerConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
         const priorityTargets = towerConfig?.targetPriority === 'armorFirst'
@@ -1025,6 +1153,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (projectile.burnDamagePerSec && projectile.burnDuration) {
         enemy.burnDamagePerSec = projectile.burnDamagePerSec;
         enemy.burnUntil = impactTime + projectile.burnDuration;
+      }
+      if (projectile.elementType === 'electric') {
+        resetElectricSensitiveSpecial(enemy, impactTime);
       }
       applyDamageWithArmor(enemy, damageAmount, impactTime);
       if (projectile.slowPct && projectile.slowDuration) {
@@ -1273,6 +1404,9 @@ function rewardForShape(shape: Enemy['shape']): number {
       break;
     case 'iceShell':
       base = 12;
+      break;
+    case 'purifier':
+      base = 8;
       break;
     default:
       base = 5;

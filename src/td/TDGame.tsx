@@ -30,6 +30,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const announcedLoseRef = useRef(false);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const selectedPlantInfo = selectedPlant ? getPlantRuntimeConfig(selectedPlant, labOverrides) : null;
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
   const plantChoices = availablePlants
@@ -107,12 +108,39 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    const node = mapWrapperRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const updateStageSize = () => {
+      const rect = node.getBoundingClientRect();
+      const next = {
+        width: Math.max(0, Math.round(rect.width)),
+        height: Math.max(0, Math.round(rect.height)),
+      };
+      setStageSize(current => (
+        current.width === next.width && current.height === next.height ? current : next
+      ));
+    };
+
+    updateStageSize();
+    const observer = new ResizeObserver(updateStageSize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
 
   const corridorPx = roadWidthCells * CELL_SIZE;
   const BORDER_PX = 0.6; // 路两侧边框粗细（像素）- 细灰线
   const outerWidth = corridorPx + BORDER_PX * 2;
   const baseMapWidth = mapWidth * CELL_SIZE;
   const baseMapHeight = mapHeight * CELL_SIZE;
+  const mapAspect = baseMapHeight > 0 ? baseMapWidth / baseMapHeight : 1;
+  const availableStageWidth = Math.max(0, stageSize.width - 12);
+  const availableStageHeight = Math.max(0, stageSize.height - 12);
+  const fittedMapWidth = availableStageWidth > 0 && availableStageHeight > 0
+    ? Math.min(availableStageWidth, availableStageHeight * mapAspect)
+    : 0;
+  const fittedMapHeight = fittedMapWidth > 0 ? fittedMapWidth / mapAspect : 0;
 
   useEffect(() => {
     let last = Date.now();
@@ -435,6 +463,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           onClick={handlePlace}
           className="game-map-svg"
           style={{
+            width: fittedMapWidth > 0 ? fittedMapWidth : undefined,
+            height: fittedMapHeight > 0 ? fittedMapHeight : undefined,
             cursor: selectedPlant ? 'crosshair' : selectedElement ? 'cell' : 'default',
           }}
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
@@ -546,6 +576,38 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             });
           })()}
           {towers.map(t => {
+            if (t.type !== 'electricFlower' || !t.lockedTargetId) return null;
+            const target = enemies.find(e => e.id === t.lockedTargetId && e.hp > 0);
+            if (!target) return null;
+            const from = worldToPx(t.pos);
+            const to = worldToPx(target.pos);
+            const charge = Math.max(0.01, Math.min(1, t.channelDamagePct ?? 0.01));
+            return (
+              <g key={`channel-${t.id}`} style={{ pointerEvents: 'none' }}>
+                <line
+                  x1={from.left}
+                  y1={from.top}
+                  x2={to.left}
+                  y2={to.top}
+                  stroke="#7c3aed"
+                  strokeWidth={1.2 + charge * 1.6}
+                  strokeOpacity={0.35 + charge * 0.25}
+                  strokeLinecap="round"
+                  strokeDasharray="3 5"
+                />
+                <circle
+                  cx={to.left}
+                  cy={to.top}
+                  r={4 + charge * 3}
+                  fill="none"
+                  stroke="#7c3aed"
+                  strokeWidth={1.2}
+                  strokeOpacity={0.45}
+                />
+              </g>
+            );
+          })}
+          {towers.map(t => {
             const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
             const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : (t.color || '#9ca3af');
             const lifetimeSec = getPlantRuntimeConfig(t.type, labOverrides)?.lifetimeSec;
@@ -554,58 +616,60 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               : 1;
             const lifetimeOpacity = Math.max(0.25, Math.min(1, 0.25 + lifetimePercent * 0.7));
             const { left, top } = worldToPx(t.pos);
+            const tileSize = CELL_SIZE * 0.9;
+            const iconSize = CELL_SIZE * 0.78;
             return (
-              <foreignObject
+              <g
                 key={t.id}
-                x={left - CELL_SIZE / 2}
-                y={top - CELL_SIZE / 2}
-                width={CELL_SIZE}
-                height={CELL_SIZE}
+                onClick={(e) => handleTowerClick(t, e)}
                 style={{
-                  zIndex: 2,
                   cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default',
                   filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
-                  overflow: 'visible',
                 }}
               >
-                <div
-                  onClick={(e) => handleTowerClick(t, e)}
-                  style={{ width: '100%', height: '100%', pointerEvents: 'all' }}
-                >
-                  <div
-                    style={{
-                      width:'100%',
-                      height:'100%',
-                      display:'flex',
-                      alignItems:'center',
-                      justifyContent:'center',
-                      background:'rgba(255,255,255,0.45)',
-                      borderRadius:6,
-                      border:'1px solid rgba(148,163,184,0.25)',
-                      opacity: lifetimeOpacity,
-                    }}
-                  >
-                    <PlantIcon type={t.type} color={iconStroke} size={28} />
-                  </div>
-                  <div
-                    style={{
-                      position:'absolute',
-                      left:'50%',
-                      top:'50%',
-                      width: t.range * 2 * CELL_SIZE,
-                      height: t.range * 2 * CELL_SIZE,
-                      marginLeft: -t.range * CELL_SIZE,
-                      marginTop: -t.range * CELL_SIZE,
-                      border: `1px dashed rgba(17,24,39,0.15)`,
-                      borderRadius: '50%',
-                      pointerEvents: 'none',
-                    }}
+                {t.range > 0 && (
+                  <circle
+                    cx={left}
+                    cy={top}
+                    r={t.range * CELL_SIZE}
+                    fill="none"
+                    stroke="rgba(17,24,39,0.15)"
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                    pointerEvents="none"
                   />
-                  <div style={{ position:'absolute', left:'50%', top:'105%', transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280', textAlign:'center', lineHeight:1.2 }}>
-                    <div>lv.{t.level ?? 1}</div>
-                  </div>
-                </div>
-              </foreignObject>
+                )}
+                <rect
+                  x={left - tileSize / 2}
+                  y={top - tileSize / 2}
+                  width={tileSize}
+                  height={tileSize}
+                  rx={6}
+                  ry={6}
+                  fill="rgba(255,255,255,0.45)"
+                  stroke="rgba(148,163,184,0.25)"
+                  strokeWidth={1}
+                  opacity={lifetimeOpacity}
+                />
+                <g transform={`translate(${left - iconSize / 2} ${top - iconSize / 2})`} opacity={lifetimeOpacity}>
+                  <PlantIcon type={t.type} color={iconStroke} size={iconSize} />
+                </g>
+                <text
+                  x={left}
+                  y={top + CELL_SIZE * 0.74}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="#6b7280"
+                  paintOrder="stroke"
+                  stroke="rgba(255,255,255,0.86)"
+                  strokeWidth={2}
+                  pointerEvents="none"
+                >
+                  {`lv.${t.level ?? 1}`}
+                </text>
+              </g>
             );
           })}
  
@@ -616,12 +680,20 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const size = CELL_SIZE * (0.7 + 0.3 * progress);
             const { left, top } = worldToPx(cast.pos);
             return (
-              <foreignObject key={cast.id} x={left - size/2} y={top - size/2} width={size} height={size} style={{ pointerEvents:'none', zIndex:5 }}>
+              <g key={cast.id} transform={`translate(${left - size / 2} ${top - size / 2})`} pointerEvents="none">
                 <ElementIcon element={cast.element} color={cfg.color} size={size} style={{ display:'block' }} />
-                <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%, -50%)', fontSize:10, color:'#0f172a', fontWeight:600 }}>
+                <text
+                  x={size / 2}
+                  y={size / 2}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="#0f172a"
+                >
                   {remaining > 0.1 ? remaining.toFixed(1) : '0'}
-                </div>
-              </foreignObject>
+                </text>
+              </g>
             );
           })}
  
@@ -706,6 +778,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
                     </svg>
                   );
+                case 'purifier':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <circle cx="12" cy="12" r="5.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.7} />
+                      <path d="M12 7.5 V16.5 M7.5 12 H16.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.82} strokeLinecap="round" />
+                    </svg>
+                  );
                 default:
                   return (
                     <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
@@ -716,12 +796,25 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             })();
             const { left, top } = worldToPx(e.pos);
             return (
-              <foreignObject key={e.id} x={left - shapeSize/2} y={top - shapeSize/2} width={shapeSize} height={shapeSize + 15} style={{ zIndex:2, overflow:'visible' }}>
-                <div style={{ width:shapeSize, height:shapeSize, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <g key={e.id} pointerEvents="none">
+                <g transform={`translate(${left - shapeSize / 2} ${top - shapeSize / 2})`}>
                   {shapeNode}
-                </div>
-                <div style={{ position:'absolute', left:'50%', top: shapeSize + 2, transform:'translate(-50%, 0)', fontSize:10, color:'#6b7280' }}>lv.{e.level ?? 1}</div>
-              </foreignObject>
+                </g>
+                <text
+                  x={left}
+                  y={top + shapeSize / 2 + 10}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="#6b7280"
+                  paintOrder="stroke"
+                  stroke="rgba(255,255,255,0.86)"
+                  strokeWidth={2}
+                >
+                  {`lv.${e.level ?? 1}`}
+                </text>
+              </g>
             );
           })}
  
@@ -729,30 +822,36 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const borderColor = p.color || DEFAULT_BULLET_COLOR;
             const textColor = borderColor;
             const sourceTower = towers.find(t => t.id === p.sourceTowerId);
-            const isLightBullet = sourceTower?.element?.type === 'light';
+            const isLightBullet = p.elementType === 'light' || sourceTower?.element?.type === 'light';
             const { left, top } = worldToPx(p.pos);
             const width = 30;
             const height = 18;
             return (
-              <foreignObject key={p.id} x={left - width/2} y={top - height/2} width={width} height={height} style={{ pointerEvents:'none', zIndex:10, overflow:'visible' }}>
-                <div
-                  style={{
-                    minWidth: 20,
-                    padding:'1px 4px',
-                    fontSize:11,
-                    fontWeight:700,
-                    color: textColor,
-                    background:'rgba(255,255,255,0.9)',
-                    border:`1px solid ${borderColor}`,
-                    borderRadius:6,
-                    boxShadow:'0 1px 2px rgba(0,0,0,0.08)',
-                    textAlign:'center',
-                    textShadow: isLightBullet ? `0 0 4px ${p.color}` : 'none',
-                  }}
+              <g key={p.id} pointerEvents="none">
+                <rect
+                  x={left - width / 2}
+                  y={top - height / 2}
+                  width={width}
+                  height={height}
+                  rx={6}
+                  ry={6}
+                  fill="rgba(255,255,255,0.9)"
+                  stroke={borderColor}
+                  strokeWidth={1}
+                />
+                <text
+                  x={left}
+                  y={top}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={11}
+                  fontWeight={800}
+                  fill={textColor}
+                  style={{ filter: isLightBullet ? `drop-shadow(0 0 4px ${p.color})` : 'none' }}
                 >
                   {Math.round(p.damage)}
-                </div>
-              </foreignObject>
+                </text>
+              </g>
             );
           })}
  
@@ -761,11 +860,30 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const width = 30;
             const height = 20;
             return (
-              <foreignObject key={p.id} x={left - width/2} y={top - height * 0.6} width={width} height={height} style={{ pointerEvents:'none', zIndex:25, overflow:'visible' }}>
-                <div style={{ padding:'2px 6px', fontSize:12, fontWeight:700, color:p.color, background:'rgba(255,255,255,0.92)', border:`1px solid ${p.color}`, borderRadius:6, boxShadow:'0 1px 3px rgba(15,23,42,0.15)' }}>
+              <g key={p.id} pointerEvents="none">
+                <rect
+                  x={left - width / 2}
+                  y={top - height * 0.6}
+                  width={width}
+                  height={height}
+                  rx={6}
+                  ry={6}
+                  fill="rgba(255,255,255,0.92)"
+                  stroke={p.color}
+                  strokeWidth={1}
+                />
+                <text
+                  x={left}
+                  y={top - height * 0.1}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={12}
+                  fontWeight={800}
+                  fill={p.color}
+                >
                   {p.damage}
-                </div>
-              </foreignObject>
+                </text>
+              </g>
             );
           })}
         </svg>

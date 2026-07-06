@@ -71,6 +71,14 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <rect x="9" y="9" width="6" height="6" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.9} rx="1" ry="1" />
         </svg>
       );
+    case 'holyFlower':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="7.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinecap="round" />
+          <path d="M12 8.2 L13.2 10.8 L15.8 12 L13.2 13.2 L12 15.8 L10.8 13.2 L8.2 12 L10.8 10.8 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.7} strokeLinejoin="round" />
+        </svg>
+      );
     case 'hotPepper':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -102,6 +110,14 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <line x1="14" y1="5" x2="17" y2="5" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
           <line x1="12" y1="9" x2="12" y2="21" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinecap="round" />
           <path d="M10 17 L12 21 L14 17" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+      );
+    case 'electricFlower':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M12 4 L9.2 11.2 H12.5 L10.7 20 L16 9.4 H12.8 L12 4 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.8} strokeLinejoin="round" />
+          <path d="M5.5 15.8 C8.2 18.6 15.8 18.6 18.5 15.8" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.65} strokeLinecap="round" />
         </svg>
       );
     case 'sniper':
