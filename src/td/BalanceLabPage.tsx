@@ -41,7 +41,7 @@ type BalanceLabPageProps = {
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
-const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner'];
+const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell'];
 const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'EZ', label: 'EZ' },
   { code: 'HD', label: 'HD' },

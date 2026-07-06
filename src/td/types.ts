@@ -1,12 +1,14 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell';
 
 export interface Enemy {
   id: string;
   pos: Position;
   hp: number;
   maxHp: number;
+  armorHp?: number;
+  maxArmorHp?: number;
   speed: number; // 格/秒
   shape: ShapeType;
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
@@ -19,8 +21,9 @@ export interface Enemy {
   pathId: number; // 该敌人所走的路径ID
   slowPct?: number;
   slowUntil?: number; // gameTime
-  armorBreakMultiplier?: number;
+  freezeUntil?: number; // gameTime
   armorBreakUntil?: number;
+  armorBreakDamageMultiplier?: number;
   burnDamagePerSec?: number;
   burnUntil?: number;
   burnAccumulator?: number;
@@ -28,17 +31,18 @@ export interface Enemy {
   knockbackY?: number;
   knockbackUntil?: number;
   rewardGiven?: boolean;
+  deathEffectTriggered?: boolean;
   specialTimer?: number;
   speedBoostMultiplier?: number;
   speedBoostUntil?: number;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 export type LabPlantStatOverride = Partial<Record<'cost' | 'range' | 'damage' | 'fireRate' | 'projectileSpeed' | 'placementCooldown' | 'incomeInterval' | 'incomeBase' | 'incomeBonusPerLevel', number>>;
-export type LabMonsterStatOverride = Partial<Record<'hp' | 'speed' | 'leakDamage', number>>;
+export type LabMonsterStatOverride = Partial<Record<'hp' | 'armorHp' | 'speed' | 'leakDamage', number>>;
 export type LabOverrides = {
   plants?: Partial<Record<PlantType, LabPlantStatOverride>>;
   monsters?: Partial<Record<ShapeType, LabMonsterStatOverride>>;
@@ -68,6 +72,7 @@ export interface Tower {
   incomeBase?: number;
   incomeBonusPerLevel?: number;
   lastIncomeTime?: number;
+  controlAuraLastPulseTime?: number;
   expiresAt?: number;
   element?: {
     type: ElementType;
@@ -92,8 +97,8 @@ export interface Projectile {
   piercing?: boolean;
   pierced?: Record<string, boolean>;
   sourceTowerId?: string;
-  breakArmorMultiplier?: number;
   breakArmorDuration?: number;
+  breakArmorDamageMultiplier?: number;
   burnDamagePerSec?: number;
   burnDuration?: number;
   splashPercent?: number;

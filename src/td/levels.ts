@@ -1,4 +1,4 @@
-import { WaveDef, WaveGroup } from './types';
+import { ShapeType, WaveDef, WaveGroup } from './types';
 import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 
@@ -68,7 +68,14 @@ function createFinalBossWave(mapId: number, opts: { bossLevel: number; smallRewa
 }
 
 // 怪物基础属性（等级1时的数值）
-export const MONSTER_BASE_STATS = {
+export type MonsterBaseStats = {
+  hp: number;
+  armorHp?: number;
+  speed: number;
+  leakDamage: number;
+};
+
+export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   circle: { hp: 50, speed: 2.5, leakDamage: 1 },
   triangle: { hp: 30, speed: 3.5, leakDamage: 1 },
   square: { hp: 150, speed: 1.8, leakDamage: 2 },
@@ -76,6 +83,9 @@ export const MONSTER_BASE_STATS = {
   evilSniper: { hp: 260, speed: 2.0, leakDamage: 3 },
   rager: { hp: 180, speed: 2.4, leakDamage: 2 },
   summoner: { hp: 250, speed: 2.2, leakDamage: 2 },
+  igniter: { hp: 50, speed: 2.5, leakDamage: 1 },
+  armored: { hp: 80, armorHp: 200, speed: 1.8, leakDamage: 2 },
+  iceShell: { hp: 280, speed: 2.5, leakDamage: 1 },
 };
 
 export const DIFFICULTY_CONFIG = {

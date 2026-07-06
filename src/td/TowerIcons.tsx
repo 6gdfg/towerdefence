@@ -78,6 +78,32 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <path d="M12 6 L9.5 13 H12.2 L10.8 18 L15 10.8 H12.4 L12 6 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinejoin="round" />
         </svg>
       );
+    case 'frostBlastShroom':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M12 4 V20 M4 12 H20 M6.4 6.4 L17.6 17.6 M17.6 6.4 L6.4 17.6" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinecap="round" />
+          <circle cx="12" cy="12" r="2.2" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.7} />
+        </svg>
+      );
+    case 'cycloneShroom':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M16.8 8.2 C14 5.9 8.6 6.9 8 11 C7.5 14.4 11.5 15.8 14.3 14.1 C16.6 12.7 15.6 10.1 13.1 10.2" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.82} strokeLinecap="round" />
+          <path d="M7.2 16.2 C10 18.5 15.4 17.5 16 13.4" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinecap="round" />
+        </svg>
+      );
+    case 'magnetNeedle':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M7 5 V12 C7 15.3 9.1 18 12 18 C14.9 18 17 15.3 17 12 V5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <line x1="7" y1="5" x2="10" y2="5" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <line x1="14" y1="5" x2="17" y2="5" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <line x1="12" y1="9" x2="12" y2="21" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinecap="round" />
+          <path d="M10 17 L12 21 L14 17" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+      );
     case 'sniper':
     default:
       return (

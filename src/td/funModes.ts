@@ -2,15 +2,17 @@ import type { MapSpec } from './maps';
 import { countMapPaths } from './mapPath';
 import { ElementType, PlantType, ShapeType, WaveDef, WaveGroup } from './types';
 
-const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager'] as const;
+const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
-const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner'];
+const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell'];
 const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   square: 0.65,
   healer: 0.55,
   evilSniper: 0.45,
   rager: 0.6,
   summoner: 0.5,
+  armored: 0.55,
+  iceShell: 0.5,
 };
 
 export type FunModeType = 'test' | 'endless' | 'random';

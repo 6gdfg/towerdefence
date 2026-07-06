@@ -7,6 +7,10 @@ import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
 
+const IGNITER_DEATH_RADIUS = 2.8;
+const IGNITER_DEATH_SPEED_MULTIPLIER = 1.6;
+const IGNITER_DEATH_DURATION = 4;
+
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
   { x: 2, y: 28 },
@@ -75,6 +79,9 @@ function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: La
   if (baseConfig?.damageDecayFactor != null) {
     projectile.damageDecayFactor = baseConfig.damageDecayFactor;
   }
+  if (baseConfig?.breakArmorDuration != null) {
+    projectile.breakArmorDuration = baseConfig.breakArmorDuration;
+  }
 
   const dx = target.pos.x - tower.pos.x;
   const dy = target.pos.y - tower.pos.y;
@@ -92,7 +99,7 @@ function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: La
     const elementCfg = ELEMENT_PLANT_CONFIG[elementState.type];
     if (elementCfg) {
       if (elementCfg.breakArmor) {
-        projectile.breakArmorMultiplier = elementCfg.breakArmor.multiplier + elementCfg.breakArmor.bonusPerLevel * (elementState.level - 1);
+        projectile.breakArmorDamageMultiplier = elementCfg.breakArmor.multiplier + elementCfg.breakArmor.bonusPerLevel * (elementState.level - 1);
         projectile.breakArmorDuration = elementCfg.breakArmor.duration;
       }
       if (elementCfg.burn) {
@@ -156,17 +163,82 @@ function rewindEnemyAlongPath(enemy: Enemy, distance: number, path: Position[]) 
   enemy.progress = totalLen === 0 ? 0 : targetDistance / totalLen;
 }
 
-function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
-  if (enemy.armorBreakUntil && gameTime > enemy.armorBreakUntil) {
-    enemy.armorBreakUntil = undefined;
-    enemy.armorBreakMultiplier = undefined;
+function hasArmorProfile(enemy: Enemy) {
+  return (enemy.maxArmorHp ?? 0) > 0;
+}
+
+function isSlowImmune(enemy: Enemy) {
+  return enemy.shape === 'iceShell';
+}
+
+function isBurning(enemy: Enemy, gameTime: number) {
+  return !!enemy.burnUntil && gameTime < enemy.burnUntil;
+}
+
+function getMonsterLevelMultiplier(level: number | undefined) {
+  const normalizedLevel = Math.max(1, Math.floor(level || 1));
+  return 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * (normalizedLevel - 1);
+}
+
+function isArmorBreakActive(enemy: Enemy, gameTime: number) {
+  return !!enemy.armorBreakUntil && gameTime < enemy.armorBreakUntil;
+}
+
+function applySlow(enemy: Enemy, pct: number, until: number) {
+  if (isSlowImmune(enemy)) return;
+  enemy.slowPct = Math.max(enemy.slowPct || 0, Math.max(0, Math.min(0.95, pct)));
+  enemy.slowUntil = Math.max(enemy.slowUntil || 0, until);
+}
+
+function applyFreeze(enemy: Enemy, until: number) {
+  if (isSlowImmune(enemy)) return;
+  enemy.freezeUntil = Math.max(enemy.freezeUntil || 0, until);
+}
+
+function applyArmorBreak(enemy: Enemy, until: number, damageMultiplier?: number) {
+  enemy.armorBreakUntil = Math.max(enemy.armorBreakUntil || 0, until);
+  if (damageMultiplier != null) {
+    enemy.armorBreakDamageMultiplier = Math.max(enemy.armorBreakDamageMultiplier || 1, damageMultiplier);
   }
-  const multiplier = enemy.armorBreakMultiplier && enemy.armorBreakUntil && gameTime <= enemy.armorBreakUntil
-    ? enemy.armorBreakMultiplier
-    : 1;
-  const finalDamage = damage * (multiplier ?? 1);
-  enemy.hp -= finalDamage;
-  return finalDamage;
+}
+
+function clearExpiredArmorBreak(enemy: Enemy, gameTime: number) {
+  if (enemy.armorBreakUntil && gameTime >= enemy.armorBreakUntil) {
+    enemy.armorBreakUntil = undefined;
+    enemy.armorBreakDamageMultiplier = undefined;
+  }
+}
+
+function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
+  let amount = Math.max(0, damage);
+  if (amount <= 0) return 0;
+  clearExpiredArmorBreak(enemy, gameTime);
+  const armorBreakActive = isArmorBreakActive(enemy, gameTime);
+  if (enemy.shape === 'iceShell' && isBurning(enemy, gameTime)) {
+    amount *= 2;
+  }
+  if (armorBreakActive && !hasArmorProfile(enemy)) {
+    amount *= enemy.armorBreakDamageMultiplier || 1;
+  }
+
+  const beforeBody = Math.max(0, enemy.hp);
+  const beforeArmor = Math.max(0, enemy.armorHp ?? 0);
+  const shouldHitArmor = beforeArmor > 0 && !armorBreakActive;
+
+  if (shouldHitArmor) {
+    const armorDamage = Math.min(beforeArmor, amount);
+    enemy.armorHp = beforeArmor - armorDamage;
+    const spillover = amount - armorDamage;
+    if (spillover > 0) {
+      enemy.hp = Math.max(0, beforeBody - spillover);
+    }
+  } else {
+    enemy.hp = Math.max(0, beforeBody - amount);
+  }
+
+  const afterBody = Math.max(0, enemy.hp);
+  const afterArmor = Math.max(0, enemy.armorHp ?? 0);
+  return beforeBody + beforeArmor - afterBody - afterArmor;
 }
 
 function lerp(a: Position, b: Position, t: number): Position {
@@ -299,41 +371,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
       ? { ...state.plantCooldowns, [type]: state.gameTime + placementCooldown }
       : state.plantCooldowns;
 
-    if (base.instantEffect?.type === 'crossDamage') {
-      const stats = computePlantStats(base, level);
-      const tolerance = base.instantEffect.tolerance;
-      const damageColor = '#ef4444';
-      let bonusGold = 0;
-      const damagePopups = [...state.damagePopups];
-      const enemies = state.enemies.map(enemy => {
-        const inCross = Math.abs(enemy.pos.x - pos.x) <= tolerance || Math.abs(enemy.pos.y - pos.y) <= tolerance;
-        if (!inCross || enemy.hp <= 0) return enemy;
-
-        const nextEnemy: Enemy = { ...enemy };
-        const inflicted = applyDamageWithArmor(nextEnemy, stats.damage, state.gameTime);
-        damagePopups.push({
-          id: `popup-${Date.now()}-${Math.random()}`,
-          pos: { ...nextEnemy.pos },
-          damage: Math.round(inflicted),
-          color: damageColor,
-          until: state.gameTime + 0.6,
-        });
-        if (nextEnemy.hp <= 0 && !nextEnemy.rewardGiven) {
-          nextEnemy.rewardGiven = true;
-          bonusGold += rewardForEnemy(nextEnemy);
-        }
-        return nextEnemy;
-      }).filter(enemy => enemy.hp > 0);
-
-      set({
-        enemies,
-        damagePopups,
-        gold: state.gold - cost + bonusGold,
-        plantCooldowns: nextPlantCooldowns,
-      });
-      return;
-    }
-
     const tower: Tower = {
       id: `tower-${Date.now()}-${Math.random()}`,
       pos,
@@ -350,8 +387,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       incomeBase: base.incomeBase,
       incomeBonusPerLevel: base.incomeBonusPerLevel,
       lastIncomeTime: state.gameTime,
-      expiresAt: base.lifetimeSec ? state.gameTime + base.lifetimeSec : undefined,
-      color: DEFAULT_PLANT_COLOR,
+      controlAuraLastPulseTime: base.controlAura ? state.gameTime : undefined,
+      expiresAt: base.instantEffect ? state.gameTime + base.instantEffect.delaySec : base.lifetimeSec ? state.gameTime + base.lifetimeSec : undefined,
+      color: base.instantEffect?.type === 'radiusFrostBlast' ? '#3b82f6' : base.instantEffect ? '#ef4444' : base.controlAura ? '#10b981' : DEFAULT_PLANT_COLOR,
       bulletColor: DEFAULT_BULLET_COLOR,
     };
     ensureTowerStats(tower, state.labOverrides);
@@ -377,6 +415,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const tower = state.towers[targetIndex];
       const towerConfig = getPlantRuntimeConfig(tower.type, state.labOverrides);
       if (towerConfig?.elementAllowed === false) return;
+      if (towerConfig?.allowedElementTypes && !towerConfig.allowedElementTypes.includes(elementType)) return;
       if (tower.type === 'sunflower' && SUNFLOWER_ELEMENT_BLOCKLIST.has(elementType)) return;
 
       const towers = [...state.towers];
@@ -495,10 +534,83 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const lifeBonusPerWave = state.lifeBonusPerWave ?? 0;
     const endlessWaveFactory = state.endlessWaveFactory ?? null;
     let wavesCleared = state.wavesCleared ?? 0;
+    const triggerIgniterDeathEffects = () => {
+      enemies.forEach(enemy => {
+        if (enemy.shape !== 'igniter' || enemy.hp > 0 || enemy.deathEffectTriggered) return;
+        enemy.deathEffectTriggered = true;
+        enemies.forEach(target => {
+          if (target.id === enemy.id || target.hp <= 0) return;
+          if (getDistance(target.pos.x, target.pos.y, enemy.pos.x, enemy.pos.y) > IGNITER_DEATH_RADIUS) return;
+          target.speedBoostMultiplier = Math.max(target.speedBoostMultiplier || 1, IGNITER_DEATH_SPEED_MULTIPLIER);
+          target.speedBoostUntil = Math.max(target.speedBoostUntil || 0, gameTime + IGNITER_DEATH_DURATION);
+        });
+      });
+    };
+
     if (towers.some(tower => tower.expiresAt != null && tower.expiresAt <= gameTime)) {
+      const expiredTowers = towers.filter(tower => tower.expiresAt != null && tower.expiresAt <= gameTime);
+      expiredTowers.forEach(tower => {
+        const base = getPlantRuntimeConfig(tower.type, state.labOverrides);
+        const effect = base?.instantEffect;
+        if (!effect) return;
+
+        const stats = computePlantStats(base, tower.level ?? 1);
+        const damageColor = effect.type === 'radiusFrostBlast' ? '#3b82f6' : '#ef4444';
+        enemies = enemies.map(enemy => {
+          const affected = effect.type === 'crossDamage'
+            ? Math.abs(enemy.pos.x - tower.pos.x) <= effect.tolerance || Math.abs(enemy.pos.y - tower.pos.y) <= effect.tolerance
+            : getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) <= effect.radius;
+          if (!affected || enemy.hp <= 0) return enemy;
+
+          const nextEnemy: Enemy = { ...enemy };
+          const inflicted = applyDamageWithArmor(nextEnemy, stats.damage, gameTime);
+          if (effect.type === 'radiusFrostBlast') {
+            applyFreeze(nextEnemy, gameTime + effect.freezeDuration);
+            applySlow(nextEnemy, effect.slowPct, gameTime + effect.slowDuration);
+          }
+          damagePopups = [...damagePopups, {
+            id: `popup-${Date.now()}-${Math.random()}`,
+            pos: { ...nextEnemy.pos },
+            damage: Math.round(inflicted),
+            color: damageColor,
+            until: gameTime + 0.6,
+          }];
+          if (nextEnemy.hp <= 0 && !nextEnemy.rewardGiven) {
+            nextEnemy.rewardGiven = true;
+            gold += rewardForEnemy(nextEnemy);
+          }
+          return nextEnemy;
+        });
+      });
       towers = towers.filter(tower => tower.expiresAt == null || tower.expiresAt > gameTime);
     }
+    triggerIgniterDeathEffects();
     towers.forEach(t => ensureTowerStats(t, state.labOverrides));
+
+    towers.forEach(tower => {
+      const base = getPlantRuntimeConfig(tower.type, state.labOverrides);
+      const aura = base?.controlAura;
+      if (!aura) return;
+
+      const level = Math.max(1, tower.level ?? 1);
+      const slowPct = Math.min(0.95, aura.slowPct + aura.slowBonusPerLevel * (level - 1));
+      const knockbackDistance = aura.knockbackDistance + aura.knockbackBonusPerLevel * (level - 1);
+      const pulseDue = (gameTime - (tower.controlAuraLastPulseTime ?? 0)) >= aura.pulseInterval;
+
+      enemies.forEach(enemy => {
+        if (enemy.hp <= 0) return;
+        if (getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) > tower.range) return;
+        applySlow(enemy, slowPct, gameTime + 0.25);
+        if (pulseDue && knockbackDistance > 0) {
+          const path = state.paths[enemy.pathId];
+          rewindEnemyAlongPath(enemy, knockbackDistance, path);
+        }
+      });
+
+      if (pulseDue) {
+        tower.controlAuraLastPulseTime = gameTime;
+      }
+    });
 
     towers.forEach(tw => {
       if (!tw.incomeInterval || tw.incomeInterval <= 0) return;
@@ -534,8 +646,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const g = wave.groups[spawnCursor.groupIndex];
       if (gameTime >= spawnCursor.nextSpawnTime && spawnCursor.remaining > 0) {
         const baseStats = getMonsterRuntimeStats(g.type, state.labOverrides);
-        const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * g.level;
+        const mul = getMonsterLevelMultiplier(g.level);
         const hp = Math.round(baseStats.hp * mul);
+        const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
         const pathId = g.pathId ?? 0; // 默认使用第一条路径
         const path = state.paths[pathId];
         const enemy: Enemy = {
@@ -543,6 +656,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
           pos: { ...path[0] },
           hp,
           maxHp: hp,
+          armorHp,
+          maxArmorHp: armorHp,
           speed: baseStats.speed,
           shape: g.type,
           leakDamage: g.leakDamage ?? baseStats.leakDamage,
@@ -582,7 +697,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const path = state.paths[e.pathId]; // 使用敌人自己的路径
         const totalLen = totalPathLength(path);
         // slow effect decay
-        const slowFactor = e.slowUntil && gameTime < e.slowUntil ? (1 - (e.slowPct || 0)) : 1;
+        const frozen = !isSlowImmune(e) && !!e.freezeUntil && gameTime < e.freezeUntil;
+        const slowed = !isSlowImmune(e) && !!e.slowUntil && gameTime < e.slowUntil;
+        const slowFactor = frozen ? 0 : slowed ? (1 - (e.slowPct || 0)) : 1;
         const boostMultiplier = e.speedBoostUntil && gameTime < e.speedBoostUntil ? (e.speedBoostMultiplier || 1) : 1;
         const speed = e.speed * slowFactor * boostMultiplier;
         let i = e.pathIndex;
@@ -620,9 +737,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
         e.slowUntil = undefined;
         e.slowPct = undefined;
       }
+      if (e.freezeUntil && gameTime >= e.freezeUntil) {
+        e.freezeUntil = undefined;
+      }
       if (e.armorBreakUntil && gameTime >= e.armorBreakUntil) {
         e.armorBreakUntil = undefined;
-        e.armorBreakMultiplier = undefined;
+        e.armorBreakDamageMultiplier = undefined;
       }
       if (e.speedBoostUntil && gameTime >= e.speedBoostUntil) {
         e.speedBoostUntil = undefined;
@@ -661,7 +781,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const dealDamage = (enemy: Enemy, amount: number, color?: string) => {
       if (amount <= 0 || enemy.hp <= 0) return 0;
       const inflicted = applyDamageWithArmor(enemy, amount, gameTime);
-      if (color) addDamagePopup(enemy.pos, amount, color);
+      if (color) addDamagePopup(enemy.pos, inflicted, color);
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
         gold += rewardForEnemy(enemy);
@@ -680,8 +800,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
             dealDamage(enemy, damage, '#1e3a8a');
-            enemy.slowPct = Math.max(enemy.slowPct || 0, 1);
-            enemy.slowUntil = Math.max(enemy.slowUntil || 0, gameTime + 4);
+            applyFreeze(enemy, gameTime + 4);
           });
           addDamagePopup(cast.pos, damage, '#3b82f6');
           break;
@@ -710,10 +829,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const duration = 5 + 0.2 * cast.level;
           const multiplier = 1.5 + 0.1 * Math.max(0, cast.level - 1);
           enemies.forEach(enemy => {
-            if (!enemy.armorBreakMultiplier || multiplier > enemy.armorBreakMultiplier) {
-              enemy.armorBreakMultiplier = multiplier;
-            }
-            enemy.armorBreakUntil = Math.max(enemy.armorBreakUntil || 0, gameTime + duration);
+            applyArmorBreak(enemy, gameTime + duration, multiplier);
           });
           addDamagePopup(cast.pos, Math.round(duration * 10) / 10, '#f59e0b');
           break;
@@ -801,7 +917,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
           // 创建召唤的circle怪物
           const baseStats = getMonsterRuntimeStats('circle', state.labOverrides);
-          const mul = 1 + DIFFICULTY_CONFIG.LEVEL_MULTIPLIER * (enemy.level ?? 1);
+          const mul = getMonsterLevelMultiplier(enemy.level);
           const summonedHp = Math.round(baseStats.hp * mul);
           const totalLen = totalPathLength(path);
           const prevSegments = (() => {
@@ -884,8 +1000,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
       } else {
         const inRange = enemies.filter(e => getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
         if (inRange.length === 0) return;
-        inRange.sort((a, b) => b.progress - a.progress);
-        target = inRange[0];
+        const towerConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
+        const priorityTargets = towerConfig?.targetPriority === 'armorFirst'
+          ? inRange.filter(enemy => hasArmorProfile(enemy))
+          : inRange;
+        const candidates = priorityTargets.length > 0 ? priorityTargets : inRange;
+        candidates.sort((a, b) => b.progress - a.progress);
+        target = candidates[0];
       }
 
       tw.lastShotTime = gameTime;
@@ -898,24 +1019,17 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number) => {
       if (damageAmount <= 0 || enemy.hp <= 0) return;
-      applyDamageWithArmor(enemy, damageAmount, impactTime);
-      if (projectile.slowPct && projectile.slowDuration) {
-        const until = impactTime + projectile.slowDuration;
-        enemy.slowPct = Math.max(enemy.slowPct || 0, projectile.slowPct);
-        enemy.slowUntil = Math.max(enemy.slowUntil || 0, until);
-      }
-      if (projectile.breakArmorMultiplier && projectile.breakArmorDuration) {
-        const until = impactTime + projectile.breakArmorDuration;
-        if (!enemy.armorBreakMultiplier || projectile.breakArmorMultiplier > enemy.armorBreakMultiplier) {
-          enemy.armorBreakMultiplier = projectile.breakArmorMultiplier;
-          enemy.armorBreakUntil = until;
-        } else if (enemy.armorBreakUntil && until > enemy.armorBreakUntil) {
-          enemy.armorBreakUntil = until;
-        }
+      if (projectile.breakArmorDuration) {
+        applyArmorBreak(enemy, impactTime + projectile.breakArmorDuration, projectile.breakArmorDamageMultiplier);
       }
       if (projectile.burnDamagePerSec && projectile.burnDuration) {
         enemy.burnDamagePerSec = projectile.burnDamagePerSec;
         enemy.burnUntil = impactTime + projectile.burnDuration;
+      }
+      applyDamageWithArmor(enemy, damageAmount, impactTime);
+      if (projectile.slowPct && projectile.slowDuration) {
+        const until = impactTime + projectile.slowDuration;
+        applySlow(enemy, projectile.slowPct, until);
       }
       if (projectile.knockbackDistance && projectile.knockbackDistance > 0) {
         const path = state.paths[enemy.pathId];
@@ -1052,6 +1166,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       });
     });
 
+    triggerIgniterDeathEffects();
     enemies = enemies.filter(e => e.hp > 0);
 
     //  check wave finish
@@ -1152,6 +1267,12 @@ function rewardForShape(shape: Enemy['shape']): number {
       break;
     case 'summoner':
       base = 10;
+      break;
+    case 'armored':
+      base = 11;
+      break;
+    case 'iceShell':
+      base = 12;
       break;
     default:
       base = 5;

@@ -14,14 +14,32 @@ export interface BasePlantConfig {
   penetration?: boolean;
   pierceLimit?: number;
   damageDecayFactor?: number;
+  breakArmorDuration?: number;
+  targetPriority?: 'armorFirst';
   activeAbilityCost?: number;
   incomeInterval?: number;
   incomeBase?: number;
   incomeBonusPerLevel?: number;
   elementAllowed?: boolean;
+  allowedElementTypes?: ElementType[];
+  controlAura?: {
+    slowPct: number;
+    slowBonusPerLevel: number;
+    pulseInterval: number;
+    knockbackDistance: number;
+    knockbackBonusPerLevel: number;
+  };
   instantEffect?: {
     type: 'crossDamage';
     tolerance: number;
+    delaySec: number;
+  } | {
+    type: 'radiusFrostBlast';
+    radius: number;
+    delaySec: number;
+    freezeDuration: number;
+    slowPct: number;
+    slowDuration: number;
   };
   description: string;
 }
@@ -185,8 +203,61 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     instantEffect: {
       type: 'crossDamage',
       tolerance: 0.55,
+      delaySec: 0.5,
     },
-    description: '一次性植物：种植后对所在横行和竖行范围内的全部怪物造成伤害，然后立刻消失。',
+    description: '一次性植物：种植后短暂延迟，对所在横行和竖行范围内的全部怪物造成伤害，然后消失。',
+  },
+  frostBlastShroom: {
+    id: 'frostBlastShroom',
+    name: '霜爆菇',
+    icon: '◇',
+    cost: 250,
+    range: 0,
+    damage: 150,
+    fireRate: 0,
+    projectileSpeed: 0,
+    elementAllowed: false,
+    instantEffect: {
+      type: 'radiusFrostBlast',
+      radius: 4.4,
+      delaySec: 1,
+      freezeDuration: 3,
+      slowPct: 0.3,
+      slowDuration: 10,
+    },
+    description: '一次性植物：放置 1 秒后在半径 4.4 内造成伤害，冻结 3 秒，并施加 10 秒 30% 减速。',
+  },
+  cycloneShroom: {
+    id: 'cycloneShroom',
+    name: '气旋菇',
+    icon: '◎',
+    cost: 50,
+    range: 3.2,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    allowedElementTypes: ['wind'],
+    controlAura: {
+      slowPct: 0.2,
+      slowBonusPerLevel: 0.03,
+      pulseInterval: 10,
+      knockbackDistance: 0.2,
+      knockbackBonusPerLevel: 0.1,
+    },
+    description: '永久风场植物：范围内怪物持续减速，并每隔一段时间轻微击退范围内全部怪物。',
+  },
+  magnetNeedle: {
+    id: 'magnetNeedle',
+    name: '磁针草',
+    icon: '◇',
+    cost: 150,
+    range: 3.4,
+    damage: 40,
+    fireRate: 1,
+    projectileSpeed: 10,
+    breakArmorDuration: 1.5,
+    targetPriority: 'armorFirst',
+    description: '优先攻击拥有护甲的怪物，命中后施加 1.5 秒破甲，使后续伤害直接攻击本体。',
   },
 };
 
@@ -194,7 +265,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   gold: {
     id: 'gold',
     name: '金元素',
-    description: '攻击时概率破甲，大幅增加后续伤害。',
+    description: '攻击命中后施加破甲，使后续伤害绕过护甲直接攻击本体。',
     cost: 100,
     color: '#fbbf24',
     bulletColor: '#f59e0b',

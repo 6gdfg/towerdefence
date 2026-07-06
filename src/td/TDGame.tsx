@@ -547,7 +547,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           })()}
           {towers.map(t => {
             const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
-            const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : '#9ca3af';
+            const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : (t.color || '#9ca3af');
             const lifetimeSec = getPlantRuntimeConfig(t.type, labOverrides)?.lifetimeSec;
             const lifetimePercent = t.expiresAt != null && lifetimeSec
               ? Math.max(0, Math.min(1, (t.expiresAt - gameTime) / lifetimeSec))
@@ -626,8 +626,12 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           })}
  
           {enemies.map(e => {
-            const size = 10 + (e.maxHp / 15);
-            const hpPercent = e.hp / e.maxHp;
+            const armorHp = Math.max(0, e.armorHp ?? 0);
+            const maxArmorHp = Math.max(0, e.maxArmorHp ?? 0);
+            const totalMaxHp = Math.max(1, e.maxHp + maxArmorHp);
+            const hpPercent = Math.max(0, (Math.max(0, e.hp) + armorHp) / totalMaxHp);
+            const armorPercent = maxArmorHp > 0 ? armorHp / maxArmorHp : 0;
+            const size = 10 + (totalMaxHp / 15);
             const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
             const grayValue = Math.round(31 + (1 - hpPercent) * 180);
             let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
@@ -635,8 +639,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               enemyColor = `rgba(220,38,38,${alpha})`; // 红色
             } else if (e.armorBreakUntil && typeof e.armorBreakUntil === 'number' && gameTime < e.armorBreakUntil) {
               enemyColor = `rgba(217,119,6,${alpha})`; // 金色
+            } else if (e.freezeUntil && typeof e.freezeUntil === 'number' && gameTime < e.freezeUntil) {
+              enemyColor = `rgba(30,58,138,${alpha})`;
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
-              enemyColor = (e.slowPct || 0) >= 1 ? `rgba(30,58,138,${alpha})` : `rgba(37,99,235,${alpha})`;
+              enemyColor = `rgba(37,99,235,${alpha})`;
             }
             const shapeSize = Math.max(18, size);
             const strokeWidth = 2.2;
@@ -655,6 +661,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={3} ry={3} />
                     </svg>
                   );
+                case 'armored':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <rect x="3.5" y="4.5" width="17" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={3} ry={3} />
+                      <path d="M7 8 H17 M7 12 H17 M7 16 H17" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.72} strokeLinecap="round" strokeOpacity={Math.max(0.28, armorPercent)} />
+                      <path d="M12 4.5 V20.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.55} strokeLinecap="round" strokeOpacity={Math.max(0.28, armorPercent)} />
+                    </svg>
+                  );
                 case 'evilSniper':
                   return (
                     <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
@@ -670,11 +684,26 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <circle cx="12" cy="12" r="4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
                     </svg>
                   );
+                case 'igniter':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M12 5 C15.2 8.1 16.6 11.1 15.6 14.3 C14.9 16.5 13.3 18 12 18 C10.7 18 9.1 16.5 8.4 14.3 C7.4 11.1 8.8 8.1 12 5 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.72} strokeLinejoin="round" />
+                    </svg>
+                  );
                 case 'summoner':
                   return (
                     <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
                       <rect x="4" y="4" width="16" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={2} ry={2} />
                       <circle cx="12" cy="12" r="7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} />
+                    </svg>
+                  );
+                case 'iceShell':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M6 12 C8.2 8 15.8 8 18 12 C15.8 16 8.2 16 6 12 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.75} strokeLinejoin="round" />
+                      <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
                     </svg>
                   );
                 default:

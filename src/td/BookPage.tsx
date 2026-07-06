@@ -84,7 +84,7 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
                   <div className="muted" style={{ marginTop: 4 }}>攻速惩罚 -{entry.fireRatePenalty}</div>
                 )}
                 {entry.breakArmor && (
-                  <div className="muted" style={{ marginTop: 4 }}>破甲倍率 ×{entry.breakArmor.multiplier}（{entry.breakArmor.duration}s）</div>
+                  <div className="muted" style={{ marginTop: 4 }}>破甲持续 {entry.breakArmor.duration}s；无护甲目标伤害 ×{entry.breakArmor.multiplier}</div>
                 )}
                 {entry.burn && (
                   <div className="muted" style={{ marginTop: 4 }}>灼烧 {entry.burn.dps}/s（{entry.burn.duration}s）</div>
@@ -121,7 +121,11 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
               style={{ animationDelay: `${i * 0.04}s`, opacity: 0 }}
             >
               <div className="item-name">{MONSTER_LABELS[id]}（{id}）</div>
-              <div className="muted" style={{ marginTop: 6 }}>基础生命 {stats.hp} ｜ 基础速度 {stats.speed.toFixed(2)} ｜ 泄漏伤害 {stats.leakDamage}</div>
+              <div className="muted" style={{ marginTop: 6 }}>
+                基础生命 {stats.hp}
+                {stats.armorHp ? ` ｜ 护甲 ${stats.armorHp}` : ''}
+                {' ｜ '}基础速度 {stats.speed.toFixed(2)} ｜ 泄漏伤害 {stats.leakDamage}
+              </div>
               <div className="muted" style={{ marginTop: 4, color: '#94a3b8' }}>实际数值会随关卡等级提升。</div>
             </article>
           ))}
