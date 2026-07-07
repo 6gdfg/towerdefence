@@ -366,7 +366,7 @@ function normalizePastedGroup(value: unknown): WaveGroup | null {
   const group: WaveGroup = {
     type,
     count: Math.max(1, Math.floor(finiteNumber(value.count, 1))),
-    interval: Math.max(0.01, finiteNumber(value.interval, 0.4)),
+    interval: Math.max(0.1, finiteNumber(value.interval, 0.4)),
     level: Math.max(1, Math.floor(finiteNumber(value.level, 1))),
     reward: Math.max(0, Math.floor(finiteNumber(value.reward, 0))),
   };
@@ -1057,7 +1057,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     </label>
                     <label>
                       <span>间隔</span>
-                      <input type="number" step="0.01" value={group.interval} onChange={event => updateWaveGroup(waveIndex, groupIndex, { interval: Math.max(0.01, readNumber(event.target.value, group.interval)) })} />
+                      <input type="number" min="0.1" step="0.1" value={group.interval} onChange={event => updateWaveGroup(waveIndex, groupIndex, { interval: Math.max(0.1, readNumber(event.target.value, group.interval)) })} />
                     </label>
                     <label>
                       <span>起始</span>
