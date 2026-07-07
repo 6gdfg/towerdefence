@@ -35,8 +35,8 @@ export function openChestReward(chestId: string) {
   return postCloudAction<ChestOpenResult>('/api/chest', { action: 'open', chestId });
 }
 
-export function skipChestUnlock(chestId: string) {
-  return postCloudAction<{ ok: boolean; cost?: number; readyAt?: string }>('/api/chest', { action: 'skip', chestId });
+export function skipChestUnlock(chestId: string, currency: 'diamonds' | 'coins' = 'diamonds') {
+  return postCloudAction<{ ok: boolean; cost?: number; currency?: 'diamonds' | 'coins'; readyAt?: string }>('/api/chest', { action: 'skip', chestId, currency });
 }
 
 export function craftLegendaryChest() {

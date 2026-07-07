@@ -1,4 +1,4 @@
-import { INITIAL_PLAYER_COINS } from '../shared/unlocks.js';
+import { INITIAL_PLAYER_COINS, INITIAL_PLAYER_DIAMONDS } from '../shared/unlocks.js';
 
 export type DatabaseMigration = {
   id: string;
@@ -115,6 +115,25 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
     description: 'Remove puff shroom from mistaken default unlocks',
     statements: [
       `DELETE FROM unlocked_items WHERE item_id = 'puffShroom'`,
+    ],
+  },
+  {
+    id: '005_in_full_health_clear',
+    description: 'Track IN full-health clears for hidden AT unlocks',
+    statements: [
+      `ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS in_full_health_clear BOOLEAN DEFAULT FALSE`,
+      `UPDATE player_progress SET in_full_health_clear = FALSE WHERE in_full_health_clear IS NULL`,
+    ],
+  },
+  {
+    id: '006_challenges_diamonds_at_rewards',
+    description: 'Add diamonds and AT clear tracking',
+    statements: [
+      `ALTER TABLE player_wallet ADD COLUMN IF NOT EXISTS diamonds INTEGER DEFAULT ${INITIAL_PLAYER_DIAMONDS}`,
+      `UPDATE player_wallet SET diamonds = ${INITIAL_PLAYER_DIAMONDS} WHERE diamonds IS NULL`,
+      `ALTER TABLE player_wallet ALTER COLUMN diamonds SET DEFAULT ${INITIAL_PLAYER_DIAMONDS}`,
+      `ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS at_cleared BOOLEAN DEFAULT FALSE`,
+      `UPDATE player_progress SET at_cleared = FALSE WHERE at_cleared IS NULL`,
     ],
   },
 ];

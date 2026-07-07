@@ -1,21 +1,25 @@
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../../shared/unlocks';
 import { STAR_LABELS } from './appConfig';
 import { getChapterById, getChapterLevelLabel } from './chapters';
-import { LEVELS } from './levels';
+import { getLevelSpecForDifficulty, LEVELS } from './levels';
 import { MAPS } from './maps';
 import { getAllStars, getMaxStarSync } from './progress';
 import { resolveUnlockItemLabel } from './labels';
-import { getLevelDifficultyRatings } from './levelRatings';
+import { getLevelDifficultyRatings, type DifficultyCode } from './levelRatings';
+import type { ChallengeId } from './ChallengeSelectPage';
+import { getCoreDifficultyUnlockStar, getPlayableDifficulty, isAtDifficultyUnlocked } from './levelUnlockLogic';
 
 type LevelSelectPageProps = {
   unlocked: number;
   magicKeys: number;
-  starSel: Record<number, 1 | 2 | 3>;
+  starSel: Record<number, DifficultyCode>;
+  challengeSel: Record<number, ChallengeId[]>;
   unlockedItemsSet: Set<string>;
   chapterId: number;
   onBack: () => void;
-  onSelectStar: (levelIndex: number, star: 1 | 2 | 3) => void;
-  onStartLevel: (levelIndex: number) => void;
+  onSelectDifficulty: (levelIndex: number, difficulty: DifficultyCode) => void;
+  onToggleChallenge: (levelIndex: number, challenge: ChallengeId) => void;
+  onStartLevel: (levelIndex: number, difficulty?: DifficultyCode) => void;
   onUnlockLevel: (levelId: string, levelName: string) => void;
 };
 
@@ -25,14 +29,21 @@ const CORE_DIFFICULTIES = [
   { label: 'IN', star: 3, tone: 'in' },
 ] as const;
 
+const CHALLENGE_OPTIONS: Array<{ id: ChallengeId; label: string; title: string }> = [
+  { id: 'fullHealth', label: '满血', title: '通关时保持本局开局生命，奖励1钻石' },
+  { id: 'halfHealth', label: '半血', title: '开局生命减半，通关奖励1钻石' },
+];
+
 export default function LevelSelectPage({
   unlocked,
   magicKeys,
   starSel,
+  challengeSel,
   unlockedItemsSet,
   chapterId,
   onBack,
-  onSelectStar,
+  onSelectDifficulty,
+  onToggleChallenge,
   onStartLevel,
   onUnlockLevel,
 }: LevelSelectPageProps) {
@@ -68,14 +79,19 @@ export default function LevelSelectPage({
           const clearedMax = getMaxStarSync(L.id);
           const hasStarRecord = L.id in allStars;
           const isLocked = (i + 1 > unlocked) && !hasStarRecord;
-          const M = MAPS.find(m => m.id === L.mapId);
-          const selectedStar = (starSel[i] ?? 1) as 1 | 2 | 3;
-          const selectedLabel = STAR_LABELS[selectedStar];
           const levelNumber = i + 1;
           const displayLabel = getChapterLevelLabel(i);
           const ratings = getLevelDifficultyRatings(L.id, levelNumber);
-          const hasAt = typeof ratings.AT === 'number';
-          const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
+          const hasAt = Boolean(L.difficultyOverrides?.AT && typeof ratings.AT === 'number');
+          const showAt = hasAt && isAtDifficultyUnlocked(LEVELS, i);
+          const rawSelectedDifficulty = starSel[i] ?? 'EZ';
+          const unlockedCoreStar = getCoreDifficultyUnlockStar(LEVELS, i);
+          const selectedDifficulty = getPlayableDifficulty(LEVELS, i, rawSelectedDifficulty);
+          const selectedChallenges = challengeSel[i] ?? [];
+          const selectedLevel = getLevelSpecForDifficulty(L, selectedDifficulty);
+          const M = MAPS.find(m => m.id === selectedLevel.mapId);
+          const selectedLabel = selectedDifficulty;
+          const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber && (rule.difficulty !== 'AT' || showAt));
           const progressLabel = isLocked
             ? 'LOCKED'
             : clearedMax > 0
@@ -96,9 +112,9 @@ export default function LevelSelectPage({
                 <div className="phigros-level-copy">
                   <div className="phigros-level-title">{L.name}</div>
                   <div className="phigros-level-meta">
-                    <span>{M ? `MAP ${M.id}` : `MAP ${L.mapId}`}</span>
-                    <span>{L.waves.length} WAVES</span>
-                    <span>{L.lives} LIVES</span>
+                    <span>{M ? `MAP ${M.id}` : `MAP ${selectedLevel.mapId}`}</span>
+                    <span>{selectedLevel.waves.length} WAVES</span>
+                    <span>{selectedLevel.lives} LIVES</span>
                     <span>{progressLabel}</span>
                   </div>
                   {unlockInfos.length > 0 && (
@@ -106,10 +122,9 @@ export default function LevelSelectPage({
                       {unlockInfos.map(info => {
                         const isItemUnlocked = unlockedItemsSet.has(info.itemId);
                         const itemLabel = resolveUnlockItemLabel(info.itemId);
-                        const starLabel = STAR_LABELS[info.star];
                         return (
-                          <span key={`${info.level}-${info.itemId}`}>
-                            {starLabel} CLEAR / {itemLabel}{isItemUnlocked ? ' 已获得' : ''}
+                          <span key={`${info.level}-${info.difficulty}-${info.itemId}`}>
+                            通关{info.difficulty}可获得{itemLabel}{isItemUnlocked ? ' 已获得' : ''}
                           </span>
                         );
                       })}
@@ -120,16 +135,18 @@ export default function LevelSelectPage({
 
               <div className="phigros-difficulty-strip" aria-label={`${L.name} difficulty`}>
                 {CORE_DIFFICULTIES.map(diff => {
-                  const active = selectedStar === diff.star;
+                  const active = selectedDifficulty === diff.label;
                   const cleared = clearedMax >= diff.star;
+                  const difficultyLocked = diff.star > unlockedCoreStar;
                   return (
                     <button
                       key={diff.label}
                       type="button"
-                      onClick={() => onSelectStar(i, diff.star)}
-                      disabled={isLocked}
-                      className={`phigros-diff-tile diff-${diff.tone} ${active ? 'is-active' : ''} ${cleared ? 'is-cleared' : ''}`}
+                      onClick={() => onSelectDifficulty(i, diff.label)}
+                      disabled={isLocked || difficultyLocked}
+                      className={`phigros-diff-tile diff-${diff.tone} ${active ? 'is-active' : ''} ${cleared ? 'is-cleared' : ''} ${difficultyLocked ? 'is-locked' : ''}`}
                       aria-pressed={active}
+                      title={difficultyLocked ? '通关上一关对应或更高难度后解锁' : undefined}
                     >
                       <span className="phigros-diff-content">
                         <span className="phigros-diff-rating">{ratings[diff.label]}</span>
@@ -138,12 +155,13 @@ export default function LevelSelectPage({
                     </button>
                   );
                 })}
-                {hasAt && (
+                {showAt && (
                   <button
                     type="button"
-                    disabled
-                    className="phigros-diff-tile diff-at is-disabled"
-                    aria-label={`${L.name} AT difficulty unavailable`}
+                    onClick={() => onSelectDifficulty(i, 'AT')}
+                    disabled={isLocked}
+                    className={`phigros-diff-tile diff-at ${selectedDifficulty === 'AT' ? 'is-active' : ''}`}
+                    aria-pressed={selectedDifficulty === 'AT'}
                   >
                     <span className="phigros-diff-content">
                       <span className="phigros-diff-rating">{ratings.AT}</span>
@@ -154,9 +172,27 @@ export default function LevelSelectPage({
               </div>
 
               <div className="phigros-level-actions">
+                <div className="phigros-challenge-row" aria-label={`${L.name} challenge`}>
+                  {CHALLENGE_OPTIONS.map(challenge => {
+                    const active = selectedChallenges.includes(challenge.id);
+                    return (
+                      <button
+                        key={challenge.id}
+                        type="button"
+                        onClick={() => onToggleChallenge(i, challenge.id)}
+                        disabled={isLocked}
+                        title={challenge.title}
+                        className={`phigros-challenge-chip ${active ? 'is-active' : ''}`}
+                        aria-pressed={active}
+                      >
+                        {challenge.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
                   type="button"
-                  onClick={() => onStartLevel(i)}
+                  onClick={() => onStartLevel(i, selectedDifficulty)}
                   disabled={isLocked}
                   className="phigros-play-button"
                 >

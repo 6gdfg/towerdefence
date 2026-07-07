@@ -9,19 +9,21 @@ import BookPage from './td/BookPage';
 import ChestRewardModal from './td/ChestRewardModal';
 import BalanceLabPage, { type BalanceLabConfig } from './td/BalanceLabPage';
 import ChapterSelectPage from './td/ChapterSelectPage';
+import CardSelectPage from './td/CardSelectPage';
+import type { ChallengeId } from './td/ChallengeSelectPage';
 import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
 import { useTDStore } from './td/store';
-import { INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
+import { getLevelSpecForDifficulty, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
-import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems, updateUnlockedItems } from './td/progress';
+import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
-import { ElementType, PlantType, TowerLevelMap } from './td/types';
+import { AtModeConfig, ElementType, PlantType, TowerLevelMap, WaveDef } from './td/types';
 import { craftLegendaryChest, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
-import { ELEMENT_TYPES, PLANT_TYPES, PLANT_UNLOCK_TARGETS } from './td/appConfig';
+import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
 import { buildElementBookData, buildPlantBookData } from './td/bookData';
@@ -29,10 +31,48 @@ import { getErrorMessage } from './td/errors';
 import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
 import { getChapterForLevelIndex } from './td/chapters';
-import { getLevelDifficultyRatings } from './td/levelRatings';
-type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
+import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRatings';
+import { getPlayableDifficulty } from './td/levelUnlockLogic';
+type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'cardSelect' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PageTransitionState = 'idle' | 'leaving' | 'entering';
+const DIFFICULTY_BY_STAR = { 1: 'EZ', 2: 'HD', 3: 'IN' } as const;
+const STAR_BY_DIFFICULTY: Record<DifficultyCode, 1 | 2 | 3> = { EZ: 1, HD: 2, IN: 3, AT: 3 };
+
+type PendingCardSelect = {
+  title: string;
+  plantOptions: PlantType[];
+  elementOptions: ElementType[];
+  maxPlants: number;
+  maxElements: number;
+  towerLevels: TowerLevelMap;
+  returnStage: Stage;
+  onConfirm: (plants: PlantType[], elements: ElementType[]) => void;
+};
+
+type AtUnlockNotice = {
+  levelName: string;
+};
+
+type ActiveChallengeRun = {
+  selected: ChallengeId[];
+  startLives: number;
+};
+
+function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] {
+  const fixedLevel = Math.max(1, Math.floor(level || 1));
+  return waves.map(wave => ({
+    groups: wave.groups.map(group => ({ ...group, level: fixedLevel })),
+  }));
+}
+
+function getHighestPlantLevel(plants: PlantType[], towerLevels?: TowerLevelMap) {
+  return Math.max(1, ...plants.map(plant => Math.max(1, Math.floor(towerLevels?.[plant] || 1))));
+}
+
+function hasChallenge(challenges: ChallengeId[], id: ChallengeId) {
+  return challenges.includes(id);
+}
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -130,10 +170,15 @@ function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [activeFunMode, setActiveFunMode] = useState<FunModeType | null>(null);
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
+  const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
+  const [activeChallengeRun, setActiveChallengeRun] = useState<ActiveChallengeRun | null>(null);
+  const [atUnlockNotice, setAtUnlockNotice] = useState<AtUnlockNotice | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState(1);
 
-  const [starSel, setStarSel] = useState<Record<number, 1|2|3>>({});
+  const [starSel, setStarSel] = useState<Record<number, DifficultyCode>>({});
+  const [challengeSel, setChallengeSel] = useState<Record<number, ChallengeId[]>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
+  const [currentDifficulty, setCurrentDifficulty] = useState<DifficultyCode>('EZ');
 
   const [hub, setHub] = useState<HubData | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -167,6 +212,7 @@ function App() {
       setHub({
         coins: d.coins ?? 0,
         magicKeys: d.magicKeys ?? 0,
+        diamonds: d.diamonds ?? 0,
         shards: d.shards ?? {},
         plantShards: d.plantShards ?? {},
         elementShards: d.elementShards ?? {},
@@ -242,9 +288,13 @@ function App() {
       setOpeningChestId(null);
     }
   }
-  async function skipChest(chestId: string) {
-    await skipChestUnlock(chestId);
-    await loadHub();
+  async function skipChest(chestId: string, currency: 'diamonds' | 'coins' = 'diamonds') {
+    try {
+      await skipChestUnlock(chestId, currency);
+      await loadHub();
+    } catch (err) {
+      alert('跳过失败：' + getErrorMessage(err, currency === 'coins' ? '金币不足或网络错误' : '钻石不足或网络错误'));
+    }
   }
   async function craftLegendary() {
     try {
@@ -272,7 +322,9 @@ function App() {
 
     setActiveFunMode(null);
     setWinReward(null);
+    setActiveChallengeRun(null);
     setCurrentStar(1);
+    setCurrentDifficulty('EZ');
     setLevelIndex(null);
     loadLevel(
       { startGold: INTRODUCTION_LEVEL.startGold, lives: INTRODUCTION_LEVEL.lives, waves: INTRODUCTION_LEVEL.waves },
@@ -299,36 +351,124 @@ function App() {
 
 
 
-  const startLevel = (idx: number, starOverride?: 1 | 2 | 3) => {
+  const beginLevelWithChallenges = (idx: number, difficulty: DifficultyCode, challenges: ChallengeId[] = []) => {
     setActiveFunMode(null);
     setActiveLabConfig(null);
+    setPendingCardSelect(null);
+    setWinReward(null);
+    setActiveChallengeRun(null);
     const L = LEVELS[idx];
-    const M = MAPS.find(m => m.id === L.mapId);
-    if (!M) { console.warn('Map not found for level', L.mapId); return; }
-    const chosenStar = starOverride ?? ((starSel[idx] ?? 1) as 1|2|3);
+    if (!L) return;
+    const chosenStar = STAR_BY_DIFFICULTY[difficulty];
+    const selectedLevel = getLevelSpecForDifficulty(L, difficulty);
+    const M = MAPS.find(m => m.id === selectedLevel.mapId);
+    if (!M) { console.warn('Map not found for level', selectedLevel.mapId); return; }
     const plantGrid = getPlantGrid(M); // 获取可种植格子点
     const unlockedItems = getUnlockedItems();
     const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item));
-    const allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
-    const allowedElements = Array.from(new Set(unlockedItems
+    let allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
+    let allowedElements = Array.from(new Set(unlockedItems
       .filter(item => item.startsWith('element:'))
       .map(item => item.split(':')[1])
       .filter((el): el is ElementType => Object.prototype.hasOwnProperty.call(ELEMENT_PLANT_CONFIG, el)))) as ElementType[];
-    loadLevel(
-      { startGold: L.startGold, lives: L.lives, waves: L.waves },
-      { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
-      {
-        autoStartFirstWave: L.autoStartFirstWave,
-        firstWaveDelaySec: L.firstWaveDelaySec,
-        towerLevels: hub?.towerLevels,
-        allowedPlants,
-        allowedElements,
-      }
-    );
+    let startGold = selectedLevel.startGold;
+    let autoStartFirstWave = selectedLevel.autoStartFirstWave;
+    let firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
+    let waves = selectedLevel.waves;
+    let disableKillRewards = false;
+    const towerLevels: TowerLevelMap = hub?.towerLevels ? { ...hub.towerLevels } : {};
+    const atModeConfig: AtModeConfig | null = difficulty === 'AT' ? (selectedLevel.atModeConfig ?? { type: 'normal' }) : null;
+    const challengeStartLives = hasChallenge(challenges, 'halfHealth')
+      ? Math.max(1, Math.ceil(selectedLevel.lives / 2))
+      : selectedLevel.lives;
 
-    setCurrentStar(chosenStar);
-    setLevelIndex(idx);
-    navigateWithTransition('playing');
+    const finalizeLevelStart = (plants: PlantType[], elements: ElementType[], finalWaves = waves, finalTowerLevels = towerLevels) => {
+      loadLevel(
+        { startGold, lives: challengeStartLives, waves: finalWaves },
+        { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
+        {
+          autoStartFirstWave,
+          firstWaveDelaySec,
+          towerLevels: finalTowerLevels,
+          allowedPlants: plants,
+          allowedElements: elements,
+          mode: atModeConfig ? 'at' : 'campaign',
+          atModeConfig,
+          disableKillRewards,
+        }
+      );
+
+      setCurrentStar(chosenStar);
+      setCurrentDifficulty(difficulty);
+      setLevelIndex(idx);
+      setActiveChallengeRun({ selected: challenges, startLives: challengeStartLives });
+      navigateWithTransition('playing');
+    };
+
+    if (atModeConfig?.type === 'conveyor') {
+      const pool = atModeConfig.conveyor?.pool ?? [];
+      const poolPlants = pool.filter((item): item is { kind: 'plant'; id: PlantType } => item.kind === 'plant').map(item => item.id);
+      const poolElements = pool.filter((item): item is { kind: 'element'; id: ElementType } => item.kind === 'element').map(item => item.id);
+      if (pool.length > 0) {
+        allowedPlants = Array.from(new Set(poolPlants));
+        allowedElements = Array.from(new Set(poolElements));
+      }
+      allowedPlants.forEach(plant => {
+        towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
+      });
+      allowedElements.forEach(element => {
+        const key = `element:${element}` as const;
+        towerLevels[key] = Math.max(1, Math.floor(towerLevels[key] || 1));
+      });
+    } else if (atModeConfig?.type === 'lastStand') {
+      const bannedPlants = new Set<PlantType>([...(atModeConfig.lastStand?.bannedPlants ?? []), 'sunflower']);
+      allowedPlants = allowedPlants.filter(plant => !bannedPlants.has(plant));
+      startGold = atModeConfig.lastStand?.startGold ?? startGold;
+      autoStartFirstWave = false;
+      firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
+      disableKillRewards = true;
+    } else if (atModeConfig?.type === 'cardSelect') {
+      const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
+      setPendingCardSelect({
+        title: `${selectedLevel.name} / AT Lv.${getLevelDifficultyRatings(L.id, idx + 1).AT ?? '-'}`,
+        plantOptions: allowedPlants,
+        elementOptions: allowedElements,
+        maxPlants: Math.max(1, cardSelect.maxPlants),
+        maxElements: Math.max(0, cardSelect.maxElements),
+        towerLevels,
+        returnStage: 'select',
+        onConfirm: (plants, elements) => {
+          const highestPlantLevel = getHighestPlantLevel(plants, towerLevels);
+          const fixedLevel = Math.max(1, Math.round(highestPlantLevel * Math.max(1, cardSelect.monsterLevelMultiplier)));
+          setPendingCardSelect(null);
+          finalizeLevelStart(plants, elements, cloneWavesWithMonsterLevel(waves, fixedLevel), towerLevels);
+        },
+      });
+      navigateWithTransition('cardSelect');
+      return;
+    }
+
+    finalizeLevelStart(allowedPlants, allowedElements);
+  };
+
+  const startLevel = (idx: number, difficultyOverride?: DifficultyCode | 1 | 2 | 3) => {
+    const L = LEVELS[idx];
+    if (!L) return;
+    const requestedDifficulty = typeof difficultyOverride === 'number'
+      ? DIFFICULTY_BY_STAR[difficultyOverride]
+      : difficultyOverride ?? starSel[idx] ?? 'EZ';
+    const difficulty = getPlayableDifficulty(LEVELS, idx, requestedDifficulty);
+    beginLevelWithChallenges(idx, difficulty, challengeSel[idx] ?? []);
+  };
+
+  const toggleLevelChallenge = (idx: number, challenge: ChallengeId) => {
+    setChallengeSel(prev => {
+      const current = prev[idx] ?? [];
+      const next = current.includes(challenge)
+        ? current.filter(item => item !== challenge)
+        : [...current, challenge];
+      return { ...prev, [idx]: next };
+    });
   };
 
   const toNextLevel = () => {
@@ -351,10 +491,12 @@ function App() {
 
   const startFunMode = useCallback((mode: FunModeType) => {
     setActiveLabConfig(null);
+    setActiveChallengeRun(null);
     const finalizeStart = () => {
       setActiveFunMode(mode);
       setWinReward(null);
       setCurrentStar(1);
+      setCurrentDifficulty('EZ');
       setLevelIndex(null);
       navigateWithTransition('playing');
     };
@@ -481,73 +623,150 @@ function App() {
     setActiveFunMode(null);
     setActiveLabConfig(config);
     setWinReward(null);
+    setActiveChallengeRun(null);
     setCurrentStar(1);
+    setCurrentDifficulty(config.targetDifficulty);
     setLevelIndex(null);
-    loadLevel(
-      { startGold: config.startGold, lives: config.lives, waves: config.waves },
-      { path: labMap.path, size: labMap.size, roadWidthCells: labMap.roadWidthCells, plantGrid },
-      {
-        autoStartFirstWave: config.autoStartFirstWave,
-        firstWaveDelaySec: config.firstWaveDelaySec,
-        towerLevels: config.towerLevels,
-        allowedPlants: [...PLANT_TYPES],
-        allowedElements: [...ELEMENT_TYPES],
-        mode: 'lab',
-      },
-    );
-    navigateWithTransition('playing');
+    setPendingCardSelect(null);
+
+    const atModeConfig = config.targetDifficulty === 'AT' ? (config.atModeConfig ?? { type: 'normal' }) : null;
+    let allowedPlants: PlantType[] = [...PLANT_TYPES];
+    let allowedElements: ElementType[] = [...ELEMENT_TYPES];
+    let startGold = config.startGold;
+    let autoStartFirstWave = config.autoStartFirstWave;
+    let firstWaveDelaySec = config.firstWaveDelaySec;
+    let disableKillRewards = false;
+    const towerLevels: TowerLevelMap = { ...config.towerLevels };
+
+    const finalizeLabStart = (plants: PlantType[], elements: ElementType[], waves: WaveDef[] = config.waves) => {
+      loadLevel(
+        { startGold, lives: config.lives, waves },
+        { path: labMap.path, size: labMap.size, roadWidthCells: labMap.roadWidthCells, plantGrid },
+        {
+          autoStartFirstWave,
+          firstWaveDelaySec,
+          towerLevels,
+          allowedPlants: plants,
+          allowedElements: elements,
+          mode: 'lab',
+          atModeConfig,
+          disableKillRewards,
+        },
+      );
+      navigateWithTransition('playing');
+    };
+
+    if (atModeConfig?.type === 'conveyor') {
+      const pool = atModeConfig.conveyor?.pool ?? [];
+      if (pool.length > 0) {
+        allowedPlants = Array.from(new Set(pool.filter((item): item is { kind: 'plant'; id: PlantType } => item.kind === 'plant').map(item => item.id)));
+        allowedElements = Array.from(new Set(pool.filter((item): item is { kind: 'element'; id: ElementType } => item.kind === 'element').map(item => item.id)));
+      }
+      allowedPlants.forEach(plant => {
+        towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
+      });
+      allowedElements.forEach(element => {
+        const key = `element:${element}` as const;
+        towerLevels[key] = Math.max(1, Math.floor(towerLevels[key] || 1));
+      });
+    } else if (atModeConfig?.type === 'lastStand') {
+      const bannedPlants = new Set<PlantType>([...(atModeConfig.lastStand?.bannedPlants ?? []), 'sunflower']);
+      allowedPlants = allowedPlants.filter(plant => !bannedPlants.has(plant));
+      startGold = atModeConfig.lastStand?.startGold ?? startGold;
+      autoStartFirstWave = false;
+      firstWaveDelaySec = config.firstWaveDelaySec;
+      disableKillRewards = true;
+    } else if (atModeConfig?.type === 'cardSelect') {
+      const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
+      setPendingCardSelect({
+        title: `${config.levelName} / AT Lv.${config.difficultyRatings.AT ?? '-'}`,
+        plantOptions: allowedPlants,
+        elementOptions: allowedElements,
+        maxPlants: Math.max(1, cardSelect.maxPlants),
+        maxElements: Math.max(0, cardSelect.maxElements),
+        towerLevels,
+        returnStage: 'lab',
+        onConfirm: (plants, elements) => {
+          const highestPlantLevel = getHighestPlantLevel(plants, towerLevels);
+          const fixedLevel = Math.max(1, Math.round(highestPlantLevel * Math.max(1, cardSelect.monsterLevelMultiplier)));
+          setPendingCardSelect(null);
+          finalizeLabStart(plants, elements, cloneWavesWithMonsterLevel(config.waves, fixedLevel));
+        },
+      });
+      navigateWithTransition('cardSelect');
+      return;
+    }
+
+    finalizeLabStart(allowedPlants, allowedElements);
   }, [loadLevel, navigateWithTransition]);
 
   const funModeLabel = activeFunMode ? FUN_MODE_LABELS[activeFunMode] : '';
   const currentDifficultyLabel = useMemo(() => {
     if (levelIndex == null) return null;
     const level = LEVELS[levelIndex];
-    const labels = { 1: 'EZ', 2: 'HD', 3: 'IN' } as const;
-    const difficulty = labels[currentStar];
-    const rating = getLevelDifficultyRatings(level.id, levelIndex + 1)[difficulty];
-    return `${difficulty} Lv.${rating}`;
-  }, [currentStar, levelIndex]);
+    const rating = getLevelDifficultyRatings(level.id, levelIndex + 1)[currentDifficulty];
+    return `${currentDifficulty} Lv.${rating ?? '-'}`;
+  }, [currentDifficulty, levelIndex]);
 
   const handleGameWin = useCallback(async () => {
     if (levelIndex != null) {
       const L = LEVELS[levelIndex];
-      const result = await setStarCleared(L.id, currentStar);
+      const selectedLevel = getLevelSpecForDifficulty(L, currentDifficulty);
+      const endLives = useTDStore.getState().lives;
+      const fullHealthClear = currentDifficulty === 'IN' && endLives >= selectedLevel.lives;
+      const challengeDiamondReward = activeChallengeRun
+        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= activeChallengeRun.startLives ? 1 : 0)
+          + (hasChallenge(activeChallengeRun.selected, 'halfHealth') ? 1 : 0)
+        : 0;
+      const result = await setStarCleared(L.id, currentStar, {
+        fullHealth: fullHealthClear,
+        difficulty: currentDifficulty,
+        challengeDiamonds: challengeDiamondReward,
+      });
+      const ratings = getLevelDifficultyRatings(L.id, levelIndex + 1);
+      const hasAtDifficulty = Boolean(L.difficultyOverrides?.AT && typeof ratings.AT === 'number');
+      if (hasAtDifficulty && result?.newFullHealthClear) {
+        setAtUnlockNotice({ levelName: L.name });
+      }
       const serverUnlocks = Array.isArray(result?.newUnlocks) ? (result.newUnlocks as string[]) : [];
-      const levelNumber = levelIndex + 1;
-      const unlockTarget = PLANT_UNLOCK_TARGETS[levelNumber];
-      const bestStar = Math.max(result?.star ?? 0, currentStar);
-      const extraUnlocks: string[] = [];
-      if (unlockTarget && bestStar >= 3 && !unlockedItemsSet.has(unlockTarget)) {
-        extraUnlocks.push(unlockTarget);
-      }
-      if (extraUnlocks.length > 0) {
-        updateUnlockedItems(extraUnlocks);
-      }
-      const totalUnlocks = Array.from(new Set([...serverUnlocks, ...extraUnlocks]));
+      const totalUnlocks = Array.from(new Set(serverUnlocks));
       if (totalUnlocks.length > 0) {
         setHub(prev => {
-          const base = prev ?? { coins: 0, magicKeys: 0, shards: {}, plantShards: {}, elementShards: {}, towerLevels: {}, chests: [], unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
+          const base = prev ?? { coins: 0, magicKeys: 0, diamonds: 0, shards: {}, plantShards: {}, elementShards: {}, towerLevels: {}, chests: [], unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
           const merged = new Set(base.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
           totalUnlocks.forEach((item: string) => merged.add(item));
           return { ...base, unlockedItems: Array.from(merged) };
         });
       }
-      if (result && result.rewardCoins > 0) {
-        const chestTypeName = result.chestType ? resolveChestTypeName(result.chestType) : '';
+      if (result && (result.rewardCoins > 0 || (result.diamondReward ?? 0) > 0 || (result.chestTypes?.length ?? 0) > 0 || result.chestType)) {
+        const chestTypes = Array.isArray(result.chestTypes)
+          ? result.chestTypes
+          : result.chestType
+            ? [result.chestType]
+            : [];
+        const chestTypeName = chestTypes.length > 0
+          ? chestTypes.map(type => resolveChestTypeName(type)).join('、')
+          : '';
         const chanceText = typeof result.repeatChestChance === 'number'
           ? `（掉率 ${Math.round(result.repeatChestChance * 100)}%）`
           : '';
-        const rewardMsg = result.newRecord
-          ? `🎉 新纪录！获得 ${result.rewardCoins} 金币和${chestTypeName}宝箱`
-          : result.chestType
-            ? `✨ 重复通关！获得 ${result.rewardCoins} 金币，额外掉落${chestTypeName}宝箱${chanceText}`
-            : `✨ 重复通关！获得 ${result.rewardCoins} 金币，宝箱未掉落${chanceText}`;
+        const diamondText = result.diamondReward ? `，钻石 +${result.diamondReward}` : '';
+        const chestText = chestTypeName ? `，${chestTypeName}宝箱` : '';
+        const rewardMsg = result.atFirstClear
+          ? `AT首通奖励：金币 +${result.rewardCoins}${chestText}${diamondText}`
+          : result.newRecord
+            ? `通关奖励：金币 +${result.rewardCoins}${chestText}${diamondText}`
+            : chestTypeName
+              ? `重复通关：金币 +${result.rewardCoins}，掉落${chestTypeName}宝箱${chanceText}${diamondText}`
+              : `重复通关：金币 +${result.rewardCoins}，宝箱未掉落${chanceText}${diamondText}`;
         setWinReward({
           coins: result.rewardCoins,
           chestType: result.chestType ?? null,
+          chestTypes,
           chestAwarded: Boolean(result.chestAwarded),
           repeatChestChance: result.repeatChestChance,
           newRecord: Boolean(result.newRecord),
+          diamonds: result.diamondReward ?? 0,
           message: rewardMsg,
         });
       }
@@ -565,8 +784,9 @@ function App() {
       await loadHub();
       setUnlockedState(getUnlocked());
     }
+    setActiveChallengeRun(null);
     navigateWithTransition('won');
-  }, [currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId, unlockedItemsSet]);
+  }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId]);
 
   const handleAuth = useCallback(() => {
     setIsLoading(true);
@@ -667,10 +887,12 @@ function App() {
                 unlocked={unlocked}
                 magicKeys={hub?.magicKeys ?? 0}
                 starSel={starSel}
+                challengeSel={challengeSel}
                 unlockedItemsSet={unlockedItemsSet}
                 chapterId={selectedChapterId}
                 onBack={() => navigateWithTransition('chapters')}
-                onSelectStar={(levelIdx, star) => setStarSel(prev => ({ ...prev, [levelIdx]: star }))}
+                onSelectDifficulty={(levelIdx, difficulty) => setStarSel(prev => ({ ...prev, [levelIdx]: difficulty }))}
+                onToggleChallenge={toggleLevelChallenge}
                 onStartLevel={startLevel}
                 onUnlockLevel={async (levelId, levelName) => {
                   if (!confirm(`使用1把神奇钥匙解锁${levelName}？`)) return;
@@ -682,6 +904,23 @@ function App() {
                     alert('解锁失败：' + getErrorMessage(e, '网络错误'));
                   }
                 }}
+              />
+            )}
+
+            {stage === 'cardSelect' && pendingCardSelect && (
+              <CardSelectPage
+                title={pendingCardSelect.title}
+                plantOptions={pendingCardSelect.plantOptions}
+                elementOptions={pendingCardSelect.elementOptions}
+                maxPlants={pendingCardSelect.maxPlants}
+                maxElements={pendingCardSelect.maxElements}
+                towerLevels={pendingCardSelect.towerLevels}
+                onBack={() => {
+                  const returnStage = pendingCardSelect.returnStage;
+                  setPendingCardSelect(null);
+                  navigateWithTransition(returnStage);
+                }}
+                onConfirm={pendingCardSelect.onConfirm}
               />
             )}
 
@@ -707,9 +946,13 @@ function App() {
               <TDGame
                 difficultyLabel={activeLabConfig ? `${activeLabConfig.targetDifficulty} Lv.${activeLabConfig.difficultyRatings[activeLabConfig.targetDifficulty] ?? ''}` : currentDifficultyLabel}
                 onWin={activeLabConfig ? () => navigateWithTransition('lab') : handleGameWin}
-                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => navigateWithTransition('lost')}
+                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => {
+                  setActiveChallengeRun(null);
+                  navigateWithTransition('lost');
+                }}
                 onExit={() => {
                   setWinReward(null);
+                  setActiveChallengeRun(null);
                   setLevelIndex(null);
                   navigateWithTransition(activeLabConfig ? 'lab' : activeFunMode ? 'fun' : 'select');
                 }}
@@ -728,7 +971,7 @@ function App() {
               onChallengeHigherStar={() => {
                 if (levelIndex != null) {
                   const nextStar = Math.min(3, currentStar + 1) as 1|2|3;
-                  setStarSel(prev => ({ ...prev, [levelIndex]: nextStar }));
+                  setStarSel(prev => ({ ...prev, [levelIndex]: DIFFICULTY_BY_STAR[nextStar] }));
                   setWinReward(null);
                   startLevel(levelIndex, nextStar);
                 }
@@ -748,6 +991,22 @@ function App() {
         </>
       )}
       </div>
+
+      {atUnlockNotice && (
+        <div className="modal-backdrop" style={{ zIndex: 1200 }}>
+          <div className="glass-panel modal-panel">
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>
+              恭喜！你已解锁本关的AT难度！
+            </div>
+            <p style={{ color: '#475569', lineHeight: 1.55, marginBottom: 16 }}>
+              AT难度解锁条件为：IN难度满血通关。
+            </p>
+            <button onClick={() => setAtUnlockNotice(null)} className="action-button primary" style={{ width: '100%' }}>
+              知道了
+            </button>
+          </div>
+        </div>
+      )}
 
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
     </div>

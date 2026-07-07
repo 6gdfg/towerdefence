@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
 import { ELEMENT_TYPES, MONSTER_LABELS, PLANT_TYPES } from './appConfig';
-import { LEVELS } from './levels';
+import { getLevelSpecForDifficulty, LEVELS } from './levels';
 import { getLevelDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
 import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
-import type { ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef, WaveGroup } from './types';
+import type { AtModeConfig, AtModeType, ConveyorItem, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef, WaveGroup } from './types';
 
 export type BalanceLabConfig = {
   sourceLevelId: string;
@@ -19,6 +20,8 @@ export type BalanceLabConfig = {
   difficultyRatings: LevelDifficultyRatings;
   towerLevels: TowerLevelMap;
   waves: WaveDef[];
+  atModeConfig?: AtModeConfig;
+  unlockRewards: string[];
 };
 
 export type BalanceLabLevelDraft = {
@@ -34,11 +37,18 @@ export type BalanceLabLevelDraft = {
   autoStartFirstWave: boolean;
   firstWaveDelaySec: number;
   waves: WaveDef[];
+  atModeConfig?: AtModeConfig;
+  unlockRewards?: string[];
 };
 
 type BalanceLabPageProps = {
   onBack: () => void;
   onStartTest: (config: BalanceLabConfig) => void;
+};
+
+type BalanceLabDraftReadResponse = {
+  draftByKey?: Record<string, BalanceLabLevelDraft>;
+  count?: number;
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
@@ -49,6 +59,27 @@ const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'IN', label: 'IN' },
   { code: 'AT', label: 'AT' },
 ];
+const AT_MODE_OPTIONS: Array<{ type: AtModeType; label: string }> = [
+  { type: 'normal', label: '普通' },
+  { type: 'conveyor', label: '传送带' },
+  { type: 'lastStand', label: '孤注一掷' },
+  { type: 'cardSelect', label: '选卡' },
+];
+
+const DEFAULT_CONVEYOR_POOL: ConveyorItem[] = [
+  { kind: 'plant', id: 'sunflower', weight: 100 },
+  { kind: 'plant', id: 'bottleGrass', weight: 100 },
+  { kind: 'plant', id: 'puffShroom', weight: 100 },
+  { kind: 'plant', id: 'machineGun', weight: 100 },
+  { kind: 'element', id: 'fire', weight: 100 },
+  { kind: 'element', id: 'ice', weight: 100 },
+  { kind: 'element', id: 'wind', weight: 100 },
+];
+
+const UNLOCK_ITEM_OPTIONS = [
+  ...PLANT_TYPES.map(id => ({ id, label: BASE_PLANTS_CONFIG[id].name })),
+  ...ELEMENT_TYPES.map(element => ({ id: `element:${element}`, label: ELEMENT_PLANT_CONFIG[element].name })),
+].filter(option => !DEFAULT_UNLOCKED_ITEMS.includes(option.id as typeof DEFAULT_UNLOCKED_ITEMS[number]));
 
 function cloneWaves(waves: WaveDef[]): WaveDef[] {
   return waves.map(wave => ({
@@ -59,6 +90,128 @@ function cloneWaves(waves: WaveDef[]): WaveDef[] {
 function readNumber(value: string, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function finiteNumber(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getConveyorItemKey(item: ConveyorItem) {
+  return `${item.kind}:${item.id}`;
+}
+
+function normalizeConveyorWeight(value: unknown) {
+  return Math.max(1, Math.floor(finiteNumber(value, 100)));
+}
+
+function normalizeUnlockRewards(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const validIds = new Set(UNLOCK_ITEM_OPTIONS.map(option => option.id));
+  const seen = new Set<string>();
+  const rewards: string[] = [];
+  value.forEach(item => {
+    if (typeof item !== 'string') return;
+    if (!validIds.has(item) || seen.has(item)) return;
+    seen.add(item);
+    rewards.push(item);
+  });
+  return rewards;
+}
+
+function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
+  if (type === 'conveyor') {
+    return {
+      type,
+      conveyor: {
+        intervalSec: 3,
+        maxQueue: 8,
+        pool: DEFAULT_CONVEYOR_POOL,
+      },
+    };
+  }
+  if (type === 'lastStand') {
+    return {
+      type,
+      lastStand: {
+        startGold: 3000,
+        bannedPlants: ['sunflower'],
+        disableKillRewards: true,
+      },
+    };
+  }
+  if (type === 'cardSelect') {
+    return {
+      type,
+      cardSelect: {
+        maxPlants: 5,
+        maxElements: 2,
+        monsterLevelMultiplier: 10,
+      },
+    };
+  }
+  return { type: 'normal' };
+}
+
+function normalizeConveyorPool(pool: ConveyorItem[] | undefined) {
+  const seen = new Set<string>();
+  const normalized: ConveyorItem[] = [];
+  (pool && pool.length > 0 ? pool : DEFAULT_CONVEYOR_POOL).forEach(item => {
+    const valid = item.kind === 'plant'
+      ? PLANT_TYPES.includes(item.id as PlantType)
+      : ELEMENT_TYPES.includes(item.id as ElementType);
+    if (!valid) return;
+    const key = getConveyorItemKey(item);
+    if (seen.has(key)) return;
+    seen.add(key);
+    normalized.push({ ...item, weight: normalizeConveyorWeight(item.weight) });
+  });
+  return normalized.length > 0 ? normalized : DEFAULT_CONVEYOR_POOL;
+}
+
+function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
+  const type = config?.type ?? 'normal';
+  const defaults = createDefaultAtModeConfig(type);
+  if (type === 'conveyor') {
+    const conveyor = config?.conveyor ?? defaults.conveyor!;
+    return {
+      type,
+      conveyor: {
+        intervalSec: Math.max(0.2, finiteNumber(conveyor.intervalSec, defaults.conveyor!.intervalSec)),
+        maxQueue: Math.max(1, Math.floor(finiteNumber(conveyor.maxQueue, defaults.conveyor!.maxQueue))),
+        pool: normalizeConveyorPool(conveyor.pool),
+      },
+    };
+  }
+  if (type === 'lastStand') {
+    const lastStand = config?.lastStand ?? defaults.lastStand!;
+    const bannedPlants = Array.from(new Set([...(lastStand.bannedPlants ?? []), 'sunflower']))
+      .filter((plant): plant is PlantType => PLANT_TYPES.includes(plant as PlantType));
+    return {
+      type,
+      lastStand: {
+        startGold: Math.max(0, Math.floor(finiteNumber(lastStand.startGold, defaults.lastStand!.startGold))),
+        bannedPlants,
+        disableKillRewards: lastStand.disableKillRewards ?? true,
+      },
+    };
+  }
+  if (type === 'cardSelect') {
+    const cardSelect = config?.cardSelect ?? defaults.cardSelect!;
+    return {
+      type,
+      cardSelect: {
+        maxPlants: Math.max(1, Math.floor(finiteNumber(cardSelect.maxPlants, defaults.cardSelect!.maxPlants))),
+        maxElements: Math.max(0, Math.floor(finiteNumber(cardSelect.maxElements, defaults.cardSelect!.maxElements))),
+        monsterLevelMultiplier: Math.max(1, finiteNumber(cardSelect.monsterLevelMultiplier, defaults.cardSelect!.monsterLevelMultiplier)),
+      },
+    };
+  }
+  return { type: 'normal' };
 }
 
 function createTowerLevels(): TowerLevelMap {
@@ -82,16 +235,20 @@ function getAvailableDifficulties(ratings: LevelDifficultyRatings) {
 }
 
 function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode): BalanceLabConfig {
-  const level = LEVELS[levelIndex] ?? LEVELS[0];
+  const baseLevel = LEVELS[levelIndex] ?? LEVELS[0];
   const levelNumber = Math.max(1, levelIndex + 1);
-  const ratings = getLevelDifficultyRatings(level.id, levelNumber);
+  const ratings: LevelDifficultyRatings = { ...getLevelDifficultyRatings(baseLevel.id, levelNumber) };
   const available = getAvailableDifficulties(ratings);
-  const targetDifficulty = difficulty && typeof ratings[difficulty] === 'number'
+  const targetDifficulty = difficulty && (difficulty === 'AT' || typeof ratings[difficulty] === 'number')
     ? difficulty
     : available[0]?.code ?? 'EZ';
+  if (targetDifficulty === 'AT' && typeof ratings.AT !== 'number') {
+    ratings.AT = Math.max(1, Math.round((ratings.IN ?? 15) + 1));
+  }
+  const level = getLevelSpecForDifficulty(baseLevel, targetDifficulty);
 
   return {
-    sourceLevelId: level.id,
+    sourceLevelId: baseLevel.id,
     levelName: level.name,
     targetDifficulty,
     mapId: level.mapId,
@@ -102,6 +259,8 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
     difficultyRatings: ratings,
     towerLevels: createTowerLevels(),
     waves: cloneWaves(level.waves),
+    atModeConfig: targetDifficulty === 'AT' ? normalizeAtModeConfig(level.atModeConfig) : undefined,
+    unlockRewards: [],
   };
 }
 
@@ -120,6 +279,10 @@ function normalizeConfig(config: BalanceLabConfig | null): BalanceLabConfig | nu
       ...config.towerLevels,
     },
     waves: Array.isArray(config.waves) && config.waves.length > 0 ? config.waves : base.waves,
+    atModeConfig: config.targetDifficulty === 'AT'
+      ? normalizeAtModeConfig(config.atModeConfig ?? base.atModeConfig)
+      : undefined,
+    unlockRewards: normalizeUnlockRewards((config as Partial<BalanceLabConfig>).unlockRewards),
   };
 }
 
@@ -155,6 +318,35 @@ function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
     autoStartFirstWave: config.autoStartFirstWave,
     firstWaveDelaySec: config.firstWaveDelaySec,
     waves: config.waves,
+    atModeConfig: config.targetDifficulty === 'AT' ? normalizeAtModeConfig(config.atModeConfig) : undefined,
+    unlockRewards: normalizeUnlockRewards(config.unlockRewards),
+  };
+}
+
+function getDraftKeyForConfig(config: BalanceLabConfig) {
+  return `${config.sourceLevelId}:${config.targetDifficulty}`;
+}
+
+function createConfigFromDraft(draft: BalanceLabLevelDraft, current: BalanceLabConfig): BalanceLabConfig {
+  const base = createConfigFromLevel(getLevelIndexById(draft.sourceLevelId), draft.difficulty);
+  return {
+    ...base,
+    sourceLevelId: draft.sourceLevelId,
+    levelName: draft.levelName,
+    targetDifficulty: draft.difficulty,
+    mapId: draft.mapId,
+    startGold: draft.startGold,
+    lives: draft.lives,
+    autoStartFirstWave: draft.autoStartFirstWave,
+    firstWaveDelaySec: draft.firstWaveDelaySec,
+    difficultyRatings: {
+      ...base.difficultyRatings,
+      [draft.difficulty]: draft.rating,
+    },
+    towerLevels: current.towerLevels,
+    waves: cloneWaves(draft.waves),
+    atModeConfig: draft.difficulty === 'AT' ? normalizeAtModeConfig(draft.atModeConfig) : undefined,
+    unlockRewards: normalizeUnlockRewards(draft.unlockRewards),
   };
 }
 
@@ -166,6 +358,56 @@ function createDefaultGroup(): WaveGroup {
   return { type: 'circle', count: 10, interval: 0.4, level: 1, reward: 5 };
 }
 
+function normalizePastedGroup(value: unknown): WaveGroup | null {
+  if (!isRecord(value)) return null;
+  const type = SHAPE_TYPES.includes(value.type as ShapeType) ? value.type as ShapeType : null;
+  if (!type) return null;
+
+  const group: WaveGroup = {
+    type,
+    count: Math.max(1, Math.floor(finiteNumber(value.count, 1))),
+    interval: Math.max(0.01, finiteNumber(value.interval, 0.4)),
+    level: Math.max(1, Math.floor(finiteNumber(value.level, 1))),
+    reward: Math.max(0, Math.floor(finiteNumber(value.reward, 0))),
+  };
+
+  if (value.isBoss === true) {
+    group.isBoss = true;
+  }
+  if (value.startDelay != null) {
+    group.startDelay = Math.max(0, finiteNumber(value.startDelay, 0));
+  }
+  if (value.pathId != null) {
+    group.pathId = Math.max(0, Math.floor(finiteNumber(value.pathId, 0)));
+  }
+  if (value.leakDamage != null) {
+    group.leakDamage = Math.max(0, Math.floor(finiteNumber(value.leakDamage, 1)));
+  }
+
+  return group;
+}
+
+function normalizePastedWaves(value: unknown): WaveDef[] | null {
+  const rawWaves = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.waves)
+      ? value.waves
+      : null;
+  if (!rawWaves) return null;
+
+  const waves = rawWaves
+    .map(wave => {
+      if (!isRecord(wave) || !Array.isArray(wave.groups)) return null;
+      const groups = wave.groups
+        .map(group => normalizePastedGroup(group))
+        .filter((group): group is WaveGroup => Boolean(group));
+      return groups.length > 0 ? { groups } : null;
+    })
+    .filter((wave): wave is WaveDef => Boolean(wave));
+
+  return waves.length > 0 ? waves : null;
+}
+
 export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPageProps) {
   const [config, setConfig] = useState<BalanceLabConfig>(() => loadStoredConfig() ?? createConfigFromLevel(0));
   const [exportOpen, setExportOpen] = useState(false);
@@ -175,6 +417,10 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const selectedMap = MAPS.find(map => map.id === config.mapId);
   const selectedMapPathCount = Math.max(1, countMapPaths(selectedMap));
   const exportSource = useMemo(() => buildExportSource(config), [config]);
+  const isAtEditing = config.targetDifficulty === 'AT';
+  const atModeConfig = isAtEditing ? normalizeAtModeConfig(config.atModeConfig) : createDefaultAtModeConfig('normal');
+  const atModeType = atModeConfig.type;
+  const cardSelectLocksMonsterLevel = isAtEditing && atModeType === 'cardSelect';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -200,7 +446,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   };
 
   const selectDifficulty = (difficulty: DifficultyCode) => {
-    if (typeof config.difficultyRatings[difficulty] !== 'number') return;
+    if (difficulty !== 'AT' && typeof config.difficultyRatings[difficulty] !== 'number') return;
     setConfig(current => ({
       ...createConfigFromLevel(getLevelIndexById(current.sourceLevelId), difficulty),
       towerLevels: current.towerLevels,
@@ -215,6 +461,90 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         [key]: Math.max(1, Math.floor(value || 1)),
       },
     }));
+  };
+
+  const toggleUnlockReward = (itemId: string) => {
+    setConfig(current => {
+      const currentRewards = normalizeUnlockRewards(current.unlockRewards);
+      const next = currentRewards.includes(itemId)
+        ? currentRewards.filter(item => item !== itemId)
+        : [...currentRewards, itemId];
+      return { ...current, unlockRewards: normalizeUnlockRewards(next) };
+    });
+  };
+
+  const setAtMode = (type: AtModeType) => {
+    setConfig(current => ({
+      ...current,
+      atModeConfig: createDefaultAtModeConfig(type),
+      autoStartFirstWave: type === 'lastStand' ? false : current.autoStartFirstWave,
+    }));
+  };
+
+  const updateAtModeConfig = (next: AtModeConfig) => {
+    setConfig(current => ({
+      ...current,
+      atModeConfig: normalizeAtModeConfig(next),
+    }));
+  };
+
+  const updateConveyorConfig = (patch: Partial<NonNullable<AtModeConfig['conveyor']>>) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    updateAtModeConfig({
+      type: 'conveyor',
+      conveyor: {
+        ...base.conveyor!,
+        ...patch,
+      },
+    });
+  };
+
+  const toggleConveyorItem = (item: ConveyorItem) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    const key = getConveyorItemKey(item);
+    const exists = base.conveyor!.pool.some(poolItem => getConveyorItemKey(poolItem) === key);
+    const pool = exists
+      ? base.conveyor!.pool.filter(poolItem => getConveyorItemKey(poolItem) !== key)
+      : [...base.conveyor!.pool, { ...item, weight: 100 }];
+    updateConveyorConfig({ pool });
+  };
+
+  const updateConveyorItemWeight = (item: ConveyorItem, weight: number) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    const key = getConveyorItemKey(item);
+    const pool = base.conveyor!.pool.map(poolItem => (
+      getConveyorItemKey(poolItem) === key
+        ? { ...poolItem, weight: normalizeConveyorWeight(weight) }
+        : poolItem
+    ));
+    updateConveyorConfig({ pool });
+  };
+
+  const updateLastStandConfig = (patch: Partial<NonNullable<AtModeConfig['lastStand']>>) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.type === 'lastStand' ? currentMode : createDefaultAtModeConfig('lastStand');
+    updateAtModeConfig({
+      type: 'lastStand',
+      lastStand: {
+        ...base.lastStand!,
+        ...patch,
+      },
+    });
+  };
+
+  const updateCardSelectConfig = (patch: Partial<NonNullable<AtModeConfig['cardSelect']>>) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.type === 'cardSelect' ? currentMode : createDefaultAtModeConfig('cardSelect');
+    updateAtModeConfig({
+      type: 'cardSelect',
+      cardSelect: {
+        ...base.cardSelect!,
+        ...patch,
+      },
+    });
   };
 
   const updateWaveGroup = (waveIndex: number, groupIndex: number, patch: Partial<WaveGroup>) => {
@@ -274,6 +604,52 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
     });
   };
 
+  const copyMonsterConfig = async () => {
+    const payload = JSON.stringify({
+      kind: 'td-wave-config-v1',
+      waves: cloneWaves(config.waves),
+    }, null, 2);
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      setSaveStatus(`已复制 ${config.waves.length} 波怪物配置`);
+    } catch {
+      window.prompt('复制失败，请手动复制以下怪物配置', payload);
+      setSaveStatus('复制失败，已打开手动复制窗口');
+    }
+  };
+
+  const pasteMonsterConfig = async () => {
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      text = window.prompt('粘贴怪物配置 JSON') ?? '';
+    }
+
+    if (!text.trim()) {
+      setSaveStatus('没有读取到可粘贴的怪物配置');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      const waves = normalizePastedWaves(parsed);
+      if (!waves) {
+        setSaveStatus('怪物配置格式不正确');
+        return;
+      }
+
+      setConfig(current => ({
+        ...current,
+        waves,
+      }));
+      setSaveStatus(`已粘贴 ${waves.length} 波怪物配置`);
+    } catch {
+      setSaveStatus('怪物配置不是有效 JSON');
+    }
+  };
+
   const resetCurrentTarget = () => {
     setConfig(createConfigFromLevel(selectedLevelIndex, config.targetDifficulty));
   };
@@ -298,11 +674,36 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      const data = await response.json() as { file?: string };
-      setSaveStatus(`已写入 ${data.file ?? 'src/td/balanceDraft.generated.ts'}`);
+      const data = await response.json() as { file?: string; key?: string; count?: number };
+      const keyText = data.key ? ` ${data.key}` : '';
+      const countText = typeof data.count === 'number' ? `，共 ${data.count} 份配置` : '';
+      setSaveStatus(`已保存并应用${keyText}${countText}：${data.file ?? 'src/td/balanceDraft.generated.ts'}`);
     } catch {
       setSaveStatus('当前环境不能直接写文件，已生成导出内容');
       setExportOpen(true);
+    }
+  };
+
+  const loadCurrentDraft = async () => {
+    const key = getDraftKeyForConfig(config);
+    setSaveStatus(`读取 ${key} 中...`);
+    try {
+      const response = await fetch('/__td_lab_save');
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const data = await response.json() as BalanceLabDraftReadResponse;
+      const draft = data.draftByKey?.[key];
+      if (!draft) {
+        setSaveStatus(`当前没有已保存的 ${key}，共有 ${data.count ?? 0} 份配置`);
+        return;
+      }
+
+      setConfig(current => createConfigFromDraft(draft, current));
+      setSaveStatus(`已读取 ${key}`);
+    } catch {
+      setSaveStatus('当前环境不能读取本地配置，请确认 dev server 已重启');
     }
   };
 
@@ -316,7 +717,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
           </div>
           <div className="button-row">
             <button onClick={() => onStartTest(config)} className="action-button primary">测试当前配置</button>
-            <button onClick={saveToLocalDraftFile} className="action-button">保存本地草稿</button>
+            <button onClick={saveToLocalDraftFile} className="action-button">保存并应用</button>
+            <button onClick={loadCurrentDraft} className="action-button">读取已保存配置</button>
             <button onClick={() => setExportOpen(open => !open)} className="action-button">导出配置</button>
             <button onClick={onBack} className="action-button">返回</button>
           </div>
@@ -360,7 +762,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         <div className="lab-difficulty-picker">
           {CORE_DIFFICULTIES.map(item => {
             const rating = config.difficultyRatings[item.code];
-            const available = typeof rating === 'number';
+            const available = item.code === 'AT' || typeof rating === 'number';
             const active = config.targetDifficulty === item.code;
             return (
               <button
@@ -378,7 +780,174 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         <div className="lab-draft-summary">
           当前编辑：第 {selectedLevelIndex + 1} 关 / {config.levelName} / {config.targetDifficulty}{draftRating}
         </div>
+        <div className="lab-pool-title">通关解锁</div>
+        <div className="lab-pool-grid">
+          {UNLOCK_ITEM_OPTIONS.map(option => {
+            const checked = config.unlockRewards.includes(option.id);
+            return (
+              <label key={`unlock-${option.id}`} className={`lab-pool-chip ${option.id.startsWith('element:') ? 'element' : ''} ${checked ? 'is-active' : ''}`}>
+                <input type="checkbox" checked={checked} onChange={() => toggleUnlockReward(option.id)} />
+                <span>{option.label}</span>
+              </label>
+            );
+          })}
+        </div>
       </section>
+
+      {isAtEditing && (
+        <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.075s' }}>
+          <div className="lab-panel-title">
+            <span>AT 模式</span>
+          </div>
+          <div className="lab-mode-grid">
+            {AT_MODE_OPTIONS.map(option => (
+              <button
+                key={option.type}
+                onClick={() => setAtMode(option.type)}
+                className={`lab-mode-card ${atModeType === option.type ? 'is-active' : ''}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {atModeType === 'conveyor' && (
+            <div className="lab-at-panel">
+              <div className="lab-form-grid">
+                <label className="lab-field">
+                  <span>出物间隔</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="0.2"
+                    step="0.1"
+                    value={atModeConfig.conveyor?.intervalSec ?? 3}
+                    onChange={event => updateConveyorConfig({ intervalSec: Math.max(0.2, readNumber(event.target.value, 3)) })}
+                  />
+                </label>
+                <label className="lab-field">
+                  <span>队列上限</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="1"
+                    value={atModeConfig.conveyor?.maxQueue ?? 8}
+                    onChange={event => updateConveyorConfig({ maxQueue: Math.max(1, Math.floor(readNumber(event.target.value, 8))) })}
+                  />
+                </label>
+              </div>
+              <div className="lab-pool-title">传送带池</div>
+              <div className="lab-pool-grid">
+                {PLANT_TYPES.map(plant => {
+                  const item: ConveyorItem = { kind: 'plant', id: plant };
+                  const poolItem = atModeConfig.conveyor?.pool.find(entry => getConveyorItemKey(entry) === getConveyorItemKey(item));
+                  const checked = Boolean(poolItem);
+                  return (
+                    <label key={`conveyor-${plant}`} className={`lab-pool-chip ${checked ? 'is-active' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleConveyorItem(item)} />
+                      <span>{BASE_PLANTS_CONFIG[plant].name}</span>
+                      {checked && (
+                        <input
+                          className="lab-pool-weight"
+                          type="number"
+                          min="1"
+                          value={poolItem?.weight ?? 100}
+                          aria-label={`${BASE_PLANTS_CONFIG[plant].name} 权重`}
+                          onClick={event => event.stopPropagation()}
+                          onChange={event => updateConveyorItemWeight(item, readNumber(event.target.value, 100))}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+                {ELEMENT_TYPES.map(element => {
+                  const item: ConveyorItem = { kind: 'element', id: element };
+                  const poolItem = atModeConfig.conveyor?.pool.find(entry => getConveyorItemKey(entry) === getConveyorItemKey(item));
+                  const checked = Boolean(poolItem);
+                  return (
+                    <label key={`conveyor-element-${element}`} className={`lab-pool-chip element ${checked ? 'is-active' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleConveyorItem(item)} />
+                      <span>{ELEMENT_PLANT_CONFIG[element].name}</span>
+                      {checked && (
+                        <input
+                          className="lab-pool-weight"
+                          type="number"
+                          min="1"
+                          value={poolItem?.weight ?? 100}
+                          aria-label={`${ELEMENT_PLANT_CONFIG[element].name} 权重`}
+                          onClick={event => event.stopPropagation()}
+                          onChange={event => updateConveyorItemWeight(item, readNumber(event.target.value, 100))}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {atModeType === 'lastStand' && (
+            <div className="lab-at-panel">
+              <div className="lab-form-grid">
+                <label className="lab-field">
+                  <span>开局金币</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="0"
+                    value={atModeConfig.lastStand?.startGold ?? 3000}
+                    onChange={event => updateLastStandConfig({ startGold: Math.max(0, Math.floor(readNumber(event.target.value, 3000))) })}
+                  />
+                </label>
+              </div>
+              <label className="lab-check">
+                <input type="checkbox" checked readOnly />
+                <span>击杀不掉金币</span>
+              </label>
+              <div className="lab-draft-summary">金盏花在该模式中固定禁用；进入后不会自动出怪，点击开始后再刷怪。</div>
+            </div>
+          )}
+
+          {atModeType === 'cardSelect' && (
+            <div className="lab-at-panel">
+              <div className="lab-form-grid">
+                <label className="lab-field">
+                  <span>植物上限</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="1"
+                    value={atModeConfig.cardSelect?.maxPlants ?? 5}
+                    onChange={event => updateCardSelectConfig({ maxPlants: Math.max(1, Math.floor(readNumber(event.target.value, 5))) })}
+                  />
+                </label>
+                <label className="lab-field">
+                  <span>元素上限</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="0"
+                    value={atModeConfig.cardSelect?.maxElements ?? 2}
+                    onChange={event => updateCardSelectConfig({ maxElements: Math.max(0, Math.floor(readNumber(event.target.value, 2))) })}
+                  />
+                </label>
+                <label className="lab-field">
+                  <span>怪物等级倍率</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="1"
+                    step="0.1"
+                    value={atModeConfig.cardSelect?.monsterLevelMultiplier ?? 10}
+                    onChange={event => updateCardSelectConfig({ monsterLevelMultiplier: Math.max(1, readNumber(event.target.value, 10)) })}
+                  />
+                </label>
+              </div>
+              <div className="lab-draft-summary">该模式运行时会按所选植物最高等级重新写入怪物等级。</div>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="balance-lab-grid">
         <div className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.09s' }}>
@@ -454,7 +1023,11 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
       <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.15s' }}>
         <div className="lab-panel-title">
           <span>波次编辑</span>
-          <button onClick={addWave} className="lab-mini-button">新增波次</button>
+          <div className="button-row">
+            <button onClick={copyMonsterConfig} className="lab-mini-button">复制怪物配置</button>
+            <button onClick={pasteMonsterConfig} className="lab-mini-button">粘贴怪物配置</button>
+            <button onClick={addWave} className="lab-mini-button">新增波次</button>
+          </div>
         </div>
         <div className="lab-wave-list">
           {config.waves.map((wave, waveIndex) => (
@@ -487,8 +1060,31 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                       <input type="number" step="0.01" value={group.interval} onChange={event => updateWaveGroup(waveIndex, groupIndex, { interval: Math.max(0.01, readNumber(event.target.value, group.interval)) })} />
                     </label>
                     <label>
+                      <span>起始</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="顺序"
+                        value={group.startDelay ?? ''}
+                        onChange={event => updateWaveGroup(
+                          waveIndex,
+                          groupIndex,
+                          event.target.value.trim() === ''
+                            ? { startDelay: undefined }
+                            : { startDelay: Math.max(0, readNumber(event.target.value, group.startDelay ?? 0)) },
+                        )}
+                      />
+                    </label>
+                    <label>
                       <span>等级</span>
-                      <input type="number" value={group.level} onChange={event => updateWaveGroup(waveIndex, groupIndex, { level: Math.max(1, Math.floor(readNumber(event.target.value, group.level))) })} />
+                      <input
+                        type="number"
+                        value={group.level}
+                        disabled={cardSelectLocksMonsterLevel}
+                        title={cardSelectLocksMonsterLevel ? '选卡模式运行时统一按最高植物等级和倍率计算' : undefined}
+                        onChange={event => updateWaveGroup(waveIndex, groupIndex, { level: Math.max(1, Math.floor(readNumber(event.target.value, group.level))) })}
+                      />
                     </label>
                     <label>
                       <span>奖励</span>
@@ -511,6 +1107,14 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                           <option key={pathIndex} value={pathIndex}>{`路径 ${pathIndex + 1}`}</option>
                         ))}
                       </select>
+                    </label>
+                    <label className="lab-boss-check">
+                      <span>Boss</span>
+                      <input
+                        type="checkbox"
+                        checked={!!group.isBoss}
+                        onChange={event => updateWaveGroup(waveIndex, groupIndex, { isBoss: event.target.checked })}
+                      />
                     </label>
                     <button onClick={() => removeGroup(waveIndex, groupIndex)} className="lab-mini-button danger">删</button>
                   </div>

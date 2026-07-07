@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import crypto from 'crypto';
-import { DEFAULT_UNLOCKED_ITEMS, INITIAL_PLAYER_COINS } from '../shared/unlocks.js';
+import { DEFAULT_UNLOCKED_ITEMS, INITIAL_PLAYER_COINS, INITIAL_PLAYER_DIAMONDS } from '../shared/unlocks.js';
 import { DATABASE_MIGRATIONS } from './_migrations.js';
 
 export type SqlRow = Record<string, unknown>;
@@ -102,7 +102,7 @@ export async function ensurePlayer(playerId: string) {
   const sql = getSql();
   await ensureTables();
   await sql`INSERT INTO players (player_id) VALUES (${playerId}) ON CONFLICT (player_id) DO NOTHING`;
-  await sql`INSERT INTO player_wallet (player_id, coins, magic_keys) VALUES (${playerId}, ${INITIAL_PLAYER_COINS}, 0)
+  await sql`INSERT INTO player_wallet (player_id, coins, magic_keys, diamonds) VALUES (${playerId}, ${INITIAL_PLAYER_COINS}, 0, ${INITIAL_PLAYER_DIAMONDS})
     ON CONFLICT (player_id) DO NOTHING`;
   await ensureDefaultUnlocks(playerId);
 }

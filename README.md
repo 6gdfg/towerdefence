@@ -1,29 +1,61 @@
-# 极简塔防
+# Tower Defence
 
-基于 React + TypeScript 的实验性塔防游戏，缝合了pvz、clash royale、保卫萝卜等游戏的特性：
+一个基于 React + TypeScript + Vite 的极简塔防游戏。项目包含账号、关卡、宝箱、植物/元素升级、图鉴、挑战和本地平衡实验室等功能。
 
-- **植物**：向日葵、瓶子草、四叶草、机枪、狙击手，可附加五种元素增益。
-- **怪物**：普通几何怪 + 新增治疗者、邪恶狙击手、狂暴者等特殊单位。
-- **元素**：可附加到植物，亦可单独放置成菱形陷阱（2 秒蓄力），并拥有独立冷却与全图/范围技能。
-- **关卡**：自动生成 52 关，部分关卡达到指定星级后解锁新植物/元素。
-- **经济**：向日葵每 10 秒产出金币，击杀怪物获得基础奖励×6。
-- **宝箱**：按照规则掉落碎片，可用金币按剩余分钟数（20 金币/分钟）直接开启。
+## 功能概览
 
-快速起步：
+- 主线章节与关卡难度：`EZ / HD / IN / AT`。
+- 植物、元素、怪物拥有独立数值和特殊机制。
+- 账号系统使用用户名和密码，进度存储在 Postgres。
+- 宝箱、碎片、金币、钻石和关卡奖励由后端 API 处理。
+- 平衡实验室可在本地调试关卡，并保存为代码里的生成配置。
+
+## 本地开发
+
 ```bash
 npm install
 npm run dev
 ```
 
-Vercel + Postgres 部署：
+常用检查：
 
-1. 在 Vercel 项目里添加 Storage / Postgres，确保项目环境变量里有 `POSTGRES_URL`。
-2. 设置 `AUTH_SECRET`，用一段足够长的随机字符串。
-3. 部署时 Vercel 会执行 `npm run vercel-build`，它会先跑 `npm run db:migrate`，再构建前端。
-4. API 冷启动时也会调用同一套迁移作为兜底，所以不需要手动复制 SQL 到数据库控制台。
+```bash
+npm run check
+```
 
-本地手动同步数据库结构：
+数据库迁移：
+
 ```bash
 npm run db:migrate
 ```
 
+## 环境变量
+
+参考 `.env.example`：
+
+- `POSTGRES_URL`：Vercel Storage / Postgres 连接串。
+- `DATABASE_URL`：本地开发时可作为替代连接串。
+- `AUTH_SECRET`：账号登录 token 的密钥；部署环境已有就不用改。
+
+兼容变量：`AUTHSECRET`、`authsecret`、`JWT_SECRET`。
+
+## Vercel 部署
+
+项目部署在 Vercel 上，`vercel.json` 会使用：
+
+```bash
+npm run vercel-build
+```
+
+这个命令会先执行数据库迁移，再构建前端，所以通常不需要手动复制 SQL。
+
+## 平衡实验室
+
+本地 dev server 中的实验室可以保存关卡草稿，生成配置会写入：
+
+- `src/td/balanceDraft.generated.ts`
+- `shared/unlockDraft.generated.ts`
+
+关卡数值、难度定数、怪物波次、AT 模式和通关解锁奖励都以这些生成配置为准。
+
+更完整的数值表见 `docs/game-data.md`。

@@ -705,6 +705,11 @@ input {
   cursor: not-allowed;
 }
 
+.phigros-diff-tile.is-locked {
+  filter: grayscale(0.42);
+  opacity: 0.44;
+}
+
 .phigros-diff-tile.is-disabled {
   opacity: 0.96;
 }
@@ -713,7 +718,7 @@ input {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 112px;
+  min-width: 136px;
 }
 
 .phigros-play-button,
@@ -740,6 +745,37 @@ input {
 .phigros-unlock-button {
   background: #f59e0b;
   color: #111827;
+}
+
+.phigros-challenge-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.phigros-challenge-chip {
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 6px;
+  padding: 5px 6px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.phigros-challenge-chip.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(14, 165, 233, 0.62);
+  background: rgba(14, 165, 233, 0.13);
+  color: #0369a1;
+}
+
+.phigros-challenge-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .chapter-select-page {
@@ -1052,6 +1088,190 @@ input {
   margin-top: 12px;
 }
 
+.lab-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  gap: 10px;
+}
+
+.lab-mode-card {
+  min-height: 46px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #172033;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.lab-mode-card.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.lab-at-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(203, 213, 225, 0.62);
+  background: rgba(248, 250, 252, 0.64);
+}
+
+.lab-pool-title {
+  margin: 12px 0 8px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.lab-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.lab-pool-chip {
+  display: grid;
+  grid-template-columns: auto minmax(72px, 1fr) 92px;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(203, 213, 225, 0.66);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  color: #172033;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.lab-pool-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-pool-weight {
+  width: 92px;
+  min-height: 28px;
+  justify-self: end;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #172033;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lab-pool-chip.element {
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+.lab-pool-chip.is-active {
+  border-color: rgba(15, 23, 42, 0.56);
+  background: rgba(226, 232, 240, 0.72);
+}
+
+.card-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.card-pick-item {
+  min-height: 86px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid rgba(203, 213, 225, 0.68);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.70);
+  color: #172033;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.card-pick-item span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-pick-item small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.card-pick-item.is-selected {
+  transform: translateY(-1px);
+  border-color: rgba(15, 23, 42, 0.70);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+}
+
+.card-pick-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.challenge-card {
+  min-height: 136px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid rgba(203, 213, 225, 0.68);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.70);
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.challenge-card span {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.challenge-card strong {
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.challenge-card small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.challenge-card.is-active {
+  transform: translateY(-2px);
+  border-color: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+}
+
 .lab-target-card {
   position: relative;
   min-height: 66px;
@@ -1219,12 +1439,20 @@ input {
 
 .lab-group-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1.2fr) repeat(5, minmax(76px, 0.7fr)) auto;
+  grid-template-columns: minmax(130px, 1.15fr) repeat(6, minmax(70px, 0.65fr)) minmax(58px, 0.45fr) auto;
   align-items: end;
   gap: 8px;
   padding: 10px;
   border-radius: 8px;
   background: rgba(248, 250, 252, 0.78);
+}
+
+.lab-group-row .lab-boss-check input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin-top: 7px;
+  accent-color: #172033;
 }
 
 .lab-export-textarea {
@@ -1424,6 +1652,10 @@ input {
     flex-direction: row;
   }
 
+  .phigros-challenge-row {
+    flex: 1 1 136px;
+  }
+
   .phigros-play-button,
   .phigros-unlock-button {
     flex: 1;
@@ -1508,6 +1740,10 @@ input {
 
   .lab-level-grid {
     grid-template-columns: 1fr;
+  }
+
+  .lab-pool-grid {
+    grid-template-columns: repeat(auto-fit, minmax(208px, 1fr));
   }
 
   .phigros-level-card {

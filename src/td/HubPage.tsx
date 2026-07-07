@@ -5,6 +5,8 @@ import type { HubData } from './appTypes';
 import { resolveChestTypeLabel } from './labels';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
 
+type SkipCurrency = 'diamonds' | 'coins';
+
 type HubPageProps = {
   hub: HubData | null;
   nowTick: number;
@@ -14,7 +16,7 @@ type HubPageProps = {
   onUpgradeTower: (towerType: string) => void;
   onStartUnlock: (chestId: string) => void;
   onOpenChest: (chestId: string) => void;
-  onSkipChest: (chestId: string) => void;
+  onSkipChest: (chestId: string, currency: SkipCurrency) => void;
   onCraftLegendary: () => void;
   onStartGame: () => void;
   onOpenFunMode: () => void;
@@ -76,6 +78,10 @@ export default function HubPage({
           <div className="metric-pill">
             <span>神奇钥匙</span>
             <strong>{hub?.magicKeys ?? 0}</strong>
+          </div>
+          <div className="metric-pill">
+            <span>钻石</span>
+            <strong>{hub?.diamonds ?? 0}</strong>
           </div>
           <div className="metric-pill">
             <span>宝箱</span>
@@ -198,8 +204,8 @@ export default function HubPage({
                 if (status === 'unlocking') {
                   const readyAt = c.unlock_ready_at ? new Date(c.unlock_ready_at).getTime() : 0;
                   const left = Math.max(0, Math.floor((readyAt - nowTick) / 1000));
-                  const minutes = Math.max(1, Math.ceil(left / 60));
-                  const skipCost = minutes * 20;
+                  const diamondSkipCost = Math.max(1, Math.ceil(left / 1800));
+                  const coinSkipCost = Math.max(1, Math.ceil(left / 60)) * 20;
                   if (left <= 0) {
                     action = (
                       <button onClick={() => onOpenChest(c.chest_id)} disabled={disableOpen} className="action-button primary" style={{ opacity: disableOpen ? 0.56 : 1 }}>
@@ -209,12 +215,18 @@ export default function HubPage({
                   } else {
                     const mm = Math.floor(left / 60).toString().padStart(2, '0');
                     const ss = (left % 60).toString().padStart(2, '0');
-                    const canSkip = (hub?.coins ?? 0) >= skipCost;
+                    const canSkipByDiamonds = (hub?.diamonds ?? 0) >= diamondSkipCost;
+                    const canSkipByCoins = (hub?.coins ?? 0) >= coinSkipCost;
                     action = <div className="muted">解锁中 {mm}:{ss}</div>;
                     extraAction = (
-                      <button onClick={() => onSkipChest(c.chest_id)} disabled={!canSkip} className="action-button" style={{ color: canSkip ? '#b45309' : '#9ca3af', opacity: canSkip ? 1 : 0.58 }}>
-                        金币跳过（{skipCost}）
-                      </button>
+                      <>
+                        <button onClick={() => onSkipChest(c.chest_id, 'diamonds')} disabled={!canSkipByDiamonds} className="action-button" style={{ color: canSkipByDiamonds ? '#0369a1' : '#9ca3af', opacity: canSkipByDiamonds ? 1 : 0.58 }}>
+                          钻石跳过（{diamondSkipCost}）
+                        </button>
+                        <button onClick={() => onSkipChest(c.chest_id, 'coins')} disabled={!canSkipByCoins} className="action-button" style={{ color: canSkipByCoins ? '#b45309' : '#9ca3af', opacity: canSkipByCoins ? 1 : 0.58 }}>
+                          金币跳过（{coinSkipCost}）
+                        </button>
+                      </>
                     );
                   }
                 }

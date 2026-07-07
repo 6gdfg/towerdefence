@@ -4,6 +4,7 @@ import type { ElementType, PlantType } from './types';
 export type HubData = {
   coins: number;
   magicKeys: number;
+  diamonds: number;
   shards: Record<string, number>;
   plantShards: Record<string, number>;
   elementShards: Record<string, number>;
@@ -14,6 +15,7 @@ export type HubData = {
 
 export type CloudProgress = HubData & {
   stars?: Record<string, number>;
+  fullHealthClears?: Record<string, boolean>;
   unlocked?: number;
 };
 
@@ -30,9 +32,11 @@ export type CloudChest = {
 export type WinReward = {
   coins: number;
   chestType?: string | null;
+  chestTypes?: string[];
   chestAwarded?: boolean;
   repeatChestChance?: number;
   newRecord?: boolean;
+  diamonds?: number;
   message?: string;
 };
 

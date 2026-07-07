@@ -4,11 +4,6 @@ import { ElementType, PlantType } from './types';
 export const PLANT_TYPES: PlantType[] = ['sunflower', 'bottleGrass', 'puffShroom', 'fourLeafClover', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'];
 export const ELEMENT_TYPES: ElementType[] = ['fire', 'wind', 'ice', 'electric', 'gold', 'light'];
 
-export const PLANT_UNLOCK_TARGETS: Record<number, PlantType> = {
-  4: 'rocket',
-  11: 'sunlightFlower',
-};
-
 export const STAR_LABELS: Record<1 | 2 | 3, string> = { 1: 'EZ', 2: 'HD', 3: 'IN' };
 
 export const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {

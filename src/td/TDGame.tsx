@@ -19,9 +19,10 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, applyElement, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
+  const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= 900 : false,
   );
@@ -33,6 +34,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const selectedPlantInfo = selectedPlant ? getPlantRuntimeConfig(selectedPlant, labOverrides) : null;
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
+  const isConveyorMode = atModeConfig?.type === 'conveyor';
+  const selectedConveyorItem = selectedConveyorIndex == null ? null : conveyorQueue[selectedConveyorIndex] ?? null;
+  const selectedConveyorElementRemaining = selectedConveyorItem?.kind === 'element'
+    ? Math.max(0, (elementCooldowns?.[selectedConveyorItem.id] ?? 0) - gameTime)
+    : 0;
   const plantChoices = availablePlants
     .map(id => getPlantRuntimeConfig(id, labOverrides))
     .filter((cfg): cfg is NonNullable<ReturnType<typeof getPlantRuntimeConfig>> => Boolean(cfg));
@@ -40,7 +46,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
   const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
-  const isFiniteMode = mode === 'campaign' || mode === 'random' || mode === 'lab';
+  const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const modeLabel = mode === 'endless'
     ? '无尽模式'
     : mode === 'endlessTest'
@@ -49,9 +55,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         ? '平衡测试'
         : mode === 'random'
           ? '随机模式'
-          : mode === 'campaign'
-            ? '关卡模式'
-            : null;
+          : mode === 'at'
+            ? 'AT 模式'
+            : mode === 'campaign'
+              ? '关卡模式'
+              : null;
   const tutorialCopy = (() => {
     if (!tutorialMode) return null;
     if (towers.length === 0) {
@@ -73,7 +81,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         title: '观察战斗',
         body: enemies.length > 0
           ? '植物会自动攻击进入射程的怪物。漏怪会扣生命，击败怪物会获得本局金币。'
-          : '这一波正在结束。等场上怪物和子弹清空后，就可以开始下一波。',
+          : '这一波正在结束。等场上怪物清空后，就可以开始下一波。',
       };
     }
     if (waveIndex < waves.length) {
@@ -99,6 +107,18 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
       setSelectedElement(null);
     }
   }, [availableElements, selectedElement]);
+
+  useEffect(() => {
+    if (!isConveyorMode) {
+      setSelectedConveyorIndex(null);
+      return;
+    }
+    setSelectedPlant(null);
+    setSelectedElement(null);
+    if (selectedConveyorIndex != null && selectedConveyorIndex >= conveyorQueue.length) {
+      setSelectedConveyorIndex(null);
+    }
+  }, [conveyorQueue.length, isConveyorMode, selectedConveyorIndex]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -169,7 +189,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   }, [lives, onLose]);
 
   const handlePlace = (e: React.MouseEvent) => {
-    if (!selectedPlant && !selectedElement) return;
+    if (!selectedPlant && !selectedElement && !selectedConveyorItem) return;
     const svg = svgRef.current;
     if (!svg) return;
 
@@ -194,7 +214,22 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     }
 
     if (nearestGrid && minDist < 1.0) {
-      if (selectedPlant) {
+      if (selectedConveyorItem && selectedConveyorIndex != null) {
+        if (selectedConveyorItem.kind === 'plant') {
+          if (canPlaceTower(nearestGrid)) {
+            placeTowerFromConveyor(selectedConveyorIndex, nearestGrid);
+            setSelectedConveyorIndex(null);
+          }
+        } else {
+          const targetTower = towers.some(tower => Math.hypot(tower.pos.x - nearestGrid.x, tower.pos.y - nearestGrid.y) <= 0.75);
+          const cooldownReadyAt = elementCooldowns?.[selectedConveyorItem.id] ?? 0;
+          const canUseElement = targetTower || cooldownReadyAt <= gameTime;
+          applyElementFromConveyor(selectedConveyorIndex, nearestGrid);
+          if (canUseElement) {
+            setSelectedConveyorIndex(null);
+          }
+        }
+      } else if (selectedPlant) {
         if (canPlaceTower(nearestGrid)) {
           placeTower(selectedPlant, nearestGrid);
         }
@@ -205,7 +240,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   };
 
   const handleTowerClick = (tower: typeof towers[number], e: React.MouseEvent) => {
-    if (selectedPlant || selectedElement) {
+    if (selectedPlant || selectedElement || selectedConveyorItem) {
       return;
     }
     e.stopPropagation();
@@ -283,6 +318,78 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           }}
         >
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {isConveyorMode ? (
+              <div>
+                <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>传送带</div>
+                <div
+                  style={{
+                    display:'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    flexWrap: isMobile ? 'wrap' : 'nowrap',
+                    gap: isMobile ? 6 : 8,
+                  }}
+                >
+                  {conveyorQueue.length === 0 && (
+                    <div style={{ fontSize:12, color:'#9ca3af' }}>等待物品进入传送带</div>
+                  )}
+                  {conveyorQueue.map((item, index) => {
+                    const active = selectedConveyorIndex === index;
+                    const isPlant = item.kind === 'plant';
+                    const plantCfg = isPlant ? getPlantRuntimeConfig(item.id, labOverrides) : null;
+                    const elementCfg = !isPlant ? ELEMENT_PLANT_CONFIG[item.id] : null;
+                    const name = plantCfg?.name ?? elementCfg?.name ?? item.id;
+                    const color = isPlant ? DEFAULT_PLANT_COLOR : elementCfg?.color ?? '#64748b';
+                    return (
+                      <button
+                        key={`${item.kind}-${item.id}-${index}`}
+                        title={name}
+                        onClick={() => {
+                          setSelectedConveyorIndex(active ? null : index);
+                          setSelectedPlant(null);
+                          setSelectedElement(null);
+                        }}
+                        style={{
+                          display:'flex',
+                          alignItems:'center',
+                          justifyContent: isMobile ? 'center' : 'space-between',
+                          padding: isMobile ? '8px' : '8px 10px',
+                          borderRadius:8,
+                          border: active ? '2px solid #111827' : '1px solid #d1d5db',
+                          background:'#ffffff',
+                          color:'#111827',
+                          cursor:'pointer',
+                          boxShadow: active ? '0 2px 6px rgba(17,24,39,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                          flex: isMobile ? '1 0 calc(18% - 4px)' : undefined,
+                          minWidth: isMobile ? 44 : undefined,
+                          minHeight: isMobile ? 44 : undefined,
+                        }}
+                      >
+                        <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {isPlant ? (
+                            <PlantIcon type={item.id} color={active ? '#111827' : color} size={isMobile ? 26 : 28} />
+                          ) : (
+                            <ElementIcon element={item.id} color={active ? '#111827' : color} size={isMobile ? 26 : 28} />
+                          )}
+                        </span>
+                        {!isMobile && (
+                          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
+                            <span>{name}</span>
+                            <span style={{ fontSize:12, color:'#6b7280' }}>{isPlant ? '植物' : '元素'}</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedConveyorItem && (
+                  <div style={{ fontSize:12, color:'#6b7280', padding:'8px 0 0' }}>
+                    当前操作：放置传送带物品（不消耗金币；元素单独释放仍有冷却）
+                    {selectedConveyorElementRemaining > 0.01 ? `，单放冷却 ${Math.ceil(selectedConveyorElementRemaining)} 秒` : ''}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
             <div>
               <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>基础植物</div>
               <div
@@ -449,6 +556,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 金币，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
             </div>
           )}
+              </>
+            )}
           </div>
         </aside>
 
@@ -465,7 +574,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           style={{
             width: fittedMapWidth > 0 ? fittedMapWidth : undefined,
             height: fittedMapHeight > 0 ? fittedMapHeight : undefined,
-            cursor: selectedPlant ? 'crosshair' : selectedElement ? 'cell' : 'default',
+            cursor: selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
           }}
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
           preserveAspectRatio="xMidYMid meet"
@@ -703,7 +812,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const totalMaxHp = Math.max(1, e.maxHp + maxArmorHp);
             const hpPercent = Math.max(0, (Math.max(0, e.hp) + armorHp) / totalMaxHp);
             const armorPercent = maxArmorHp > 0 ? armorHp / maxArmorHp : 0;
-            const size = 10 + (totalMaxHp / 15);
+            const bossSize = 10 + (totalMaxHp / 15);
             const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
             const grayValue = Math.round(31 + (1 - hpPercent) * 180);
             let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
@@ -716,7 +825,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
               enemyColor = `rgba(37,99,235,${alpha})`;
             }
-            const shapeSize = Math.max(18, size);
+            const shapeSize = e.isBoss ? Math.max(18, bossSize) : 18;
             const strokeWidth = 2.2;
             const shapeNode = (() => {
               switch (e.shape) {

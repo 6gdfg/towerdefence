@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { splitShardInventory } from '../shared/shards.js';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
-import { CHEST_REWARD_CONFIG, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig } from '../shared/rewards.js';
+import { CHEST_REWARD_CONFIG, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
@@ -15,8 +15,12 @@ function parseLevelNumber(levelId: string) {
   return Number.isNaN(levelNum) ? null : levelNum;
 }
 
-type ProgressRow = { level_id: string; max_star: number | string };
-type WalletRow = { coins?: number | string; magic_keys?: number | string };
+function readDbBoolean(value: unknown) {
+  return value === true || value === 'true' || value === 1;
+}
+
+type ProgressRow = { level_id: string; max_star: number | string; in_full_health_clear?: boolean | string | number | null; at_cleared?: boolean | string | number | null };
+type WalletRow = { coins?: number | string; magic_keys?: number | string; diamonds?: number | string };
 type ShardRow = { tower_type: string; shards: number | string };
 type TowerLevelRow = { tower_type: string; level: number | string };
 type UnlockedItemRow = { item_id: string };
@@ -41,8 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await ensurePlayer(playerId);
 
       const [prog, wallet, shards, levels, chests, unlockedRows] = await Promise.all([
-        sql`SELECT level_id, max_star FROM player_progress WHERE player_id=${playerId}`,
-        sql`SELECT coins, magic_keys FROM player_wallet WHERE player_id=${playerId}`,
+        sql`SELECT level_id, max_star, in_full_health_clear, at_cleared FROM player_progress WHERE player_id=${playerId}`,
+        sql`SELECT coins, magic_keys, diamonds FROM player_wallet WHERE player_id=${playerId}`,
         sql`SELECT tower_type, shards FROM inventory_shards WHERE player_id=${playerId}`,
         sql`SELECT tower_type, level FROM tower_levels WHERE player_id=${playerId}`,
         sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds, chest_type FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
@@ -50,9 +54,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
 
       const stars: Record<string, number> = {};
+      const fullHealthClears: Record<string, boolean> = {};
       (prog as ProgressRow[]).forEach(r => stars[r.level_id] = Number(r.max_star));
+      (prog as ProgressRow[]).forEach(r => {
+        if (readDbBoolean(r.in_full_health_clear)) {
+          fullHealthClears[r.level_id] = true;
+        }
+      });
       const coins = Number((wallet as WalletRow[])[0]?.coins ?? 0);
       const magicKeys = Number((wallet as WalletRow[])[0]?.magic_keys ?? 0);
+      const diamonds = Number((wallet as WalletRow[])[0]?.diamonds ?? 0);
       const shardInv: Record<string, number> = {};
       (shards as ShardRow[]).forEach(r => shardInv[r.tower_type] = Number(r.shards));
       const splitShards = splitShardInventory(shardInv);
@@ -70,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      return res.json({ stars, coins, magicKeys, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
+      return res.json({ stars, fullHealthClears, coins, magicKeys, diamonds, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
     }
 
     if (req.method === 'POST') {
@@ -104,22 +115,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (action === 'setStar') {
-        const { levelId, star } = req.body as { levelId?: string; star?: number };
+        const { levelId, star, fullHealth, difficulty, challengeDiamonds } = req.body as { levelId?: string; star?: number; fullHealth?: boolean; difficulty?: string; challengeDiamonds?: number };
         const parsedStar = Number(star);
         if (!levelId || ![1, 2, 3].includes(parsedStar)) return res.status(400).json({ error: 'params' });
+        const isAtClear = difficulty === 'AT';
+        const fullHealthClear = parsedStar === 3 && Boolean(fullHealth);
+        const challengeDiamondReward = Math.max(0, Math.min(2, Math.floor(Number(challengeDiamonds) || 0)));
 
-        const cur = await sql`SELECT max_star FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
+        const cur = await sql`SELECT max_star, in_full_health_clear, at_cleared FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
         const prev = Number((cur as ProgressRow[])[0]?.max_star ?? 0);
         const next = Math.max(prev, parsedStar);
+        const hadFullHealthClear = readDbBoolean((cur as ProgressRow[])[0]?.in_full_health_clear);
+        const hadAtClear = readDbBoolean((cur as ProgressRow[])[0]?.at_cleared);
+        const nextFullHealthClear = hadFullHealthClear || fullHealthClear;
+        const newFullHealthClear = fullHealthClear && !hadFullHealthClear;
+        const nextAtClear = hadAtClear || isAtClear;
 
-        await sql`INSERT INTO player_progress (player_id, level_id, max_star) VALUES (${pid}, ${levelId}, ${next})
-          ON CONFLICT (player_id, level_id) DO UPDATE SET max_star=excluded.max_star, updated_at=NOW()`;
+        await sql`INSERT INTO player_progress (player_id, level_id, max_star, in_full_health_clear, at_cleared) VALUES (${pid}, ${levelId}, ${next}, ${nextFullHealthClear}, ${nextAtClear})
+          ON CONFLICT (player_id, level_id) DO UPDATE SET max_star=excluded.max_star, in_full_health_clear=(player_progress.in_full_health_clear OR excluded.in_full_health_clear), at_cleared=(player_progress.at_cleared OR excluded.at_cleared), updated_at=NOW()`;
 
         const newUnlocks: string[] = [];
         const levelNum = parseLevelNumber(levelId);
         if (levelNum !== null) {
           for (const rule of LEVEL_UNLOCK_REQUIREMENTS) {
-            if (rule.level === levelNum && next >= rule.star) {
+            const difficultyMatched = isAtClear
+              ? rule.difficulty === 'AT'
+              : rule.difficulty === difficulty;
+            if (rule.level === levelNum && difficultyMatched) {
               const existed = await sql`SELECT unlocked FROM unlocked_items WHERE player_id=${pid} AND item_id=${rule.itemId}`;
               const isUnlocked = Boolean(existed[0]?.unlocked);
               if (!isUnlocked) {
@@ -134,44 +156,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let rewardMagicKeys = 0;
         const rewardConfig = getStarRewardConfig(parsedStar);
-        const chestType = rewardConfig.chestType;
-        const newRecord = next > prev;
+        const atFirstClear = isAtClear && !hadAtClear;
+        const newRecord = isAtClear ? atFirstClear : next > prev;
         const repeatOneStar = !newRecord && parsedStar === 1;
-        const baseRewardCoins = randInt(rewardConfig.coins.min, rewardConfig.coins.max);
+        const baseRewardCoins = atFirstClear
+          ? randInt(5000, 8000)
+          : randInt(rewardConfig.coins.min, rewardConfig.coins.max);
         const rewardCoins = (newRecord || repeatOneStar)
           ? baseRewardCoins
           : Math.max(1, Math.floor(baseRewardCoins * REPEAT_CLEAR_COIN_MULTIPLIER));
         const repeatChestChance = repeatOneStar ? 1 : getRepeatClearChestChance(levelNum);
-        const chestAwarded = newRecord || repeatOneStar || Math.random() < repeatChestChance;
+        const chestAwarded = atFirstClear || newRecord || repeatOneStar || Math.random() < repeatChestChance;
+        const chestTypes: ChestType[] = atFirstClear
+          ? ['epic', 'epic', 'legendary']
+          : chestAwarded
+            ? [rewardConfig.chestType]
+            : [];
+        const diamondReward = challengeDiamondReward + (atFirstClear ? 1 : 0);
 
         if (levelNum === 4 && parsedStar >= 1 && prev === 0) {
           rewardMagicKeys = 1;
         }
 
-        await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, updated_at=NOW()
+        await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, diamonds = diamonds + ${diamondReward}, updated_at=NOW()
           WHERE player_id=${pid}`;
 
         let chestId: string | null = null;
-        if (chestAwarded) {
-          const chestConfig = CHEST_REWARD_CONFIG[chestType];
+        for (const awardedChestType of chestTypes) {
+          const chestConfig = CHEST_REWARD_CONFIG[awardedChestType];
           const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
-          chestId = createId('c');
+          const nextChestId = createId('c');
+          if (!chestId) chestId = nextChestId;
           await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-            VALUES (${chestId}, ${pid}, 'locked', ${chestConfig.unlockSeconds}, ${chestType}, ${chestCoinReward})`;
+            VALUES (${nextChestId}, ${pid}, 'locked', ${chestConfig.unlockSeconds}, ${awardedChestType}, ${chestCoinReward})`;
         }
-
         return res.json({
           ok: true,
           star: next,
           rewardCoins,
           rewardMagicKeys,
+          diamondReward,
           chestId,
-          chestType: chestAwarded ? chestType : null,
+          chestType: chestTypes[0] ?? null,
+          chestTypes,
           chestAwarded,
           repeatChestChance,
           previousStar: prev,
           newRecord,
+          atFirstClear,
           newUnlocks,
+          fullHealthClear: nextFullHealthClear,
+          newFullHealthClear,
         });
       }
 

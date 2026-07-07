@@ -14,6 +14,7 @@ export interface Enemy {
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
   reward?: number; // 击杀奖励，优先来自波次配置
   level?: number; // 怪物等级（显示用，可选，默认1）
+  isBoss?: boolean; // Boss 只影响显示体型等表现，不参与基础数值公式
   // 路径进度
   pathIndex: number; // 当前处于 path[pathIndex] -> path[pathIndex+1] 之间
   t: number; // [0,1)
@@ -41,6 +42,31 @@ export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafCl
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
+
+export type AtModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect';
+export type ConveyorItem =
+  | { kind: 'plant'; id: PlantType; weight?: number }
+  | { kind: 'element'; id: ElementType; weight?: number };
+
+export type AtModeConfig = {
+  type: AtModeType;
+  conveyor?: {
+    intervalSec: number;
+    maxQueue: number;
+    pool: ConveyorItem[];
+  };
+  lastStand?: {
+    startGold: number;
+    bannedPlants?: PlantType[];
+    disableKillRewards?: boolean;
+  };
+  cardSelect?: {
+    maxPlants: number;
+    maxElements: number;
+    monsterLevelMultiplier: number;
+  };
+};
+
 export type LabPlantStatOverride = Partial<Record<'cost' | 'range' | 'damage' | 'fireRate' | 'projectileSpeed' | 'placementCooldown' | 'incomeInterval' | 'incomeBase' | 'incomeBonusPerLevel', number>>;
 export type LabMonsterStatOverride = Partial<Record<'hp' | 'armorHp' | 'speed' | 'leakDamage', number>>;
 export type LabOverrides = {
@@ -49,7 +75,7 @@ export type LabOverrides = {
 };
 
 export type TowerType = PlantType;
-export type GameMode = 'campaign' | 'endless' | 'endlessTest' | 'random' | 'lab';
+export type GameMode = 'campaign' | 'at' | 'endless' | 'endlessTest' | 'random' | 'lab';
 
 export interface Tower {
   id: string;
@@ -135,12 +161,20 @@ export interface WaveGroup {
   interval: number; // 秒
   level: number; // 怪物等级（决定HP和速度）
   reward: number; // 每只击杀奖励
+  isBoss?: boolean; // 是否按 Boss 体型渲染，可与多数量/自动分流共存
+  startDelay?: number; // 从本波开始后延迟几秒开始刷；同一延迟可同时刷多个怪组
   pathId?: number; // 指定走哪条路径（多路径地图）
   leakDamage?: number; // 泄漏伤害（默认1）
 }
 
 export interface WaveDef {
   groups: WaveGroup[];
+}
+
+export interface SpawnCursor {
+  groupIndex: number;
+  nextSpawnTime: number; // 下一次刷新的绝对时间
+  remaining: number; // 当前小组剩余
 }
 
 export interface TDState {
@@ -164,16 +198,16 @@ export interface TDState {
   plantCooldowns: Partial<Record<PlantType, number>>;
   availablePlants: PlantType[];
   availableElements: ElementType[];
+  atModeConfig?: AtModeConfig | null;
+  conveyorQueue: ConveyorItem[];
+  nextConveyorItemAt?: number | null;
+  disableKillRewards?: boolean;
   // 波次
   waves: WaveDef[];
   waveIndex: number; // 当前波次（从0计）
   nextWaveStartTime?: number | null;
   isWaveActive: boolean;
-  spawnCursor?: {
-    groupIndex: number;
-    nextSpawnTime: number; // 下一次刷新的绝对时间
-    remaining: number; // 当前小组剩余
-  } | null;
+  spawnCursor?: SpawnCursor[] | null;
   // 玩家塔等级映射（用于放塔时按等级缩放面板）
   towerLevelMap?: TowerLevelMap;
   labOverrides?: LabOverrides | null;

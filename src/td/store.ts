@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
@@ -15,6 +15,8 @@ const EVIL_SNIPER_SPECIAL_INTERVAL = 20;
 const SUMMONER_SPECIAL_INTERVAL = 5;
 const PURIFIER_CLEANSE_INTERVAL = 3;
 const PURIFIER_CLEANSE_RADIUS = 3;
+const DEFAULT_WAVE_GAP_SECONDS = 2;
+const DEFAULT_GROUP_GAP_SECONDS = 2;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -58,6 +60,34 @@ function ensureTowerStats(tower: Tower, labOverrides?: LabOverrides | null) {
   tower.incomeInterval = base.incomeInterval;
   tower.incomeBase = base.incomeBase;
   tower.incomeBonusPerLevel = base.incomeBonusPerLevel;
+  return tower;
+}
+
+function createTowerForPlacement(type: PlantType, pos: Position, level: number, gameTime: number, labOverrides?: LabOverrides | null) {
+  const base = getPlantRuntimeConfig(type, labOverrides);
+  if (!base) return null;
+  const tower: Tower = {
+    id: `tower-${Date.now()}-${Math.random()}`,
+    pos,
+    type,
+    level,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    lastShotTime: -999,
+    lockedTargetId: undefined,
+    projectileSpeed: base.projectileSpeed,
+    penetration: base.penetration,
+    incomeInterval: base.incomeInterval,
+    incomeBase: base.incomeBase,
+    incomeBonusPerLevel: base.incomeBonusPerLevel,
+    lastIncomeTime: gameTime,
+    controlAuraLastPulseTime: base.controlAura ? gameTime : undefined,
+    expiresAt: base.instantEffect ? gameTime + base.instantEffect.delaySec : base.lifetimeSec ? gameTime + base.lifetimeSec : undefined,
+    color: base.instantEffect?.type === 'radiusFrostBlast' ? '#3b82f6' : base.instantEffect ? '#ef4444' : base.controlAura ? '#10b981' : DEFAULT_PLANT_COLOR,
+    bulletColor: DEFAULT_BULLET_COLOR,
+  };
+  ensureTowerStats(tower, labOverrides);
   return tower;
 }
 
@@ -272,12 +302,11 @@ function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
   if (enemy.shape === 'iceShell' && isBurning(enemy, gameTime)) {
     amount *= 2;
   }
-  if (armorBreakActive && !hasArmorProfile(enemy)) {
-    amount *= enemy.armorBreakDamageMultiplier || 1;
-  }
-
   const beforeBody = Math.max(0, enemy.hp);
   const beforeArmor = Math.max(0, enemy.armorHp ?? 0);
+  if (armorBreakActive && beforeArmor <= 0) {
+    amount *= enemy.armorBreakDamageMultiplier || 1;
+  }
   const shouldHitArmor = beforeArmor > 0 && !armorBreakActive;
 
   if (shouldHitArmor) {
@@ -330,15 +359,85 @@ function resolveSpawnPathId(pathId: number | undefined, paths: Position[][], ene
   return bestPathId;
 }
 
+function createSpawnCursorsForWave(wave: WaveDef, startTime: number): SpawnCursor[] {
+  if (!wave.groups.length) return [];
+  const hasExplicitTiming = wave.groups.some(group => group.startDelay != null);
+  if (hasExplicitTiming) {
+    const cursors: SpawnCursor[] = [];
+    let nextSequentialStart = 0;
+
+    wave.groups.forEach((group, groupIndex) => {
+      const count = Math.max(0, Math.floor(group.count || 0));
+      const startDelay = group.startDelay != null
+        ? Math.max(0, group.startDelay)
+        : nextSequentialStart;
+
+      if (count > 0) {
+        cursors.push({
+          groupIndex,
+          nextSpawnTime: startTime + startDelay,
+          remaining: count,
+        });
+      }
+
+      const groupDuration = Math.max(0, count - 1) * Math.max(0, group.interval || 0);
+      nextSequentialStart = Math.max(nextSequentialStart, startDelay + groupDuration + DEFAULT_GROUP_GAP_SECONDS);
+    });
+
+    return cursors;
+  }
+
+  const firstGroup = wave.groups[0];
+  return [{
+    groupIndex: 0,
+    nextSpawnTime: startTime,
+    remaining: Math.max(0, Math.floor(firstGroup.count || 0)),
+  }].filter(cursor => cursor.remaining > 0);
+}
+
+function getConveyorPool(config: AtModeConfig | null | undefined, plants: PlantType[], elements: ElementType[]) {
+  const configuredPool = config?.type === 'conveyor' ? (config.conveyor?.pool ?? []) : [];
+  if (configuredPool.length > 0) return configuredPool;
+  return [
+    ...plants.map((id): ConveyorItem => ({ kind: 'plant', id, weight: 100 })),
+    ...elements.map((id): ConveyorItem => ({ kind: 'element', id, weight: 100 })),
+  ];
+}
+
+function getConveyorItemWeight(item: ConveyorItem) {
+  const weight = Number(item.weight ?? 100);
+  return Number.isFinite(weight) ? Math.max(1, weight) : 100;
+}
+
+function pickWeightedConveyorItem(pool: ConveyorItem[]) {
+  const totalWeight = pool.reduce((sum, item) => sum + getConveyorItemWeight(item), 0);
+  let roll = Math.random() * totalWeight;
+  for (const item of pool) {
+    roll -= getConveyorItemWeight(item);
+    if (roll <= 0) return item;
+  }
+  return pool[pool.length - 1];
+}
+
+function getConveyorInterval(config: AtModeConfig | null | undefined) {
+  return Math.max(0.2, config?.type === 'conveyor' ? (config.conveyor?.intervalSec ?? 3) : 3);
+}
+
+function getConveyorMaxQueue(config: AtModeConfig | null | undefined) {
+  return Math.max(1, Math.floor(config?.type === 'conveyor' ? (config.conveyor?.maxQueue ?? 8) : 8));
+}
+
 export interface TDStore extends TDState {
   startWave: () => void;
   placeTower: (type: PlantType, pos: Position) => void;
+  placeTowerFromConveyor: (queueIndex: number, pos: Position) => void;
   applyElement: (element: ElementType, pos: Position) => void;
+  applyElementFromConveyor: (queueIndex: number, pos: Position) => void;
   canPlaceTower: (pos: Position) => boolean;
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; disableKillRewards?: boolean }) => void;
   togglePause: () => void;
 }
 
@@ -363,6 +462,10 @@ const INITIAL_TD_STATE: TDState = {
   plantCooldowns: {},
   availablePlants: ['sunflower', 'bottleGrass'] as PlantType[],
   availableElements: [] as ElementType[],
+  atModeConfig: null,
+  conveyorQueue: [],
+  nextConveyorItemAt: null,
+  disableKillRewards: false,
   // 波次
   waves: DEFAULT_WAVES,
   waveIndex: 0,
@@ -394,6 +497,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
   loadLevel: (level, map, opts) => {
     const paths = normalizeMapPaths(map.path);
+    const atModeConfig = opts?.atModeConfig ?? null;
+    const conveyorInterval = getConveyorInterval(atModeConfig);
 
     set({
       running: true,
@@ -412,8 +517,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
       damagePopups: [],
       elementCooldowns: {},
       plantCooldowns: {},
-      availablePlants: opts?.allowedPlants && opts.allowedPlants.length > 0 ? [...opts.allowedPlants] : [...INITIAL_TD_STATE.availablePlants],
+      availablePlants: opts?.allowedPlants ? [...opts.allowedPlants] : [...INITIAL_TD_STATE.availablePlants],
       availableElements: opts?.allowedElements ? [...opts.allowedElements] : [...INITIAL_TD_STATE.availableElements],
+      atModeConfig,
+      conveyorQueue: [],
+      nextConveyorItemAt: atModeConfig?.type === 'conveyor' ? conveyorInterval : null,
+      disableKillRewards: opts?.disableKillRewards ?? false,
       waves: level.waves,
       waveIndex: 0,
       isWaveActive: false,
@@ -445,34 +554,34 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const nextPlantCooldowns = placementCooldown > 0
       ? { ...state.plantCooldowns, [type]: state.gameTime + placementCooldown }
       : state.plantCooldowns;
-
-    const tower: Tower = {
-      id: `tower-${Date.now()}-${Math.random()}`,
-      pos,
-      type,
-      level,
-      range: 0,
-      damage: 0,
-      fireRate: 0,
-      lastShotTime: -999,
-      lockedTargetId: undefined,
-      projectileSpeed: base.projectileSpeed,
-      penetration: base.penetration,
-      incomeInterval: base.incomeInterval,
-      incomeBase: base.incomeBase,
-      incomeBonusPerLevel: base.incomeBonusPerLevel,
-      lastIncomeTime: state.gameTime,
-      controlAuraLastPulseTime: base.controlAura ? state.gameTime : undefined,
-      expiresAt: base.instantEffect ? state.gameTime + base.instantEffect.delaySec : base.lifetimeSec ? state.gameTime + base.lifetimeSec : undefined,
-      color: base.instantEffect?.type === 'radiusFrostBlast' ? '#3b82f6' : base.instantEffect ? '#ef4444' : base.controlAura ? '#10b981' : DEFAULT_PLANT_COLOR,
-      bulletColor: DEFAULT_BULLET_COLOR,
-    };
-    ensureTowerStats(tower, state.labOverrides);
+    const tower = createTowerForPlacement(type, pos, level, state.gameTime, state.labOverrides);
+    if (!tower) return;
 
     set({
       towers: [...state.towers, tower],
       gold: state.gold - cost,
       plantCooldowns: nextPlantCooldowns,
+    });
+  },
+
+  placeTowerFromConveyor: (queueIndex, pos) => {
+    const state = get();
+    if (state.atModeConfig?.type !== 'conveyor') return;
+    const item = state.conveyorQueue[queueIndex];
+    if (!item || item.kind !== 'plant') return;
+    const type = item.id;
+    const base = getPlantRuntimeConfig(type, state.labOverrides);
+    if (!base) return;
+    if (!state.availablePlants.includes(type)) return;
+    if (!get().canPlaceTower(pos)) return;
+
+    const level = Math.max(1, Math.floor(state.towerLevelMap?.[type] || 1));
+    const tower = createTowerForPlacement(type, pos, level, state.gameTime, state.labOverrides);
+    if (!tower) return;
+
+    set({
+      towers: [...state.towers, tower],
+      conveyorQueue: state.conveyorQueue.filter((_, index) => index !== queueIndex),
     });
   },
 
@@ -539,6 +648,71 @@ export const useTDStore = create<TDStore>((set, get) => ({
     });
   },
 
+  applyElementFromConveyor: (queueIndex, pos) => {
+    const state = get();
+    if (state.atModeConfig?.type !== 'conveyor') return;
+    const item = state.conveyorQueue[queueIndex];
+    if (!item || item.kind !== 'element') return;
+    const elementType = item.id;
+    const config = ELEMENT_PLANT_CONFIG[elementType];
+    if (!config) return;
+    if (!state.availableElements.includes(elementType)) return;
+    const levelKey = `element:${elementType}` as const;
+    const elementLevel = Math.max(1, Math.floor(state.towerLevelMap?.[levelKey] || 1));
+
+    const targetIndex = state.towers.findIndex(tower => getDistance(tower.pos.x, tower.pos.y, pos.x, pos.y) <= 0.75);
+
+    if (targetIndex !== -1) {
+      const tower = state.towers[targetIndex];
+      const towerConfig = getPlantRuntimeConfig(tower.type, state.labOverrides);
+      if (towerConfig?.elementAllowed === false) return;
+      if (towerConfig?.allowedElementTypes && !towerConfig.allowedElementTypes.includes(elementType)) return;
+      if (tower.type === 'sunflower' && SUNFLOWER_ELEMENT_BLOCKLIST.has(elementType)) return;
+
+      const towers = [...state.towers];
+      const targetTower = towers[targetIndex];
+
+      if (targetTower.element) {
+        if (targetTower.element.type !== elementType) return;
+        targetTower.element = {
+          ...targetTower.element,
+          level: Math.max(targetTower.element.level + 1, elementLevel),
+        };
+      } else {
+        targetTower.element = {
+          type: elementType,
+          level: elementLevel,
+          color: config.color,
+          bulletColor: config.bulletColor,
+        };
+      }
+
+      ensureTowerStats(targetTower, state.labOverrides);
+      set({
+        towers,
+        conveyorQueue: state.conveyorQueue.filter((_, index) => index !== queueIndex),
+      });
+      return;
+    }
+
+    const cooldownReadyAt = state.elementCooldowns[elementType] ?? 0;
+    if (cooldownReadyAt > state.gameTime) return;
+
+    const cast: ElementCast = {
+      id: `cast-${Date.now()}-${Math.random()}`,
+      element: elementType,
+      pos: { ...pos },
+      triggerTime: state.gameTime + 2,
+      level: elementLevel,
+    };
+
+    set({
+      singleUseCasts: [...state.singleUseCasts, cast],
+      elementCooldowns: { ...state.elementCooldowns, [elementType]: state.gameTime + (ELEMENT_SINGLE_USE_COOLDOWN[elementType] || 20) },
+      conveyorQueue: state.conveyorQueue.filter((_, index) => index !== queueIndex),
+    });
+  },
+
   manualFireTower: (towerId) => {
     const state = get();
     const index = state.towers.findIndex(t => t.id === towerId);
@@ -574,14 +748,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const state = get();
     if (state.isWaveActive) return;
     if (state.waveIndex >= state.waves.length) return;
-    const firstGroup = state.waves[state.waveIndex].groups[0];
+    const spawnCursors = createSpawnCursorsForWave(state.waves[state.waveIndex], state.gameTime);
     set({
       isWaveActive: true,
-      spawnCursor: {
-        groupIndex: 0,
-        nextSpawnTime: state.gameTime, // spawn immediately
-        remaining: firstGroup.count,
-      },
+      spawnCursor: spawnCursors.length > 0 ? spawnCursors : null,
     });
   },
 
@@ -602,13 +772,17 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let lives = state.lives;
     let waveIndex = state.waveIndex;
     let isWaveActive = state.isWaveActive;
-    let spawnCursor = state.spawnCursor ? { ...state.spawnCursor } : null;
+    let spawnCursor = state.spawnCursor ? state.spawnCursor.map(cursor => ({ ...cursor })) : null;
     let nextWaveStartTime = state.nextWaveStartTime ?? null;
     let waves = state.waves;
     const mode: GameMode = state.mode ?? 'campaign';
     const lifeBonusPerWave = state.lifeBonusPerWave ?? 0;
     const endlessWaveFactory = state.endlessWaveFactory ?? null;
     let wavesCleared = state.wavesCleared ?? 0;
+    let conveyorQueue = state.conveyorQueue.slice();
+    let nextConveyorItemAt = state.nextConveyorItemAt ?? null;
+    const atModeConfig = state.atModeConfig ?? null;
+    const disableKillRewards = state.disableKillRewards ?? false;
     const triggerIgniterDeathEffects = () => {
       enemies.forEach(enemy => {
         if (enemy.shape !== 'igniter' || enemy.hp > 0 || enemy.deathEffectTriggered) return;
@@ -621,6 +795,29 @@ export const useTDStore = create<TDStore>((set, get) => ({
         });
       });
     };
+
+    if (atModeConfig?.type === 'conveyor') {
+      const interval = getConveyorInterval(atModeConfig);
+      const maxQueue = getConveyorMaxQueue(atModeConfig);
+      const pool = getConveyorPool(atModeConfig, state.availablePlants, state.availableElements);
+      if (pool.length > 0) {
+        if (nextConveyorItemAt == null) {
+          nextConveyorItemAt = gameTime + interval;
+        }
+        while (nextConveyorItemAt != null && gameTime >= nextConveyorItemAt) {
+          if (conveyorQueue.length >= maxQueue) {
+            nextConveyorItemAt = gameTime + interval;
+            break;
+          }
+          const nextItem = pickWeightedConveyorItem(pool);
+          conveyorQueue.push({ ...nextItem });
+          nextConveyorItemAt += interval;
+        }
+      }
+    } else {
+      conveyorQueue = [];
+      nextConveyorItemAt = null;
+    }
 
     if (towers.some(tower => tower.expiresAt != null && tower.expiresAt <= gameTime)) {
       const expiredTowers = towers.filter(tower => tower.expiresAt != null && tower.expiresAt <= gameTime);
@@ -652,7 +849,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }];
           if (nextEnemy.hp <= 0 && !nextEnemy.rewardGiven) {
             nextEnemy.rewardGiven = true;
-            gold += rewardForEnemy(nextEnemy);
+            gold += rewardForEnemy(nextEnemy, disableKillRewards);
           }
           return nextEnemy;
         });
@@ -662,6 +859,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     triggerIgniterDeathEffects();
     towers.forEach(t => ensureTowerStats(t, state.labOverrides));
 
+    const controlAuraSlowByEnemy = new Map<string, number>();
     towers.forEach(tower => {
       const base = getPlantRuntimeConfig(tower.type, state.labOverrides);
       const aura = base?.controlAura;
@@ -675,7 +873,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       enemies.forEach(enemy => {
         if (enemy.hp <= 0) return;
         if (getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) > tower.range) return;
-        applySlow(enemy, slowPct, gameTime + 0.25);
+        controlAuraSlowByEnemy.set(enemy.id, Math.max(controlAuraSlowByEnemy.get(enemy.id) ?? 0, slowPct));
         if (pulseDue && knockbackDistance > 0) {
           const path = state.paths[enemy.pathId];
           rewindEnemyAlongPath(enemy, knockbackDistance, path);
@@ -685,6 +883,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (pulseDue) {
         tower.controlAuraLastPulseTime = gameTime;
       }
+    });
+    controlAuraSlowByEnemy.forEach((slowPct, enemyId) => {
+      const enemy = enemies.find(item => item.id === enemyId);
+      if (!enemy || enemy.hp <= 0) return;
+      applySlow(enemy, slowPct, gameTime + 0.25);
     });
 
     towers.forEach(tw => {
@@ -706,67 +909,83 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     // auto start scheduled next wave
     if (!isWaveActive && waveIndex < waves.length && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
-      const firstGroup = waves[waveIndex].groups[0];
+      const spawnCursors = createSpawnCursorsForWave(waves[waveIndex], gameTime);
       isWaveActive = true;
-      spawnCursor = {
-        groupIndex: 0,
-        nextSpawnTime: gameTime,
-        remaining: firstGroup.count,
-      };
+      spawnCursor = spawnCursors.length > 0 ? spawnCursors : null;
       nextWaveStartTime = null;
     }
 
     //  handle spawning
-    if (isWaveActive && waveIndex < waves.length && spawnCursor) {
+    if (isWaveActive && waveIndex < waves.length && spawnCursor && spawnCursor.length > 0) {
       const wave = waves[waveIndex];
-      const g = wave.groups[spawnCursor.groupIndex];
-      if (gameTime >= spawnCursor.nextSpawnTime && spawnCursor.remaining > 0) {
-        const baseStats = getMonsterRuntimeStats(g.type, state.labOverrides);
-        const mul = getMonsterLevelMultiplier(g.level);
-        const hp = Math.round(baseStats.hp * mul);
-        const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
-        const pathId = resolveSpawnPathId(g.pathId, state.paths, enemies);
-        const path = state.paths[pathId];
-        const enemy: Enemy = {
-          id: `e-${Date.now()}-${Math.random()}`,
-          pos: { ...path[0] },
-          hp,
-          maxHp: hp,
-          armorHp,
-          maxArmorHp: armorHp,
-          speed: baseStats.speed,
-          shape: g.type,
-          leakDamage: g.leakDamage ?? baseStats.leakDamage,
-          reward: g.reward,
-          level: g.level,
-          pathIndex: 0,
-          t: 0,
-          progress: 0,
-          pathId, // 记录该敌人走的路径ID
-        };
-        if (enemy.shape === 'healer') {
-          enemy.specialTimer = gameTime + HEALER_SPECIAL_INTERVAL;
-        } else if (enemy.shape === 'evilSniper') {
-          enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
-        } else if (enemy.shape === 'summoner') {
-          enemy.specialTimer = gameTime + SUMMONER_SPECIAL_INTERVAL;
-        } else if (enemy.shape === 'purifier') {
-          enemy.specialTimer = gameTime + PURIFIER_CLEANSE_INTERVAL;
+      const hasExplicitTiming = wave.groups.some(group => group.startDelay != null);
+      const nextSpawnCursors: SpawnCursor[] = [];
+
+      spawnCursor.forEach(cursor => {
+        const g = wave.groups[cursor.groupIndex];
+        if (!g || cursor.remaining <= 0) return;
+
+        let nextCursor = cursor;
+        if (gameTime >= cursor.nextSpawnTime) {
+          const baseStats = getMonsterRuntimeStats(g.type, state.labOverrides);
+          const mul = getMonsterLevelMultiplier(g.level);
+          const hp = Math.round(baseStats.hp * mul);
+          const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
+          const pathId = resolveSpawnPathId(g.pathId, state.paths, enemies);
+          const path = state.paths[pathId];
+          const enemy: Enemy = {
+            id: `e-${Date.now()}-${Math.random()}`,
+            pos: { ...path[0] },
+            hp,
+            maxHp: hp,
+            armorHp,
+            maxArmorHp: armorHp,
+            speed: baseStats.speed,
+            shape: g.type,
+            leakDamage: g.leakDamage ?? baseStats.leakDamage,
+            reward: g.reward,
+            level: g.level,
+            isBoss: !!g.isBoss,
+            pathIndex: 0,
+            t: 0,
+            progress: 0,
+            pathId, // 记录该敌人走的路径ID
+          };
+          if (enemy.shape === 'healer') {
+            enemy.specialTimer = gameTime + HEALER_SPECIAL_INTERVAL;
+          } else if (enemy.shape === 'evilSniper') {
+            enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
+          } else if (enemy.shape === 'summoner') {
+            enemy.specialTimer = gameTime + SUMMONER_SPECIAL_INTERVAL;
+          } else if (enemy.shape === 'purifier') {
+            enemy.specialTimer = gameTime + PURIFIER_CLEANSE_INTERVAL;
+          }
+          enemies.push(enemy);
+          nextCursor = {
+            ...cursor,
+            remaining: cursor.remaining - 1,
+            nextSpawnTime: gameTime + g.interval,
+          };
         }
-        enemies.push(enemy);
-        spawnCursor.remaining -= 1;
-        spawnCursor.nextSpawnTime = gameTime + g.interval;
-      }
-      if (spawnCursor.remaining <= 0) {
-        // move to next group
-        if (spawnCursor.groupIndex + 1 < wave.groups.length) {
-          spawnCursor.groupIndex += 1;
-          spawnCursor.remaining = wave.groups[spawnCursor.groupIndex].count;
-          spawnCursor.nextSpawnTime = gameTime + 1.5; // small gap
+
+        if (nextCursor.remaining <= 0) {
+          if (!hasExplicitTiming) {
+            const nextGroupIndex = nextCursor.groupIndex + 1;
+            const nextGroup = wave.groups[nextGroupIndex];
+            if (nextGroup) {
+              nextSpawnCursors.push({
+                groupIndex: nextGroupIndex,
+                nextSpawnTime: gameTime + DEFAULT_GROUP_GAP_SECONDS,
+                remaining: Math.max(0, Math.floor(nextGroup.count || 0)),
+              });
+            }
+          }
         } else {
-          spawnCursor = null; // spawning complete
+          nextSpawnCursors.push(nextCursor);
         }
-      }
+      });
+
+      spawnCursor = nextSpawnCursors.length > 0 ? nextSpawnCursors : null;
     }
 
     //  advance enemies along path
@@ -835,7 +1054,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           applyDamageWithArmor(e, dmg, burnEnd);
           if (e.hp <= 0 && !e.rewardGiven) {
             e.rewardGiven = true;
-            gold += rewardForEnemy(e);
+            gold += rewardForEnemy(e, disableKillRewards);
           }
         }
         if (gameTime >= e.burnUntil) {
@@ -862,7 +1081,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (color) addDamagePopup(enemy.pos, inflicted, color);
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy);
+        gold += rewardForEnemy(enemy, disableKillRewards);
       }
       return inflicted;
     };
@@ -946,11 +1165,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
         }
       } else if (enemy.shape === 'evilSniper') {
         if ((enemy.specialTimer ?? 0) <= gameTime) {
-          if (towers.length > 0) {
-            const index = Math.floor(Math.random() * towers.length);
-            const newTowers = [...towers];
-            newTowers.splice(index, 1);
-            towers = newTowers;
+          const destroyableTowers = towers.filter(tower => !getPlantRuntimeConfig(tower.type, state.labOverrides)?.instantEffect);
+          if (destroyableTowers.length > 0) {
+            const target = destroyableTowers[Math.floor(Math.random() * destroyableTowers.length)];
+            towers = towers.filter(tower => tower.id !== target.id);
             towersModified = true;
           }
           enemy.specialTimer = gameTime + EVIL_SNIPER_SPECIAL_INTERVAL;
@@ -1013,7 +1231,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             speed: baseStats.speed,
             shape: 'circle',
             leakDamage: baseStats.leakDamage,
-            reward: rewardForShape('circle'),
+            reward: rewardForEnemy(enemy),
             level: enemy.level,
             pathIndex: spawnPathIndex,
             t: spawnT,
@@ -1145,7 +1363,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
     });
 
-    const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number) => {
+    const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number, directHit = true) => {
       if (damageAmount <= 0 || enemy.hp <= 0) return;
       if (projectile.breakArmorDuration) {
         applyArmorBreak(enemy, impactTime + projectile.breakArmorDuration, projectile.breakArmorDamageMultiplier);
@@ -1154,7 +1372,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         enemy.burnDamagePerSec = projectile.burnDamagePerSec;
         enemy.burnUntil = impactTime + projectile.burnDuration;
       }
-      if (projectile.elementType === 'electric') {
+      if (directHit && projectile.elementType === 'electric') {
         resetElectricSensitiveSpecial(enemy, impactTime);
       }
       applyDamageWithArmor(enemy, damageAmount, impactTime);
@@ -1168,7 +1386,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy);
+        gold += rewardForEnemy(enemy, disableKillRewards);
       }
     };
 
@@ -1197,7 +1415,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             applyProjectileDamage(enemy, currentDamage, updated, gameTime);
             if (updated.splashRadius && updated.splashPercent) {
               const splashTargets = enemies.filter(e => e.id !== enemy.id && getDistance(e.pos.x, e.pos.y, enemy.pos.x, enemy.pos.y) <= updated.splashRadius!);
-              splashTargets.forEach(target => applyProjectileDamage(target, currentDamage * (updated.splashPercent || 0), updated, gameTime));
+              splashTargets.forEach(target => applyProjectileDamage(target, currentDamage * (updated.splashPercent || 0), updated, gameTime, false));
             }
             if (updated.pierced) {
               updated.pierced[enemy.id] = true;
@@ -1268,7 +1486,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           applyProjectileDamage(target, p.damage, p, gameTime);
           if (p.splashRadius && p.splashPercent) {
             const splashTargets = enemies.filter(e => e.id !== target.id && getDistance(e.pos.x, e.pos.y, target.pos.x, target.pos.y) <= p.splashRadius!);
-            splashTargets.forEach(enemy => applyProjectileDamage(enemy, p.damage * (p.splashPercent || 0), p, gameTime));
+            splashTargets.forEach(enemy => applyProjectileDamage(enemy, p.damage * (p.splashPercent || 0), p, gameTime, false));
           }
           return [];
         }
@@ -1291,7 +1509,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           applyDamageWithArmor(enemy, dps * dt, gameTime);
           if (enemy.hp <= 0 && !enemy.rewardGiven) {
             enemy.rewardGiven = true;
-            gold += rewardForEnemy(enemy);
+            gold += rewardForEnemy(enemy, disableKillRewards);
           }
         }
       });
@@ -1303,7 +1521,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     //  check wave finish
     if (isWaveActive) {
       const spawningDone = !spawnCursor; // no more spawn
-      if (spawningDone && enemies.length === 0 && projectiles.length === 0) {
+      if (spawningDone && enemies.length === 0) {
         isWaveActive = false;
         waveIndex += 1;
         wavesCleared += 1;
@@ -1316,7 +1534,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           waves = [...waves, newWave];
         }
         if (waveIndex < waves.length) {
-          nextWaveStartTime = gameTime + 2; // auto-next in 2s
+          nextWaveStartTime = gameTime + DEFAULT_WAVE_GAP_SECONDS;
         }
       }
     }
@@ -1354,6 +1572,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       damagePopups,
       elementCooldowns,
       plantCooldowns,
+      conveyorQueue,
+      nextConveyorItemAt,
       gold,
       lives,
       isWaveActive,
@@ -1371,7 +1591,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
   },
 }));
 
-function rewardForEnemy(e: Enemy): number {
+function rewardForEnemy(e: Enemy, disabled = false): number {
+  if (disabled) return 0;
   if (typeof e.reward === 'number' && Number.isFinite(e.reward)) {
     return Math.max(0, Math.round(e.reward));
   }

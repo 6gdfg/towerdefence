@@ -92,9 +92,9 @@ export function createFunModeWave(waveNumber: number): WaveDef {
     const bossLevel = 2000 + waveNumber;
     return {
       groups: [
-        { type: 'square', count: 18, interval: 0.45, level: bossLevel - 200, reward: 60 },
-        { type: 'evilSniper', count: 6, interval: 1.4, level: bossLevel, reward: 80 },
-        { type: 'rager', count: 8, interval: 1.1, level: bossLevel - 120, reward: 70 },
+        { type: 'square', count: 18, interval: 0.45, level: bossLevel - 200, reward: 60, isBoss: true },
+        { type: 'evilSniper', count: 6, interval: 1.4, level: bossLevel, reward: 80, isBoss: true },
+        { type: 'rager', count: 8, interval: 1.1, level: bossLevel - 120, reward: 70, isBoss: true },
       ],
     };
   }

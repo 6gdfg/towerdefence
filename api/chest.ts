@@ -150,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!playerId) return;
     await ensurePlayer(playerId);
 
-    const { action, chestId } = req.body || {};
+    const { action, chestId, currency } = req.body || {};
 
     if (action === 'craftLegendary') {
       const materialRows = await sql`SELECT chest_id, chest_type FROM chests
@@ -230,21 +230,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ ok: true, cost: 0, ready: true });
       }
 
-      const minutes = Math.max(1, Math.ceil(remainingMs / 60000));
-      const cost = minutes * 20;
-      const spent = await sql`UPDATE player_wallet
-        SET coins = coins - ${cost}, updated_at=NOW()
-        WHERE player_id=${playerId} AND coins >= ${cost}
-        RETURNING coins`;
-      if (spent.length === 0) {
-        const walletRows = await sql`SELECT coins FROM player_wallet WHERE player_id=${playerId}`;
-        return res.status(400).json({ error: 'COINS_NOT_ENOUGH', need: cost, have: Number(walletRows[0]?.coins ?? 0) });
+      const skipCurrency = currency === 'coins' ? 'coins' : 'diamonds';
+      const cost = skipCurrency === 'coins'
+        ? Math.max(1, Math.ceil(remainingMs / 60000)) * 20
+        : Math.max(1, Math.ceil(remainingMs / (30 * 60 * 1000)));
+
+      if (skipCurrency === 'coins') {
+        const spent = await sql`UPDATE player_wallet
+          SET coins = coins - ${cost}, updated_at=NOW()
+          WHERE player_id=${playerId} AND coins >= ${cost}
+          RETURNING coins`;
+        if (spent.length === 0) {
+          const walletRows = await sql`SELECT coins FROM player_wallet WHERE player_id=${playerId}`;
+          return res.status(400).json({ error: 'COINS_NOT_ENOUGH', need: cost, have: Number(walletRows[0]?.coins ?? 0) });
+        }
+      } else {
+        const spent = await sql`UPDATE player_wallet
+          SET diamonds = diamonds - ${cost}, updated_at=NOW()
+          WHERE player_id=${playerId} AND diamonds >= ${cost}
+          RETURNING diamonds`;
+        if (spent.length === 0) {
+          const walletRows = await sql`SELECT diamonds FROM player_wallet WHERE player_id=${playerId}`;
+          return res.status(400).json({ error: 'DIAMONDS_NOT_ENOUGH', need: cost, have: Number(walletRows[0]?.diamonds ?? 0) });
+        }
       }
 
       const nowIso = new Date().toISOString();
       await sql`UPDATE chests SET unlock_ready_at=${nowIso}, unlock_start_at=${nowIso} WHERE chest_id=${chestId} AND player_id=${playerId}`;
 
-      return res.json({ ok: true, cost, readyAt: nowIso });
+      return res.json({ ok: true, cost, currency: skipCurrency, readyAt: nowIso });
     }
 
     if (action === 'open') {
