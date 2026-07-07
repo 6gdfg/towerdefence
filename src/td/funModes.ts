@@ -2,9 +2,9 @@ import type { MapSpec } from './maps';
 import { countMapPaths } from './mapPath';
 import { ElementType, PlantType, ShapeType, WaveDef, WaveGroup } from './types';
 
-const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'purifier'] as const;
+const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
-const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier'];
+const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter'];
 const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   square: 0.65,
   healer: 0.55,
@@ -14,6 +14,7 @@ const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   armored: 0.55,
   iceShell: 0.5,
   purifier: 0.6,
+  angryWriter: 0.7,
 };
 
 export type FunModeType = 'test' | 'endless' | 'random';

@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'purifier';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'purifier' | 'angryWriter';
 
 export interface Enemy {
   id: string;
@@ -36,9 +36,11 @@ export interface Enemy {
   specialTimer?: number;
   speedBoostMultiplier?: number;
   speedBoostUntil?: number;
+  newspaperStunUntil?: number;
+  newspaperEnraged?: boolean;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;

@@ -63,6 +63,7 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   armored: { hp: 80, armorHp: 200, speed: 1.8, leakDamage: 2 },
   iceShell: { hp: 280, speed: 2.5, leakDamage: 1 },
   purifier: { hp: 80, speed: 1.5, leakDamage: 1 },
+  angryWriter: { hp: 100, armorHp: 50, speed: 1.5, leakDamage: 1 },
 };
 
 export const DIFFICULTY_CONFIG = {

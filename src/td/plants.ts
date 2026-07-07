@@ -12,6 +12,7 @@ export interface BasePlantConfig {
   damageScalePerLevel?: number;
   fireRate: number;
   projectileSpeed: number;
+  shotCount?: number;
   penetration?: boolean;
   pierceLimit?: number;
   damageDecayFactor?: number;
@@ -107,15 +108,15 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     id: 'sunflower',
     name: '金盏花',
     icon: '★',
-    cost: 50,
+    cost: 40,
     range: 0,
     damage: 0,
     fireRate: 0,
     projectileSpeed: 0,
-    incomeInterval: 10,
-    incomeBase: 10,
+    incomeInterval: 8,
+    incomeBase: 15,
     incomeBonusPerLevel: 1,
-    description: '每10秒自动产出金币，可升级提高产量，无攻击能力。',
+    description: '每8秒自动产出金币，可升级提高产量，无攻击能力。',
   },
   bottleGrass: {
     id: 'bottleGrass',
@@ -127,6 +128,18 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     fireRate: 1.2,
     projectileSpeed: 8,
     description: '单体攻击，综合性能均衡。',
+  },
+  doubleBottleGrass: {
+    id: 'doubleBottleGrass',
+    name: '双发瓶子草',
+    icon: '▣',
+    cost: 160,
+    range: 3.2,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 8,
+    shotCount: 2,
+    description: '一次发射两颗瓶子草子弹，其他数值与瓶子草相同。',
   },
   puffShroom: {
     id: 'puffShroom',

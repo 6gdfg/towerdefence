@@ -15,13 +15,14 @@ import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
+import LevelStartModal from './td/LevelStartModal';
 import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
-import { AtModeConfig, ElementType, PlantType, TowerLevelMap, WaveDef } from './td/types';
+import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { craftLegendaryChest, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
@@ -50,6 +51,12 @@ type PendingCardSelect = {
   onConfirm: (plants: PlantType[], elements: ElementType[]) => void;
 };
 
+type PendingLevelStart = {
+  levelIndex: number;
+  difficulty: DifficultyCode;
+  challenges: ChallengeId[];
+};
+
 type AtUnlockNotice = {
   levelName: string;
 };
@@ -72,6 +79,14 @@ function getHighestPlantLevel(plants: PlantType[], towerLevels?: TowerLevelMap) 
 
 function hasChallenge(challenges: ChallengeId[], id: ChallengeId) {
   return challenges.includes(id);
+}
+
+function getLevelMonsterTypes(waves: WaveDef[]) {
+  const seen = new Set<ShapeType>();
+  waves.forEach(wave => {
+    wave.groups.forEach(group => seen.add(group.type));
+  });
+  return Array.from(seen);
 }
 
 function App() {
@@ -171,6 +186,7 @@ function App() {
   const [activeFunMode, setActiveFunMode] = useState<FunModeType | null>(null);
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
   const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
+  const [pendingLevelStart, setPendingLevelStart] = useState<PendingLevelStart | null>(null);
   const [activeChallengeRun, setActiveChallengeRun] = useState<ActiveChallengeRun | null>(null);
   const [atUnlockNotice, setAtUnlockNotice] = useState<AtUnlockNotice | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState(1);
@@ -355,6 +371,7 @@ function App() {
     setActiveFunMode(null);
     setActiveLabConfig(null);
     setPendingCardSelect(null);
+    setPendingLevelStart(null);
     setWinReward(null);
     setActiveChallengeRun(null);
     const L = LEVELS[idx];
@@ -458,7 +475,19 @@ function App() {
       ? DIFFICULTY_BY_STAR[difficultyOverride]
       : difficultyOverride ?? starSel[idx] ?? 'EZ';
     const difficulty = getPlayableDifficulty(LEVELS, idx, requestedDifficulty);
-    beginLevelWithChallenges(idx, difficulty, challengeSel[idx] ?? []);
+    setPendingLevelStart({ levelIndex: idx, difficulty, challenges: challengeSel[idx] ?? [] });
+  };
+
+  const confirmPendingLevelStart = () => {
+    if (!pendingLevelStart) return;
+    const pending = pendingLevelStart;
+    setPendingLevelStart(null);
+    beginLevelWithChallenges(pending.levelIndex, pending.difficulty, pending.challenges);
+  };
+
+  const openBookFromLevelStart = () => {
+    setPendingLevelStart(null);
+    goToBook();
   };
 
   const toggleLevelChallenge = (idx: number, challenge: ChallengeId) => {
@@ -707,6 +736,19 @@ function App() {
     const rating = getLevelDifficultyRatings(level.id, levelIndex + 1)[currentDifficulty];
     return `${currentDifficulty} Lv.${rating ?? '-'}`;
   }, [currentDifficulty, levelIndex]);
+
+  const pendingLevelPreview = useMemo(() => {
+    if (!pendingLevelStart) return null;
+    const level = LEVELS[pendingLevelStart.levelIndex];
+    if (!level) return null;
+    const selectedLevel = getLevelSpecForDifficulty(level, pendingLevelStart.difficulty);
+    const ratings = getLevelDifficultyRatings(level.id, pendingLevelStart.levelIndex + 1);
+    return {
+      levelName: selectedLevel.name,
+      difficultyLabel: `${pendingLevelStart.difficulty} Lv.${ratings[pendingLevelStart.difficulty] ?? '-'}`,
+      monsters: getLevelMonsterTypes(selectedLevel.waves),
+    };
+  }, [pendingLevelStart]);
 
   const handleGameWin = useCallback(async () => {
     if (levelIndex != null) {
@@ -987,6 +1029,16 @@ function App() {
 
           {chestReward && (
             <ChestRewardModal reward={chestReward} onClose={() => setChestReward(null)} />
+          )}
+
+          {pendingLevelPreview && (
+            <LevelStartModal
+              levelName={pendingLevelPreview.levelName}
+              difficultyLabel={pendingLevelPreview.difficultyLabel}
+              monsters={pendingLevelPreview.monsters}
+              onStart={confirmPendingLevelStart}
+              onOpenBook={openBookFromLevelStart}
+            />
           )}
         </>
       )}

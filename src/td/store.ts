@@ -17,6 +17,9 @@ const PURIFIER_CLEANSE_INTERVAL = 3;
 const PURIFIER_CLEANSE_RADIUS = 3;
 const DEFAULT_WAVE_GAP_SECONDS = 2;
 const DEFAULT_GROUP_GAP_SECONDS = 2;
+const ANGRY_WRITER_STUN_DURATION = 1.5;
+const ANGRY_WRITER_ENRAGED_SPEED = 5;
+const MULTI_SHOT_OFFSET = 0.08;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -107,12 +110,20 @@ function getSunflowerSpeedBoost(tower: Tower, towers: Tower[], labOverrides?: La
   return bestBoost;
 }
 
-function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: LabOverrides | null): Projectile | null {
+function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: LabOverrides | null, launchOffset = 0): Projectile | null {
   if (tower.damage <= 0) return null;
   const baseConfig = getPlantRuntimeConfig(tower.type, labOverrides);
+  const dx = target.pos.x - tower.pos.x;
+  const dy = target.pos.y - tower.pos.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const direction = { x: dx / len, y: dy / len };
+  const perpendicular = { x: -direction.y, y: direction.x };
   const projectile: Projectile = {
     id: `p-${Date.now()}-${Math.random()}`,
-    pos: { ...tower.pos },
+    pos: {
+      x: tower.pos.x + perpendicular.x * launchOffset,
+      y: tower.pos.y + perpendicular.y * launchOffset,
+    },
     targetId: null,
     speed: tower.projectileSpeed || baseConfig?.projectileSpeed || 8,
     damage: tower.damage,
@@ -134,10 +145,7 @@ function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: La
     projectile.breakArmorDuration = baseConfig.breakArmorDuration;
   }
 
-  const dx = target.pos.x - tower.pos.x;
-  const dy = target.pos.y - tower.pos.y;
-  const len = Math.hypot(dx, dy) || 1;
-  projectile.direction = { x: dx / len, y: dy / len };
+  projectile.direction = direction;
 
   if (projectile.piercing) {
     // Piercing projectiles don't have a target
@@ -177,6 +185,24 @@ function createProjectileForTower(tower: Tower, target: Enemy, labOverrides?: La
   }
 
   return projectile;
+}
+
+function createProjectilesForTower(tower: Tower, target: Enemy, labOverrides?: LabOverrides | null): Projectile[] {
+  const baseConfig = getPlantRuntimeConfig(tower.type, labOverrides);
+  const shotCount = Math.max(1, Math.floor(baseConfig?.shotCount ?? 1));
+  if (shotCount === 1) {
+    const projectile = createProjectileForTower(tower, target, labOverrides);
+    return projectile ? [projectile] : [];
+  }
+
+  const center = (shotCount - 1) / 2;
+  const projectiles: Projectile[] = [];
+  for (let index = 0; index < shotCount; index += 1) {
+    const offset = (index - center) * MULTI_SHOT_OFFSET;
+    const projectile = createProjectileForTower(tower, target, labOverrides, offset);
+    if (projectile) projectiles.push(projectile);
+  }
+  return projectiles;
 }
 
 function distancePointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
@@ -294,6 +320,14 @@ function clearExpiredArmorBreak(enemy: Enemy, gameTime: number) {
   }
 }
 
+function triggerAngryWriterArmorBreak(enemy: Enemy, beforeArmor: number, afterArmor: number, gameTime: number) {
+  if (enemy.shape !== 'angryWriter') return;
+  if (enemy.newspaperEnraged) return;
+  if (beforeArmor <= 0 || afterArmor > 0) return;
+  enemy.newspaperEnraged = true;
+  enemy.newspaperStunUntil = gameTime + ANGRY_WRITER_STUN_DURATION;
+}
+
 function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
   let amount = Math.max(0, damage);
   if (amount <= 0) return 0;
@@ -322,6 +356,7 @@ function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
 
   const afterBody = Math.max(0, enemy.hp);
   const afterArmor = Math.max(0, enemy.armorHp ?? 0);
+  triggerAngryWriterArmorBreak(enemy, beforeArmor, afterArmor, gameTime);
   return beforeBody + beforeArmor - afterBody - afterArmor;
 }
 
@@ -434,6 +469,7 @@ export interface TDStore extends TDState {
   applyElement: (element: ElementType, pos: Position) => void;
   applyElementFromConveyor: (queueIndex: number, pos: Position) => void;
   canPlaceTower: (pos: Position) => boolean;
+  removeTower: (towerId: string) => void;
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
@@ -493,6 +529,14 @@ export const useTDStore = create<TDStore>((set, get) => ({
     // 不能与已有塔重叠（同一格子点）
     if (state.towers.some(t => getDistance(t.pos.x, t.pos.y, pos.x, pos.y) < 0.5)) return false;
     return true;
+  },
+
+  removeTower: (towerId) => {
+    const state = get();
+    if (!state.towers.some(tower => tower.id === towerId)) return;
+    set({
+      towers: state.towers.filter(tower => tower.id !== towerId),
+    });
   },
 
   loadLevel: (level, map, opts) => {
@@ -731,15 +775,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
       .sort((a, b) => b.progress - a.progress);
     if (inRange.length === 0) return;
 
-    const projectile = createProjectileForTower(towerCopy, inRange[0], state.labOverrides);
-    if (!projectile) return;
+    const newProjectiles = createProjectilesForTower(towerCopy, inRange[0], state.labOverrides);
+    if (newProjectiles.length === 0) return;
 
     const towers = [...state.towers];
     towers[index] = { ...towerCopy, lastShotTime: state.gameTime };
 
     set({
       towers,
-      projectiles: [...state.projectiles, projectile],
+      projectiles: [...state.projectiles, ...newProjectiles],
       gold: state.gold - abilityCost,
     });
   },
@@ -996,9 +1040,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
         // slow effect decay
         const frozen = !isSlowImmune(e) && !!e.freezeUntil && gameTime < e.freezeUntil;
         const slowed = !isSlowImmune(e) && !!e.slowUntil && gameTime < e.slowUntil;
+        const newspaperStunned = e.shape === 'angryWriter' && !!e.newspaperStunUntil && gameTime < e.newspaperStunUntil;
+        const baseSpeed = e.shape === 'angryWriter' && e.newspaperEnraged && !newspaperStunned
+          ? ANGRY_WRITER_ENRAGED_SPEED
+          : e.speed;
         const slowFactor = frozen ? 0 : slowed ? (1 - (e.slowPct || 0)) : 1;
         const boostMultiplier = e.speedBoostUntil && gameTime < e.speedBoostUntil ? (e.speedBoostMultiplier || 1) : 1;
-        const speed = e.speed * slowFactor * boostMultiplier;
+        const speed = newspaperStunned ? 0 : baseSpeed * slowFactor * boostMultiplier;
         let i = e.pathIndex;
         let t = e.t + (speed * dt) / Math.max(0.0001, segmentLength(path[i], path[i + 1]));
         let reached = false;
@@ -1044,6 +1092,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (e.speedBoostUntil && gameTime >= e.speedBoostUntil) {
         e.speedBoostUntil = undefined;
         e.speedBoostMultiplier = undefined;
+      }
+      if (e.newspaperStunUntil && gameTime >= e.newspaperStunUntil) {
+        e.newspaperStunUntil = undefined;
       }
       if (e.burnDamagePerSec && e.burnUntil) {
         const burnStart = prevGameTime;
@@ -1357,9 +1408,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
       tw.lastShotTime = gameTime;
 
-      const projectile = target ? createProjectileForTower(tw, target, state.labOverrides) : null;
-      if (projectile) {
-        projectiles.push(projectile);
+      const newProjectiles = target ? createProjectilesForTower(tw, target, state.labOverrides) : [];
+      if (newProjectiles.length > 0) {
+        projectiles.push(...newProjectiles);
       }
     });
 
@@ -1628,6 +1679,9 @@ function rewardForShape(shape: Enemy['shape']): number {
       break;
     case 'purifier':
       base = 8;
+      break;
+    case 'angryWriter':
+      base = 9;
       break;
     default:
       base = 5;

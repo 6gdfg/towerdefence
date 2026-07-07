@@ -423,6 +423,86 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     }
+  },
+  {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 3,
+    "mapName": "长廊回折",
+    "startGold": 1000,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 10
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 30
+          },
+          {
+            "type": "triangle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 40
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 25,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 25,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 2
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 3
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 ];
 
@@ -849,6 +929,86 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     }
+  },
+  "L2:EZ": {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 3,
+    "mapName": "长廊回折",
+    "startGold": 1000,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 10
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 30
+          },
+          {
+            "type": "triangle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 1,
+            "reward": 8,
+            "startDelay": 40
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 25,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 25,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 2
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.1,
+            "level": 2,
+            "reward": 10,
+            "startDelay": 3
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 };
 

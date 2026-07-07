@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { ElementType, PlantType } from './types';
+import type { ElementType, PlantType, ShapeType } from './types';
 
 type PlantIconProps = {
   type: PlantType;
@@ -11,6 +11,13 @@ type PlantIconProps = {
 type ElementIconProps = {
   element?: ElementType;
   color: string;
+  size?: number;
+  style?: CSSProperties;
+};
+
+type MonsterIconProps = {
+  type: ShapeType;
+  color?: string;
   size?: number;
   style?: CSSProperties;
 };
@@ -33,6 +40,13 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
           <rect x="5" y="5" width="14" height="14" rx="2" ry="2" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+        </svg>
+      );
+    case 'doubleBottleGrass':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="4" y="5" width="8" height="14" rx="1.5" ry="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <rect x="12" y="5" width="8" height="14" rx="1.5" ry="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
         </svg>
       );
     case 'puffShroom':
@@ -138,4 +152,103 @@ export function ElementIcon({ color, size = 28, style }: ElementIconProps) {
       <polygon points="12 2 22 12 12 22 2 12" fill={color} fillOpacity={0.18} stroke={color} strokeWidth={2} />
     </svg>
   );
+}
+
+export function ShovelIcon({ color = DEFAULT_ICON_COLOR, size = 28, style }: { color?: string; size?: number; style?: CSSProperties }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+      <path d="M7 5 L19 17" fill="none" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+      <path d="M4.5 7.5 L7.5 4.5 C8.4 3.6 9.8 3.6 10.7 4.5 L12.2 6 L6 12.2 L4.5 10.7 C3.6 9.8 3.6 8.4 4.5 7.5 Z" fill="none" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinejoin="round" />
+      <path d="M16.5 16.5 L20 20" fill="none" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+      <path d="M17.2 20.8 L20.8 17.2" fill="none" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function MonsterIcon({ type, color = '#475569', size = 28, style }: MonsterIconProps) {
+  const stroke = color;
+  const strokeWidth = STROKE_WIDTH;
+
+  switch (type) {
+    case 'triangle':
+    case 'healer':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <polygon points="12 3 3 21 21 21" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+          {type === 'healer' && <path d="M12 9 V16 M8.5 12.5 H15.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} strokeLinecap="round" />}
+        </svg>
+      );
+    case 'square':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" fill="none" stroke={stroke} strokeWidth={strokeWidth} rx={3} ry={3} />
+        </svg>
+      );
+    case 'armored':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="3.5" y="4.5" width="17" height="16" fill="none" stroke={stroke} strokeWidth={strokeWidth} rx={3} ry={3} />
+          <path d="M7 8 H17 M7 12 H17 M7 16 H17 M12 4.5 V20.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.62} strokeLinecap="round" />
+        </svg>
+      );
+    case 'angryWriter':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <polygon points="12 6 6.2 17.5 17.8 17.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.72} strokeLinejoin="round" />
+        </svg>
+      );
+    case 'evilSniper':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <polygon points="12 2 22 12 12 22 2 12" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+          <line x1="12" y1="2" x2="12" y2="22" stroke={stroke} strokeWidth={strokeWidth * 0.6} />
+          <line x1="2" y1="12" x2="22" y2="12" stroke={stroke} strokeWidth={strokeWidth * 0.6} />
+        </svg>
+      );
+    case 'rager':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <circle cx="12" cy="12" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
+        </svg>
+      );
+    case 'igniter':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M12 5 C15.2 8.1 16.6 11.1 15.6 14.3 C14.9 16.5 13.3 18 12 18 C10.7 18 9.1 16.5 8.4 14.3 C7.4 11.1 8.8 8.1 12 5 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.72} strokeLinejoin="round" />
+        </svg>
+      );
+    case 'summoner':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" fill="none" stroke={stroke} strokeWidth={strokeWidth} rx={2} ry={2} />
+          <circle cx="12" cy="12" r="7" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
+        </svg>
+      );
+    case 'iceShell':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M6 12 C8.2 8 15.8 8 18 12 C15.8 16 8.2 16 6 12 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.75} strokeLinejoin="round" />
+          <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
+        </svg>
+      );
+    case 'purifier':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <circle cx="12" cy="12" r="5.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} />
+          <path d="M12 7.5 V16.5 M7.5 12 H16.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.82} strokeLinecap="round" />
+        </svg>
+      );
+    case 'circle':
+    default:
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+        </svg>
+      );
+  }
 }

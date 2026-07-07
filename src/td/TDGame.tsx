@@ -5,9 +5,11 @@ import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
-import { ElementIcon, PlantIcon } from './TowerIcons';
+import { ElementIcon, PlantIcon, ShovelIcon } from './TowerIcons';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
+
+const ENEMY_SHAPE_SIZE = 22;
 
 type TDGameProps = {
   onWin?: () => void;
@@ -19,10 +21,11 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
+  const [shovelActive, setShovelActive] = useState(false);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= 900 : false,
   );
@@ -115,6 +118,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     }
     setSelectedPlant(null);
     setSelectedElement(null);
+    setShovelActive(false);
     if (selectedConveyorIndex != null && selectedConveyorIndex >= conveyorQueue.length) {
       setSelectedConveyorIndex(null);
     }
@@ -189,6 +193,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   }, [lives, onLose]);
 
   const handlePlace = (e: React.MouseEvent) => {
+    if (shovelActive) return;
     if (!selectedPlant && !selectedElement && !selectedConveyorItem) return;
     const svg = svgRef.current;
     if (!svg) return;
@@ -240,9 +245,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   };
 
   const handleTowerClick = (tower: typeof towers[number], e: React.MouseEvent) => {
-    if (selectedPlant || selectedElement || selectedConveyorItem) {
+    if (shovelActive) {
+      e.stopPropagation();
+      removeTower(tower.id);
+      setShovelActive(false);
       return;
     }
+    if (selectedPlant || selectedElement || selectedConveyorItem) return;
     e.stopPropagation();
     if (tower.type === 'sunlightFlower') {
       manualFireTower(tower.id);
@@ -318,6 +327,48 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           }}
         >
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div>
+              <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>工具</div>
+              <button
+                type="button"
+                title="铲子"
+                onClick={() => {
+                  setShovelActive(active => !active);
+                  setSelectedPlant(null);
+                  setSelectedElement(null);
+                  setSelectedConveyorIndex(null);
+                }}
+                style={{
+                  width: '100%',
+                  display:'flex',
+                  alignItems:'center',
+                  justifyContent: isMobile ? 'center' : 'space-between',
+                  padding: isMobile ? '8px' : '8px 10px',
+                  borderRadius:8,
+                  border: shovelActive ? '2px solid #111827' : '1px solid #d1d5db',
+                  background: shovelActive ? '#fef2f2' : '#ffffff',
+                  color:'#111827',
+                  cursor:'pointer',
+                  boxShadow: shovelActive ? '0 2px 6px rgba(17,24,39,0.15)' : '0 1px 2px rgba(0,0,0,0.05)',
+                  minHeight: isMobile ? 44 : undefined,
+                }}
+              >
+                <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <ShovelIcon color={shovelActive ? '#111827' : '#9ca3af'} size={isMobile ? 26 : 28} />
+                </span>
+                {!isMobile && (
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
+                    <span>铲子</span>
+                    <span style={{ fontSize:12, color:'#6b7280' }}>移除植物</span>
+                  </div>
+                )}
+              </button>
+              {shovelActive && (
+                <div style={{ fontSize:12, color:'#6b7280', padding:'6px 0 0' }}>
+                  当前操作：铲掉一个植物
+                </div>
+              )}
+            </div>
             {isConveyorMode ? (
               <div>
                 <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>传送带</div>
@@ -347,6 +398,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                           setSelectedConveyorIndex(active ? null : index);
                           setSelectedPlant(null);
                           setSelectedElement(null);
+                          setShovelActive(false);
                         }}
                         style={{
                           display:'flex',
@@ -417,6 +469,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                         if (onCooldown) return;
                         setSelectedPlant(active ? null : cfg.id);
                         setSelectedElement(null);
+                        setShovelActive(false);
                       }}
                       style={{
                         display:'flex',
@@ -491,6 +544,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     if (onCooldown) return;
                     setSelectedElement(cfg.id);
                     setSelectedPlant(null);
+                    setShovelActive(false);
                   };
                   return (
                     <button
@@ -574,7 +628,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           style={{
             width: fittedMapWidth > 0 ? fittedMapWidth : undefined,
             height: fittedMapHeight > 0 ? fittedMapHeight : undefined,
-            cursor: selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
+            cursor: shovelActive ? 'crosshair' : selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
           }}
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
           preserveAspectRatio="xMidYMid meet"
@@ -732,7 +786,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                 key={t.id}
                 onClick={(e) => handleTowerClick(t, e)}
                 style={{
-                  cursor: t.type === 'sunlightFlower' ? 'pointer' : 'default',
+                  cursor: shovelActive || t.type === 'sunlightFlower' ? 'pointer' : 'default',
                   filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
                 }}
               >
@@ -825,8 +879,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
               enemyColor = `rgba(37,99,235,${alpha})`;
             }
-            const shapeSize = e.isBoss ? Math.max(18, bossSize) : 18;
+            const shapeSize = e.isBoss ? Math.max(ENEMY_SHAPE_SIZE, bossSize) : ENEMY_SHAPE_SIZE;
             const strokeWidth = 2.2;
+            const angryWriterStunned = e.shape === 'angryWriter' && !!e.newspaperStunUntil && gameTime < e.newspaperStunUntil;
+            const angryWriterEnraged = e.shape === 'angryWriter' && !!e.newspaperEnraged && !angryWriterStunned;
             const shapeNode = (() => {
               switch (e.shape) {
                 case 'triangle':
@@ -893,6 +949,28 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
                       <circle cx="12" cy="12" r="5.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.7} />
                       <path d="M12 7.5 V16.5 M7.5 12 H16.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.82} strokeLinecap="round" />
+                    </svg>
+                  );
+                case 'angryWriter':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        fill={angryWriterEnraged ? '#ef4444' : 'none'}
+                        fillOpacity={angryWriterEnraged ? 0.34 : 0}
+                        stroke={enemyColor}
+                        strokeWidth={strokeWidth}
+                      />
+                      {!e.newspaperEnraged && (
+                        <polygon points="12 6 6.2 17.5 17.8 17.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.72} strokeLinejoin="round" />
+                      )}
+                      {angryWriterStunned && (
+                        <text x="18.2" y="7.4" textAnchor="middle" dominantBaseline="middle" fontSize="7" fontWeight="900" fill="#111827">
+                          ?
+                        </text>
+                      )}
                     </svg>
                   );
                 default:

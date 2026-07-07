@@ -62,6 +62,7 @@ function plantTags(entry: PlantBookEntry) {
   if (config.damageDecayFactor) tags.push(`衰减 ${Math.round(config.damageDecayFactor * 100)}%`);
   if (config.breakArmorDuration) tags.push(`破甲 ${config.breakArmorDuration}s`);
   if (config.targetPriority === 'armorFirst') tags.push('优先护甲');
+  if (config.shotCount && config.shotCount > 1) tags.push(`每次 ${config.shotCount} 发`);
 
   if (config.instantEffect?.type === 'crossDamage') {
     tags.push('一次性', `延迟 ${config.instantEffect.delaySec}s`, '横竖爆炸', '升级仅伤害');
@@ -165,6 +166,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'purifier':
       tags.push('3s 净化', '半径 3', '清除负面状态');
       break;
+    case 'angryWriter':
+      tags.push('报纸护甲', '破报暂停 1.5s', '狂暴速度 5');
+      break;
     default:
       tags.push('标准怪');
   }
@@ -175,6 +179,7 @@ function plantRole(type: PlantType) {
   const roles: Partial<Record<PlantType, string>> = {
     sunflower: '经济',
     bottleGrass: '单体',
+    doubleBottleGrass: '双发',
     puffShroom: '临时',
     fourLeafClover: '穿透',
     machineGun: '高速',

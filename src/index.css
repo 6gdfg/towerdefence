@@ -1490,6 +1490,69 @@ input {
   padding: 20px;
 }
 
+.level-start-modal {
+  width: min(520px, 100%);
+}
+
+.level-start-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.level-start-head h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.level-start-monster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+
+.level-start-monster-chip {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #172033;
+  font-weight: 800;
+}
+
+.level-start-monster-chip svg {
+  flex: 0 0 auto;
+}
+
+.level-start-empty {
+  margin: 14px 0 16px;
+  padding: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.52);
+  border-radius: 8px;
+  color: #64748b;
+  text-align: center;
+  font-weight: 700;
+}
+
+.level-start-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .level-start-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .reward-panel {
   padding: 12px;
   margin-bottom: 16px;
