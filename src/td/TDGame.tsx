@@ -1021,6 +1021,12 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       )}
                     </svg>
                   );
+                case 'bunker':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <polygon points="12 3 14.6 8.7 20.8 9.4 16.2 13.6 17.4 19.7 12 16.6 6.6 19.7 7.8 13.6 3.2 9.4 9.4 8.7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+                    </svg>
+                  );
                 default:
                   return (
                     <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">

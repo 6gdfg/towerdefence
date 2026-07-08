@@ -1804,6 +1804,8 @@ function rewardForShape(shape: Enemy['shape']): number {
       return 12;
     case 'angryWriter':
       return 20;
+    case 'bunker':
+      return 30;
     default:
       return 10;
   }

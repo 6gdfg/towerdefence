@@ -198,6 +198,12 @@ export function MonsterIcon({ type, color = '#475569', size = 28, style }: Monst
           <polygon points="12 6 6.2 17.5 17.8 17.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.72} strokeLinejoin="round" />
         </svg>
       );
+    case 'bunker':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <polygon points="12 3 14.6 8.7 20.8 9.4 16.2 13.6 17.4 19.7 12 16.6 6.6 19.7 7.8 13.6 3.2 9.4 9.4 8.7" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+        </svg>
+      );
     case 'evilSniper':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">

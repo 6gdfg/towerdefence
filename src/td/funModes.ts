@@ -2,9 +2,9 @@ import type { MapSpec } from './maps';
 import { countMapPaths } from './mapPath';
 import { ElementType, PlantType, ShapeType, WaveDef, WaveGroup } from './types';
 
-const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter'] as const;
+const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter', 'bunker'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
-const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter'];
+const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter', 'bunker'];
 const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   square: 0.65,
   healer: 0.55,
@@ -15,6 +15,7 @@ const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   iceShell: 0.5,
   purifier: 0.6,
   angryWriter: 0.7,
+  bunker: 0.28,
 };
 
 export type FunModeType = 'test' | 'endless' | 'random';
@@ -93,9 +94,9 @@ export function createFunModeWave(waveNumber: number): WaveDef {
     const bossLevel = 2000 + waveNumber;
     return {
       groups: [
-        { type: 'square', count: 18, interval: 0.45, level: bossLevel - 200, reward: 60, isBoss: true },
-        { type: 'evilSniper', count: 6, interval: 1.4, level: bossLevel, reward: 80, isBoss: true },
-        { type: 'rager', count: 8, interval: 1.1, level: bossLevel - 120, reward: 70, isBoss: true },
+        { type: 'square', count: 18, interval: 0.45, level: bossLevel - 200, isBoss: true },
+        { type: 'evilSniper', count: 6, interval: 1.4, level: bossLevel, isBoss: true },
+        { type: 'rager', count: 8, interval: 1.1, level: bossLevel - 120, isBoss: true },
       ],
     };
   }
@@ -103,7 +104,6 @@ export function createFunModeWave(waveNumber: number): WaveDef {
   const baseLevel = waveNumber;
   const baseCount = Math.min(20 + waveNumber * 3, 120);
   const interval = Math.max(0.2, 0.65 - waveNumber * 0.01);
-  const rewardBase = 8 + Math.floor(waveNumber / 2);
   const groups = FUN_MODE_SHAPES.slice(0, 3).map((_, idx) => {
     const shape = FUN_MODE_SHAPES[(waveNumber + idx) % FUN_MODE_SHAPES.length];
     return {
@@ -111,7 +111,6 @@ export function createFunModeWave(waveNumber: number): WaveDef {
       count: baseCount - idx * 3,
       interval,
       level: baseLevel + idx,
-      reward: rewardBase + idx * 2,
     };
   });
   return { groups };

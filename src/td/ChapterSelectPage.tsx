@@ -1,4 +1,4 @@
-import { CHAPTERS } from './chapters';
+import { CHAPTERS, CHAPTER_SIZE } from './chapters';
 import { getAllStars } from './progress';
 
 type ChapterSelectPageProps = {
@@ -17,7 +17,7 @@ export default function ChapterSelectPage({ unlocked, onBack, onSelectChapter }:
           <div>
             <div className="eyebrow">Main Story</div>
             <h1>章节选择</h1>
-            <p>每个章节包含 10 个主线关卡。</p>
+            <p>每个章节包含 {CHAPTER_SIZE} 个主线关卡。</p>
           </div>
           <button onClick={onBack} className="action-button">返回主界面</button>
         </div>
@@ -41,9 +41,9 @@ export default function ChapterSelectPage({ unlocked, onBack, onSelectChapter }:
             >
               <span className="chapter-index">Chapter {String(chapter.id).padStart(2, '0')}</span>
               <strong>{chapter.name}</strong>
-              <span className="chapter-range">{chapter.id}-1 至 {chapter.id}-10</span>
+              <span className="chapter-range">{chapter.id}-1 至 {chapter.id}-{CHAPTER_SIZE}</span>
               <span className="chapter-progress">
-                {isLocked ? `通关 ${chapter.startLevel - 1} 解锁` : `${completed} / 10 CLEAR`}
+                {isLocked ? `通关 ${chapter.startLevel - 1} 解锁` : `${completed} / ${CHAPTER_SIZE} CLEAR`}
               </span>
             </button>
           );

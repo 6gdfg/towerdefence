@@ -22,7 +22,22 @@ function asBalanceDraft(value: unknown): BalanceDraftRecord | null {
   if (!isRecord(value)) return null;
   if (typeof value.sourceLevelId !== 'string') return null;
   if (typeof value.difficulty !== 'string') return null;
-  return value as BalanceDraftRecord;
+  const draft = value as BalanceDraftRecord;
+  if (Array.isArray(draft.waves)) {
+    draft.waves = draft.waves.map(wave => {
+      if (!isRecord(wave) || !Array.isArray(wave.groups)) return wave;
+      return {
+        ...wave,
+        groups: wave.groups.map(group => {
+          if (!isRecord(group)) return group;
+          const next = { ...group };
+          delete next.reward;
+          return next;
+        }),
+      };
+    });
+  }
+  return draft;
 }
 
 function getDraftKey(draft: BalanceDraftRecord) {
@@ -90,7 +105,8 @@ function extractJsonConst(source: string, constName: string): unknown {
       if (stack[stack.length - 1] !== char) return null;
       stack.pop();
       if (stack.length === 0) {
-        return JSON.parse(source.slice(rootIndex, index + 1));
+        const jsonLike = source.slice(rootIndex, index + 1).replace(/,\s*([}\]])/g, '$1');
+        return JSON.parse(jsonLike);
       }
     }
   }

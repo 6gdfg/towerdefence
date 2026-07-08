@@ -64,6 +64,7 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   iceShell: { hp: 280, speed: 2.5, leakDamage: 1 },
   purifier: { hp: 80, speed: 1.5, leakDamage: 1 },
   angryWriter: { hp: 100, armorHp: 50, speed: 1.5, leakDamage: 1 },
+  bunker: { hp: 1000, speed: 0.7, leakDamage: 3 },
 };
 
 export const DIFFICULTY_CONFIG = {
@@ -84,7 +85,7 @@ export const INTRODUCTION_LEVEL: LevelSpec = {
   autoStartFirstWave: false,
 };
 
-const MANUAL_LEVEL_COUNT = 60;
+const MANUAL_LEVEL_COUNT = 48;
 const MANUAL_SLOT_MAP_IDS = Array.from({ length: 17 }, (_, index) => index + 1);
 
 const UNCONFIGURED_WAVES: WaveDef[] = [

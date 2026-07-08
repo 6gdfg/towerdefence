@@ -19,4 +19,5 @@ export const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   iceShell: '冰壳怪',
   purifier: '净化使',
   angryWriter: '暴躁文学家',
+  bunker: '碉堡',
 };

@@ -169,6 +169,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'angryWriter':
       tags.push('报纸护甲', '破报暂停 1.5s', '狂暴速度 5');
       break;
+    case 'bunker':
+      tags.push('极高生命', '低速', '高漏怪伤害');
+      break;
     default:
       tags.push('标准怪');
   }

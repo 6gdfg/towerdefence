@@ -20,7 +20,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 1,
+            "level": 1
           }
         ]
       },
@@ -30,13 +30,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 10,
             "interval": 0.3,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.28,
-            "level": 1,
+            "level": 1
           }
         ]
       },
@@ -46,13 +46,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "square",
             "count": 15,
             "interval": 0.45,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.25,
-            "level": 2,
+            "level": 2
           }
         ]
       },
@@ -62,13 +62,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 10,
             "interval": 0.11249999999999999,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.1325,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "square",
@@ -101,13 +101,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 3,
+            "level": 3
           },
           {
             "type": "triangle",
             "count": 10,
             "interval": 0.4,
-            "level": 3,
+            "level": 3
           }
         ]
       },
@@ -117,7 +117,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "square",
             "count": 35,
             "interval": 0.3,
-            "level": 3,
+            "level": 3
           }
         ]
       },
@@ -195,13 +195,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -211,13 +211,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -227,19 +227,19 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 5,
+            "level": 5
           }
         ]
       },
@@ -285,13 +285,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -301,13 +301,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -317,19 +317,19 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 5,
+            "level": 5
           }
         ]
       },
@@ -802,12 +802,601 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 500,
             "interval": 0.1,
-            "level": 1,
+            "level": 1
           }
         ]
       }
     ],
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "IN",
+    "rating": 10,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 800,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 800,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 8,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 8,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          },
+          {
+            "type": "circle",
+            "count": 7,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "circle",
+            "count": 6,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 20
+          },
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 30
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 40
+          },
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 50
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 60
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "HD",
+    "rating": 8,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 50000,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.2,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 15
+          },
+          {
+            "type": "square",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "startDelay": 40,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "IN",
+    "rating": 12,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 100,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 15,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "AT",
+    "rating": 13,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 800,
+    "lives": 15,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "isBoss": true,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 100,
+            "interval": 0.4,
+            "level": 2
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 3,
+        "maxQueue": 8,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "bottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "puffShroom",
+            "weight": 50
+          },
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 50
+          },
+          {
+            "kind": "plant",
+            "id": "rocket",
+            "weight": 90
+          },
+          {
+            "kind": "plant",
+            "id": "doubleBottleGrass",
+            "weight": 90
+          },
+          {
+            "kind": "plant",
+            "id": "holyFlower",
+            "weight": 30
+          }
+        ]
+      }
+    },
+    "unlockRewards": [
+      "doubleBottleGrass"
+    ]
   }
 ];
 
@@ -831,7 +1420,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 1,
+            "level": 1
           }
         ]
       },
@@ -841,13 +1430,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 10,
             "interval": 0.3,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.28,
-            "level": 1,
+            "level": 1
           }
         ]
       },
@@ -857,13 +1446,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "square",
             "count": 15,
             "interval": 0.45,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.25,
-            "level": 2,
+            "level": 2
           }
         ]
       },
@@ -873,13 +1462,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 10,
             "interval": 0.11249999999999999,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.1325,
-            "level": 2,
+            "level": 2
           },
           {
             "type": "square",
@@ -912,13 +1501,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 3,
+            "level": 3
           },
           {
             "type": "triangle",
             "count": 10,
             "interval": 0.4,
-            "level": 3,
+            "level": 3
           }
         ]
       },
@@ -928,7 +1517,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "square",
             "count": 35,
             "interval": 0.3,
-            "level": 3,
+            "level": 3
           }
         ]
       },
@@ -1006,13 +1595,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -1022,13 +1611,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -1038,19 +1627,19 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 5,
+            "level": 5
           }
         ]
       },
@@ -1096,13 +1685,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -1112,13 +1701,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 6,
+            "level": 6
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 4,
+            "level": 4
           }
         ]
       },
@@ -1128,19 +1717,19 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 5,
+            "level": 5
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 5,
+            "level": 5
           }
         ]
       },
@@ -1613,12 +2202,601 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 500,
             "interval": 0.1,
-            "level": 1,
+            "level": 1
           }
         ]
       }
     ],
     "unlockRewards": []
+  },
+  "L3:IN": {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "IN",
+    "rating": 10,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 800,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L4:EZ": {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 800,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 8,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 8,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          },
+          {
+            "type": "circle",
+            "count": 7,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "circle",
+            "count": 6,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 20
+          },
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 30
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 40
+          },
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 50
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 60
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L4:HD": {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "HD",
+    "rating": 8,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 50000,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.2,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 15
+          },
+          {
+            "type": "square",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "startDelay": 40,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L4:IN": {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "IN",
+    "rating": 12,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 100,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 15,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L4:AT": {
+    "sourceLevelId": "L4",
+    "levelNumber": 4,
+    "levelName": "关卡4",
+    "difficulty": "AT",
+    "rating": 13,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 800,
+    "lives": 15,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 15,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "isBoss": true,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 100,
+            "interval": 0.4,
+            "level": 2
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 3,
+        "maxQueue": 8,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "bottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "puffShroom",
+            "weight": 50
+          },
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 50
+          },
+          {
+            "kind": "plant",
+            "id": "rocket",
+            "weight": 90
+          },
+          {
+            "kind": "plant",
+            "id": "doubleBottleGrass",
+            "weight": 90
+          },
+          {
+            "kind": "plant",
+            "id": "holyFlower",
+            "weight": 30
+          }
+        ]
+      }
+    },
+    "unlockRewards": [
+      "doubleBottleGrass"
+    ]
   }
 };
 
