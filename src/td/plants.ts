@@ -106,7 +106,7 @@ export const DEFAULT_BULLET_COLOR = '#9ca3af'; // 灰色
 export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
   sunflower: {
     id: 'sunflower',
-    name: '金盏花',
+    name: '向日葵',
     icon: '★',
     cost: 40,
     range: 0,
@@ -114,9 +114,9 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     fireRate: 0,
     projectileSpeed: 0,
     incomeInterval: 8,
-    incomeBase: 15,
+    incomeBase: 20,
     incomeBonusPerLevel: 1,
-    description: '每8秒自动产出金币，可升级提高产量，无攻击能力。',
+    description: '每8秒在附近生成一个阳光，可升级提高阳光数值，无攻击能力。',
   },
   bottleGrass: {
     id: 'bottleGrass',
@@ -212,7 +212,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     fireRate: 0,
     projectileSpeed: 8,
     activeAbilityCost: 10,
-    description: '主动技能植物：点击时消耗10金币发射高伤害子弹，平时不会自动攻击。',
+    description: '主动技能植物：点击时消耗10阳光发射高伤害子弹，平时不会自动攻击。',
   },
   holyFlower: {
     id: 'holyFlower',
@@ -228,7 +228,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
       speedBonus: 0.2,
       bonusPerLevel: 0.03,
     },
-    description: '辅助攻击植物：全屏索敌；自身周围 5x5 区域内金盏花产速提升，多个圣辉花不叠加。',
+    description: '辅助攻击植物：全屏索敌；自身周围 5x5 区域内向日葵产速提升，多个圣辉花不叠加。',
   },
   hotPepper: {
     id: 'hotPepper',

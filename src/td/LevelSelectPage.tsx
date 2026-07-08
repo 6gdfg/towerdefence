@@ -18,7 +18,7 @@ type LevelSelectPageProps = {
   chapterId: number;
   onBack: () => void;
   onSelectDifficulty: (levelIndex: number, difficulty: DifficultyCode) => void;
-  onToggleChallenge: (levelIndex: number, challenge: ChallengeId) => void;
+  onOpenChallengeConfig: (levelIndex: number) => void;
   onStartLevel: (levelIndex: number, difficulty?: DifficultyCode) => void;
   onUnlockLevel: (levelId: string, levelName: string) => void;
 };
@@ -29,11 +29,6 @@ const CORE_DIFFICULTIES = [
   { label: 'IN', star: 3, tone: 'in' },
 ] as const;
 
-const CHALLENGE_OPTIONS: Array<{ id: ChallengeId; label: string; title: string }> = [
-  { id: 'fullHealth', label: '满血', title: '通关时保持本局开局生命，奖励1钻石' },
-  { id: 'halfHealth', label: '半血', title: '开局生命减半，通关奖励1钻石' },
-];
-
 export default function LevelSelectPage({
   unlocked,
   magicKeys,
@@ -43,7 +38,7 @@ export default function LevelSelectPage({
   chapterId,
   onBack,
   onSelectDifficulty,
-  onToggleChallenge,
+  onOpenChallengeConfig,
   onStartLevel,
   onUnlockLevel,
 }: LevelSelectPageProps) {
@@ -172,32 +167,24 @@ export default function LevelSelectPage({
               </div>
 
               <div className="phigros-level-actions">
-                <div className="phigros-challenge-row" aria-label={`${L.name} challenge`}>
-                  {CHALLENGE_OPTIONS.map(challenge => {
-                    const active = selectedChallenges.includes(challenge.id);
-                    return (
-                      <button
-                        key={challenge.id}
-                        type="button"
-                        onClick={() => onToggleChallenge(i, challenge.id)}
-                        disabled={isLocked}
-                        title={challenge.title}
-                        className={`phigros-challenge-chip ${active ? 'is-active' : ''}`}
-                        aria-pressed={active}
-                      >
-                        {challenge.label}
-                      </button>
-                    );
-                  })}
+                <div className="phigros-action-row">
+                  <button
+                    type="button"
+                    onClick={() => onOpenChallengeConfig(i)}
+                    disabled={isLocked}
+                    className={`phigros-challenge-button ${selectedChallenges.length > 0 ? 'is-active' : ''}`}
+                  >
+                    {selectedChallenges.length > 0 ? `挑战 ${selectedChallenges.length}` : '挑战'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onStartLevel(i, selectedDifficulty)}
+                    disabled={isLocked}
+                    className="phigros-play-button"
+                  >
+                    {isLocked ? 'LOCKED' : `START ${selectedLabel}`}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onStartLevel(i, selectedDifficulty)}
-                  disabled={isLocked}
-                  className="phigros-play-button"
-                >
-                  {isLocked ? 'LOCKED' : `START ${selectedLabel}`}
-                </button>
                 {isLocked && magicKeys > 0 && (
                   <button
                     type="button"

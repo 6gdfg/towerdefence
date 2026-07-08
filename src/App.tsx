@@ -16,6 +16,7 @@ import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
 import LevelStartModal from './td/LevelStartModal';
+import ChallengeConfigModal from './td/ChallengeConfigModal';
 import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
@@ -187,6 +188,7 @@ function App() {
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
   const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
   const [pendingLevelStart, setPendingLevelStart] = useState<PendingLevelStart | null>(null);
+  const [challengeConfigLevelIndex, setChallengeConfigLevelIndex] = useState<number | null>(null);
   const [activeChallengeRun, setActiveChallengeRun] = useState<ActiveChallengeRun | null>(null);
   const [atUnlockNotice, setAtUnlockNotice] = useState<AtUnlockNotice | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState(1);
@@ -195,6 +197,12 @@ function App() {
   const [challengeSel, setChallengeSel] = useState<Record<number, ChallengeId[]>>({});
   const [currentStar, setCurrentStar] = useState<1|2|3>(1);
   const [currentDifficulty, setCurrentDifficulty] = useState<DifficultyCode>('EZ');
+
+  useEffect(() => {
+    if (stage !== 'select') {
+      setChallengeConfigLevelIndex(null);
+    }
+  }, [stage]);
 
   const [hub, setHub] = useState<HubData | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -750,6 +758,22 @@ function App() {
     };
   }, [pendingLevelStart]);
 
+  const challengeConfigPreview = useMemo(() => {
+    if (challengeConfigLevelIndex == null) return null;
+    const level = LEVELS[challengeConfigLevelIndex];
+    if (!level) return null;
+    const requestedDifficulty = starSel[challengeConfigLevelIndex] ?? 'EZ';
+    const difficulty = getPlayableDifficulty(LEVELS, challengeConfigLevelIndex, requestedDifficulty);
+    const selectedLevel = getLevelSpecForDifficulty(level, difficulty);
+    const ratings = getLevelDifficultyRatings(level.id, challengeConfigLevelIndex + 1);
+    return {
+      levelIndex: challengeConfigLevelIndex,
+      levelName: selectedLevel.name,
+      difficultyLabel: `${difficulty} Lv.${ratings[difficulty] ?? '-'}`,
+      selected: challengeSel[challengeConfigLevelIndex] ?? [],
+    };
+  }, [challengeConfigLevelIndex, challengeSel, starSel]);
+
   const handleGameWin = useCallback(async () => {
     if (levelIndex != null) {
       const L = LEVELS[levelIndex];
@@ -934,7 +958,7 @@ function App() {
                 chapterId={selectedChapterId}
                 onBack={() => navigateWithTransition('chapters')}
                 onSelectDifficulty={(levelIdx, difficulty) => setStarSel(prev => ({ ...prev, [levelIdx]: difficulty }))}
-                onToggleChallenge={toggleLevelChallenge}
+                onOpenChallengeConfig={(levelIdx) => setChallengeConfigLevelIndex(levelIdx)}
                 onStartLevel={startLevel}
                 onUnlockLevel={async (levelId, levelName) => {
                   if (!confirm(`使用1把神奇钥匙解锁${levelName}？`)) return;
@@ -1031,18 +1055,29 @@ function App() {
             <ChestRewardModal reward={chestReward} onClose={() => setChestReward(null)} />
           )}
 
-          {pendingLevelPreview && (
-            <LevelStartModal
-              levelName={pendingLevelPreview.levelName}
-              difficultyLabel={pendingLevelPreview.difficultyLabel}
-              monsters={pendingLevelPreview.monsters}
-              onStart={confirmPendingLevelStart}
-              onOpenBook={openBookFromLevelStart}
-            />
-          )}
         </>
       )}
       </div>
+
+      {pendingLevelPreview && (
+        <LevelStartModal
+          levelName={pendingLevelPreview.levelName}
+          difficultyLabel={pendingLevelPreview.difficultyLabel}
+          monsters={pendingLevelPreview.monsters}
+          onStart={confirmPendingLevelStart}
+          onOpenBook={openBookFromLevelStart}
+        />
+      )}
+
+      {challengeConfigPreview && (
+        <ChallengeConfigModal
+          levelName={challengeConfigPreview.levelName}
+          difficultyLabel={challengeConfigPreview.difficultyLabel}
+          selected={challengeConfigPreview.selected}
+          onToggle={(challenge) => toggleLevelChallenge(challengeConfigPreview.levelIndex, challenge)}
+          onClose={() => setChallengeConfigLevelIndex(null)}
+        />
+      )}
 
       {atUnlockNotice && (
         <div className="modal-backdrop" style={{ zIndex: 1200 }}>

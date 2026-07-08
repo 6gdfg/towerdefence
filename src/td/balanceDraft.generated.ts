@@ -21,7 +21,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 12,
             "interval": 0.35,
             "level": 1,
-            "reward": 5
           }
         ]
       },
@@ -31,15 +30,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 10,
             "interval": 0.3,
-            "level": 3,
-            "reward": 8
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.28,
-            "level": 2,
-            "reward": 6
+            "level": 1,
           }
         ]
       },
@@ -49,15 +46,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "square",
             "count": 15,
             "interval": 0.45,
-            "level": 4,
-            "reward": 10
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.25,
-            "level": 3,
-            "reward": 7
+            "level": 2,
           }
         ]
       },
@@ -67,30 +62,25 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 10,
             "interval": 0.11249999999999999,
-            "level": 3,
-            "reward": 10
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.1325,
-            "level": 5,
-            "reward": 12
+            "level": 2,
           },
           {
             "type": "square",
             "count": 1,
             "interval": 1.4,
-            "level": 20,
-            "reward": 110,
+            "level": 10,
             "leakDamage": 4
           }
         ]
       }
     ],
-    "unlockRewards": [
-      "element:fire"
-    ]
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L1",
@@ -111,15 +101,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 6,
-            "reward": 8
+            "level": 3,
           },
           {
             "type": "triangle",
             "count": 10,
             "interval": 0.4,
-            "level": 6,
-            "reward": 8
+            "level": 3,
           }
         ]
       },
@@ -129,8 +117,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "square",
             "count": 35,
             "interval": 0.3,
-            "level": 7,
-            "reward": 12
+            "level": 3,
           }
         ]
       },
@@ -140,24 +127,21 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10,
+            "level": 5,
             "startDelay": 0
           },
           {
             "type": "square",
             "count": 20,
             "interval": 0.25,
-            "level": 8,
-            "reward": 13,
+            "level": 4,
             "startDelay": 10
           },
           {
             "type": "circle",
             "count": 15,
             "interval": 0.4,
-            "level": 9,
-            "reward": 10,
+            "level": 5,
             "startDelay": 10
           }
         ]
@@ -168,31 +152,29 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 20,
             "interval": 0.11249999999999999,
-            "level": 11,
-            "reward": 13,
+            "level": 6,
             "startDelay": 0
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.1325,
-            "level": 13,
-            "reward": 12,
+            "level": 6,
             "startDelay": 10
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 55,
-            "reward": 110,
+            "level": 27,
             "isBoss": true,
             "leakDamage": 4,
             "startDelay": 10
           }
         ]
       }
-    ]
+    ],
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L1",
@@ -213,15 +195,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 11,
-            "reward": 7
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 8,
-            "reward": 9
+            "level": 4,
           }
         ]
       },
@@ -231,15 +211,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 11,
-            "reward": 10
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 7,
-            "reward": 10
+            "level": 4,
           }
         ]
       },
@@ -249,22 +227,19 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 10,
-            "reward": 12
+            "level": 5,
           }
         ]
       },
@@ -274,23 +249,22 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "igniter",
             "count": 15,
             "interval": 0.11249999999999999,
-            "level": 50,
-            "reward": 50,
+            "level": 25,
             "startDelay": 0
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 150,
-            "reward": 110,
+            "level": 75,
             "isBoss": true,
             "leakDamage": 4,
             "startDelay": 0
           }
         ]
       }
-    ]
+    ],
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L1",
@@ -311,15 +285,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 11,
-            "reward": 7
+            "level": 5,
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 8,
-            "reward": 9
+            "level": 4,
           }
         ]
       },
@@ -329,15 +301,13 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 11,
-            "reward": 10
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 7,
-            "reward": 10
+            "level": 4,
           }
         ]
       },
@@ -347,22 +317,19 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 10,
-            "reward": 12
+            "level": 5,
           }
         ]
       },
@@ -372,16 +339,14 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "type": "igniter",
             "count": 15,
             "interval": 0.11249999999999999,
-            "level": 50,
-            "reward": 50,
+            "level": 25,
             "startDelay": 2
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 150,
-            "reward": 110,
+            "level": 75,
             "isBoss": true,
             "startDelay": 2,
             "leakDamage": 4
@@ -422,7 +387,8 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
           }
         ]
       }
-    }
+    },
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L2",
@@ -444,7 +410,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 10
           },
           {
@@ -452,7 +417,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 20
           },
           {
@@ -460,7 +424,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 30
           },
           {
@@ -468,7 +431,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 4,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 40
           }
         ]
@@ -480,7 +442,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 25,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 1
           },
           {
@@ -488,7 +449,6 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 25,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 2
           },
           {
@@ -496,8 +456,353 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
             "count": 15,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 3
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "HD",
+    "rating": 6,
+    "mapId": 3,
+    "mapName": "长廊回折",
+    "startGold": 1000,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 3
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 6
+          },
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 500,
+            "startDelay": 0,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "IN",
+    "rating": 9,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 60,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.1,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 10
+          },
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 30,
+            "startDelay": 20
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 8,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 0
+          },
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 30
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 150,
+            "startDelay": 30,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 800,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 18,
+            "interval": 0.5,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 20
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 70,
+            "startDelay": 20,
+            "isBoss": true
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "HD",
+    "rating": 7,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 80,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5,
+            "isBoss": false
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 1,
           }
         ]
       }
@@ -527,7 +832,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 12,
             "interval": 0.35,
             "level": 1,
-            "reward": 5
           }
         ]
       },
@@ -537,15 +841,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 10,
             "interval": 0.3,
-            "level": 3,
-            "reward": 8
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.28,
-            "level": 2,
-            "reward": 6
+            "level": 1,
           }
         ]
       },
@@ -555,15 +857,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "square",
             "count": 15,
             "interval": 0.45,
-            "level": 4,
-            "reward": 10
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.25,
-            "level": 3,
-            "reward": 7
+            "level": 2,
           }
         ]
       },
@@ -573,30 +873,25 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 10,
             "interval": 0.11249999999999999,
-            "level": 3,
-            "reward": 10
+            "level": 2,
           },
           {
             "type": "triangle",
             "count": 12,
             "interval": 0.1325,
-            "level": 5,
-            "reward": 12
+            "level": 2,
           },
           {
             "type": "square",
             "count": 1,
             "interval": 1.4,
-            "level": 20,
-            "reward": 110,
+            "level": 10,
             "leakDamage": 4
           }
         ]
       }
     ],
-    "unlockRewards": [
-      "element:fire"
-    ]
+    "unlockRewards": []
   },
   "L1:HD": {
     "sourceLevelId": "L1",
@@ -617,15 +912,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 6,
-            "reward": 8
+            "level": 3,
           },
           {
             "type": "triangle",
             "count": 10,
             "interval": 0.4,
-            "level": 6,
-            "reward": 8
+            "level": 3,
           }
         ]
       },
@@ -635,8 +928,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "square",
             "count": 35,
             "interval": 0.3,
-            "level": 7,
-            "reward": 12
+            "level": 3,
           }
         ]
       },
@@ -646,24 +938,21 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10,
+            "level": 5,
             "startDelay": 0
           },
           {
             "type": "square",
             "count": 20,
             "interval": 0.25,
-            "level": 8,
-            "reward": 13,
+            "level": 4,
             "startDelay": 10
           },
           {
             "type": "circle",
             "count": 15,
             "interval": 0.4,
-            "level": 9,
-            "reward": 10,
+            "level": 5,
             "startDelay": 10
           }
         ]
@@ -674,31 +963,29 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 20,
             "interval": 0.11249999999999999,
-            "level": 11,
-            "reward": 13,
+            "level": 6,
             "startDelay": 0
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.1325,
-            "level": 13,
-            "reward": 12,
+            "level": 6,
             "startDelay": 10
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 55,
-            "reward": 110,
+            "level": 27,
             "isBoss": true,
             "leakDamage": 4,
             "startDelay": 10
           }
         ]
       }
-    ]
+    ],
+    "unlockRewards": []
   },
   "L1:IN": {
     "sourceLevelId": "L1",
@@ -719,15 +1006,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 11,
-            "reward": 7
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 8,
-            "reward": 9
+            "level": 4,
           }
         ]
       },
@@ -737,15 +1022,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 11,
-            "reward": 10
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 7,
-            "reward": 10
+            "level": 4,
           }
         ]
       },
@@ -755,22 +1038,19 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 10,
-            "reward": 12
+            "level": 5,
           }
         ]
       },
@@ -780,23 +1060,22 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "igniter",
             "count": 15,
             "interval": 0.11249999999999999,
-            "level": 50,
-            "reward": 50,
+            "level": 25,
             "startDelay": 0
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 150,
-            "reward": 110,
+            "level": 75,
             "isBoss": true,
             "leakDamage": 4,
             "startDelay": 0
           }
         ]
       }
-    ]
+    ],
+    "unlockRewards": []
   },
   "L1:AT": {
     "sourceLevelId": "L1",
@@ -817,15 +1096,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 12,
             "interval": 0.35,
-            "level": 11,
-            "reward": 7
+            "level": 5,
           },
           {
             "type": "igniter",
             "count": 10,
             "interval": 0.4,
-            "level": 8,
-            "reward": 9
+            "level": 4,
           }
         ]
       },
@@ -835,15 +1112,13 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "triangle",
             "count": 45,
             "interval": 0.3,
-            "level": 11,
-            "reward": 10
+            "level": 6,
           },
           {
             "type": "igniter",
             "count": 7,
             "interval": 0.28,
-            "level": 7,
-            "reward": 10
+            "level": 4,
           }
         ]
       },
@@ -853,22 +1128,19 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "circle",
             "count": 20,
             "interval": 0.45,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "triangle",
             "count": 40,
             "interval": 0.25,
-            "level": 10,
-            "reward": 10
+            "level": 5,
           },
           {
             "type": "square",
             "count": 10,
             "interval": 0.4,
-            "level": 10,
-            "reward": 12
+            "level": 5,
           }
         ]
       },
@@ -878,16 +1150,14 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "type": "igniter",
             "count": 15,
             "interval": 0.11249999999999999,
-            "level": 50,
-            "reward": 50,
+            "level": 25,
             "startDelay": 2
           },
           {
             "type": "square",
             "count": 2,
             "interval": 1.4,
-            "level": 150,
-            "reward": 110,
+            "level": 75,
             "isBoss": true,
             "startDelay": 2,
             "leakDamage": 4
@@ -928,7 +1198,8 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
           }
         ]
       }
-    }
+    },
+    "unlockRewards": []
   },
   "L2:EZ": {
     "sourceLevelId": "L2",
@@ -950,7 +1221,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 10
           },
           {
@@ -958,7 +1228,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 20
           },
           {
@@ -966,7 +1235,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 2,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 30
           },
           {
@@ -974,7 +1242,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 4,
             "interval": 0.4,
             "level": 1,
-            "reward": 8,
             "startDelay": 40
           }
         ]
@@ -986,7 +1253,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 25,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 1
           },
           {
@@ -994,7 +1260,6 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 25,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 2
           },
           {
@@ -1002,8 +1267,353 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "count": 15,
             "interval": 0.1,
             "level": 2,
-            "reward": 10,
             "startDelay": 3
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L2:HD": {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "HD",
+    "rating": 6,
+    "mapId": 3,
+    "mapName": "长廊回折",
+    "startGold": 1000,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 3
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 6
+          },
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 500,
+            "startDelay": 0,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L2:IN": {
+    "sourceLevelId": "L2",
+    "levelNumber": 2,
+    "levelName": "1-2",
+    "difficulty": "IN",
+    "rating": 9,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 60,
+    "lives": 18,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.1,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 10
+          },
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 30,
+            "startDelay": 20
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 8,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 0
+          },
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 30
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 150,
+            "startDelay": 30,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L3:EZ": {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 800,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 18,
+            "interval": 0.5,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 20
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 70,
+            "startDelay": 20,
+            "isBoss": true
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L3:HD": {
+    "sourceLevelId": "L3",
+    "levelNumber": 3,
+    "levelName": "1-3",
+    "difficulty": "HD",
+    "rating": 7,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 80,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 1,
+            "interval": 0.5,
+            "level": 1,
+            "startDelay": 5
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5,
+            "isBoss": false
+          },
+          {
+            "type": "circle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 15,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 1,
           }
         ]
       }

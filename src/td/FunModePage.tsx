@@ -29,7 +29,7 @@ const modes: Array<{
   {
     id: 'random',
     title: '随机模式',
-    copy: '地图、金币、植物、元素与波次都会随机生成。',
+    copy: '地图、阳光、植物、元素与波次都会随机生成。',
     action: '立即开局',
     primary: true,
   },

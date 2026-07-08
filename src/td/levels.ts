@@ -67,7 +67,7 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
 };
 
 export const DIFFICULTY_CONFIG = {
-  LEVEL_MULTIPLIER: 0.05,
+  LEVEL_MULTIPLIER: 0.1,
 };
 
 export const INTRODUCTION_LEVEL: LevelSpec = {
@@ -77,9 +77,9 @@ export const INTRODUCTION_LEVEL: LevelSpec = {
   lives: 20,
   mapId: 1,
   waves: [
-    { groups: [{ type: 'circle', count: 6, interval: 0.65, level: 1, reward: 4 }] },
-    { groups: [{ type: 'circle', count: 8, interval: 0.55, level: 1, reward: 4 }, { type: 'triangle', count: 4, interval: 0.7, level: 1, reward: 5 }] },
-    { groups: [{ type: 'square', count: 3, interval: 0.9, level: 1, reward: 8 }] },
+    { groups: [{ type: 'circle', count: 6, interval: 0.65, level: 1 }] },
+    { groups: [{ type: 'circle', count: 8, interval: 0.55, level: 1 }, { type: 'triangle', count: 4, interval: 0.7, level: 1 }] },
+    { groups: [{ type: 'square', count: 3, interval: 0.9, level: 1 }] },
   ],
   autoStartFirstWave: false,
 };
@@ -88,7 +88,7 @@ const MANUAL_LEVEL_COUNT = 60;
 const MANUAL_SLOT_MAP_IDS = Array.from({ length: 17 }, (_, index) => index + 1);
 
 const UNCONFIGURED_WAVES: WaveDef[] = [
-  { groups: [{ type: 'circle', count: 8, interval: 0.5, level: 1, reward: 5 }] },
+  { groups: [{ type: 'circle', count: 8, interval: 0.5, level: 1 }] },
 ];
 
 const SEED_LEVELS: LevelSpec[] = [
@@ -99,13 +99,13 @@ const SEED_LEVELS: LevelSpec[] = [
     lives: 20,
     mapId: 1,
     waves: [
-      { groups: [{ type: 'circle', count: 12, interval: 0.35, level: 1, reward: 5 }] },
-      { groups: [{ type: 'circle', count: 35, interval: 0.3, level: 3, reward: 6 }, { type: 'triangle', count: 30, interval: 0.28, level: 2, reward: 6 }] },
-      { groups: [{ type: 'square', count: 20, interval: 0.45, level: 4, reward: 10 }, { type: 'triangle', count: 40, interval: 0.25, level: 3, reward: 7 }] },
+      { groups: [{ type: 'circle', count: 12, interval: 0.35, level: 1 }] },
+      { groups: [{ type: 'circle', count: 35, interval: 0.3, level: 3 }, { type: 'triangle', count: 30, interval: 0.28, level: 2 }] },
+      { groups: [{ type: 'square', count: 20, interval: 0.45, level: 4 }, { type: 'triangle', count: 40, interval: 0.25, level: 3 }] },
       { groups: [
-        { type: 'circle', count: 68, interval: 0.11249999999999999, level: 54, reward: 10 },
-        { type: 'triangle', count: 51, interval: 0.1325, level: 63, reward: 12 },
-        { type: 'square', count: 1, interval: 1.4, level: 600, reward: 110, isBoss: true, leakDamage: 4 },
+        { type: 'circle', count: 68, interval: 0.11249999999999999, level: 54 },
+        { type: 'triangle', count: 51, interval: 0.1325, level: 63 },
+        { type: 'square', count: 1, interval: 1.4, level: 600, isBoss: true, leakDamage: 4 },
       ] },
     ],
     autoStartFirstWave: true,
@@ -118,13 +118,13 @@ const SEED_LEVELS: LevelSpec[] = [
     lives: 18,
     mapId: 3,
     waves: [
-      { groups: [{ type: 'circle', count: 15, interval: 0.32, level: 5, reward: 6 }] },
-      { groups: [{ type: 'triangle', count: 45, interval: 0.28, level: 6, reward: 7 }] },
-      { groups: [{ type: 'square', count: 22, interval: 0.42, level: 7, reward: 12 }, { type: 'triangle', count: 42, interval: 0.26, level: 6, reward: 8 }] },
+      { groups: [{ type: 'circle', count: 15, interval: 0.32, level: 5 }] },
+      { groups: [{ type: 'triangle', count: 45, interval: 0.28, level: 6 }] },
+      { groups: [{ type: 'square', count: 22, interval: 0.42, level: 7 }, { type: 'triangle', count: 42, interval: 0.26, level: 6 }] },
       { groups: [
-        { type: 'circle', count: 77, interval: 0.11149999999999999, level: 55, reward: 12 },
-        { type: 'triangle', count: 57, interval: 0.1315, level: 64, reward: 14 },
-        { type: 'square', count: 1, interval: 1.4, level: 650, reward: 125, isBoss: true, leakDamage: 4 },
+        { type: 'circle', count: 77, interval: 0.11149999999999999, level: 55 },
+        { type: 'triangle', count: 57, interval: 0.1315, level: 64 },
+        { type: 'square', count: 1, interval: 1.4, level: 650, isBoss: true, leakDamage: 4 },
       ] },
     ],
     autoStartFirstWave: true,
@@ -137,14 +137,14 @@ const SEED_LEVELS: LevelSpec[] = [
     lives: 16,
     mapId: 2,
     waves: [
-      { groups: [{ type: 'circle', count: 18, interval: 0.3, level: 8, reward: 7 }] },
-      { groups: [{ type: 'triangle', count: 50, interval: 0.26, level: 9, reward: 8 }] },
-      { groups: [{ type: 'square', count: 25, interval: 0.4, level: 10, reward: 14 }] },
-      { groups: [{ type: 'circle', count: 48, interval: 0.28, level: 10, reward: 9 }, { type: 'square', count: 24, interval: 0.42, level: 11, reward: 15 }] },
+      { groups: [{ type: 'circle', count: 18, interval: 0.3, level: 8 }] },
+      { groups: [{ type: 'triangle', count: 50, interval: 0.26, level: 9 }] },
+      { groups: [{ type: 'square', count: 25, interval: 0.4, level: 10 }] },
+      { groups: [{ type: 'circle', count: 48, interval: 0.28, level: 10 }, { type: 'square', count: 24, interval: 0.42, level: 11 }] },
       { groups: [
-        { type: 'circle', count: 86, interval: 0.1105, level: 56, reward: 14 },
-        { type: 'triangle', count: 64, interval: 0.1305, level: 66, reward: 16 },
-        { type: 'square', count: 1, interval: 1.4, level: 700, reward: 140, isBoss: true, leakDamage: 4 },
+        { type: 'circle', count: 86, interval: 0.1105, level: 56 },
+        { type: 'triangle', count: 64, interval: 0.1305, level: 66 },
+        { type: 'square', count: 1, interval: 1.4, level: 700, isBoss: true, leakDamage: 4 },
       ] },
     ],
     autoStartFirstWave: true,

@@ -12,7 +12,6 @@ export interface Enemy {
   speed: number; // 格/秒
   shape: ShapeType;
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
-  reward?: number; // 击杀奖励，优先来自波次配置
   level?: number; // 怪物等级（显示用，可选，默认1）
   isBoss?: boolean; // Boss 只影响显示体型等表现，不参与基础数值公式
   // 路径进度
@@ -157,12 +156,26 @@ export interface DamagePopup {
   until: number;
 }
 
+export interface SunPickup {
+  id: string;
+  pos: Position;
+  value: number;
+  source: 'plant' | 'sky';
+  createdAt: number;
+  expiresAt: number;
+  falling?: boolean;
+  landedAt?: number;
+  collecting?: boolean;
+  collectedAt?: number;
+  collectFrom?: Position;
+}
+
 export interface WaveGroup {
   type: ShapeType;
   count: number;
   interval: number; // 秒
   level: number; // 怪物等级（决定HP和速度）
-  reward: number; // 每只击杀奖励
+  reward?: number; // 兼容旧草稿；运行时击杀奖励按怪物类型/Boss写死
   isBoss?: boolean; // 是否按 Boss 体型渲染，可与多数量/自动分流共存
   startDelay?: number; // 从本波开始后延迟几秒开始刷；同一延迟可同时刷多个怪组
   pathId?: number; // 指定走哪条路径（多路径地图）
@@ -196,6 +209,7 @@ export interface TDState {
   projectiles: Projectile[];
   singleUseCasts: ElementCast[];
   damagePopups: DamagePopup[];
+  sunPickups: SunPickup[];
   elementCooldowns: Partial<Record<ElementType, number>>;
   plantCooldowns: Partial<Record<PlantType, number>>;
   availablePlants: PlantType[];
@@ -203,6 +217,8 @@ export interface TDState {
   atModeConfig?: AtModeConfig | null;
   conveyorQueue: ConveyorItem[];
   nextConveyorItemAt?: number | null;
+  nextSkySunAt?: number | null;
+  autoCollectSun?: boolean;
   disableKillRewards?: boolean;
   // 波次
   waves: WaveDef[];

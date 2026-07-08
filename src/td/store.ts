@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem, SunPickup } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
@@ -20,6 +20,13 @@ const DEFAULT_GROUP_GAP_SECONDS = 2;
 const ANGRY_WRITER_STUN_DURATION = 1.5;
 const ANGRY_WRITER_ENRAGED_SPEED = 5;
 const MULTI_SHOT_OFFSET = 0.08;
+const SKY_SUN_INTERVAL = 6;
+const SKY_SUN_VALUE = 20;
+const SKY_SUN_FALL_SPEED = 1.35;
+const SKY_SUN_BOTTOM_LIFETIME = 10;
+const PLANT_SUN_LIFETIME = 14;
+const AUTO_COLLECT_DELAY = 0.5;
+const SUN_COLLECT_ANIMATION = 0.55;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -33,9 +40,9 @@ export const TD_PATH: Position[] = [
 
 // Fallback waves (如果未通过关卡配置加载)
 const DEFAULT_WAVES: WaveDef[] = [
-  { groups: [ { type: 'circle', count: 8, interval: 0.8, level: 1, reward: 5 } ] },
-  { groups: [ { type: 'circle', count: 6, interval: 0.7, level: 3, reward: 6 }, { type: 'triangle', count: 6, interval: 0.6, level: 2, reward: 6 } ] },
-  { groups: [ { type: 'square', count: 5, interval: 1.0, level: 4, reward: 10 }, { type: 'triangle', count: 10, interval: 0.5, level: 3, reward: 7 } ] },
+  { groups: [ { type: 'circle', count: 8, interval: 0.8, level: 1 } ] },
+  { groups: [ { type: 'circle', count: 6, interval: 0.7, level: 3 }, { type: 'triangle', count: 6, interval: 0.6, level: 2 } ] },
+  { groups: [ { type: 'square', count: 5, interval: 1.0, level: 4 }, { type: 'triangle', count: 10, interval: 0.5, level: 3 } ] },
 ];
 
 // 基础植物预设（灰度数值，后续可在 src/td/plants.ts 中调整）
@@ -462,6 +469,44 @@ function getConveyorMaxQueue(config: AtModeConfig | null | undefined) {
   return Math.max(1, Math.floor(config?.type === 'conveyor' ? (config.conveyor?.maxQueue ?? 8) : 8));
 }
 
+function clampToMap(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function createSunPickup(
+  source: SunPickup['source'],
+  pos: Position,
+  value: number,
+  gameTime: number,
+  mapWidth: number,
+  mapHeight: number,
+): SunPickup {
+  const safePos = {
+    x: clampToMap(pos.x, 0.6, Math.max(0.6, mapWidth - 0.6)),
+    y: clampToMap(pos.y, 0.6, Math.max(0.6, mapHeight - 0.6)),
+  };
+  return {
+    id: `sun-${Date.now()}-${Math.random()}`,
+    pos: safePos,
+    value: Math.max(0, Math.round(value)),
+    source,
+    createdAt: gameTime,
+    expiresAt: source === 'sky' ? Number.POSITIVE_INFINITY : gameTime + PLANT_SUN_LIFETIME,
+    falling: source === 'sky',
+  };
+}
+
+function markSunCollected(pickup: SunPickup, gameTime: number): SunPickup {
+  return {
+    ...pickup,
+    collecting: true,
+    collectedAt: gameTime,
+    collectFrom: { ...pickup.pos },
+    falling: false,
+    expiresAt: gameTime + SUN_COLLECT_ANIMATION,
+  };
+}
+
 export interface TDStore extends TDState {
   startWave: () => void;
   placeTower: (type: PlantType, pos: Position) => void;
@@ -470,6 +515,8 @@ export interface TDStore extends TDState {
   applyElementFromConveyor: (queueIndex: number, pos: Position) => void;
   canPlaceTower: (pos: Position) => boolean;
   removeTower: (towerId: string) => void;
+  collectSun: (sunId: string) => void;
+  setAutoCollectSun: (enabled: boolean) => void;
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
@@ -494,6 +541,7 @@ const INITIAL_TD_STATE: TDState = {
   projectiles: [],
   singleUseCasts: [],
   damagePopups: [],
+  sunPickups: [],
   elementCooldowns: {},
   plantCooldowns: {},
   availablePlants: ['sunflower', 'bottleGrass'] as PlantType[],
@@ -501,6 +549,8 @@ const INITIAL_TD_STATE: TDState = {
   atModeConfig: null,
   conveyorQueue: [],
   nextConveyorItemAt: null,
+  nextSkySunAt: SKY_SUN_INTERVAL,
+  autoCollectSun: false,
   disableKillRewards: false,
   // 波次
   waves: DEFAULT_WAVES,
@@ -539,7 +589,24 @@ export const useTDStore = create<TDStore>((set, get) => ({
     });
   },
 
+  collectSun: (sunId) => {
+    const state = get();
+    const target = state.sunPickups.find(pickup => pickup.id === sunId);
+    if (!target || target.collecting || target.value <= 0) return;
+    set({
+      gold: state.gold + target.value,
+      sunPickups: state.sunPickups.map(pickup => (
+        pickup.id === sunId ? markSunCollected(pickup, state.gameTime) : pickup
+      )),
+    });
+  },
+
+  setAutoCollectSun: (enabled) => {
+    set({ autoCollectSun: enabled });
+  },
+
   loadLevel: (level, map, opts) => {
+    const previousAutoCollectSun = get().autoCollectSun ?? false;
     const paths = normalizeMapPaths(map.path);
     const atModeConfig = opts?.atModeConfig ?? null;
     const conveyorInterval = getConveyorInterval(atModeConfig);
@@ -559,6 +626,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       projectiles: [],
       singleUseCasts: [],
       damagePopups: [],
+      sunPickups: [],
       elementCooldowns: {},
       plantCooldowns: {},
       availablePlants: opts?.allowedPlants ? [...opts.allowedPlants] : [...INITIAL_TD_STATE.availablePlants],
@@ -566,6 +634,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       atModeConfig,
       conveyorQueue: [],
       nextConveyorItemAt: atModeConfig?.type === 'conveyor' ? conveyorInterval : null,
+      nextSkySunAt: SKY_SUN_INTERVAL,
+      autoCollectSun: previousAutoCollectSun,
       disableKillRewards: opts?.disableKillRewards ?? false,
       waves: level.waves,
       waveIndex: 0,
@@ -810,6 +880,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let projectiles = [...state.projectiles];
     let singleUseCasts = state.singleUseCasts.slice();
     let damagePopups = state.damagePopups.filter(p => p.until > gameTime);
+    let sunPickups: SunPickup[] = state.sunPickups.map(pickup => ({
+      ...pickup,
+      pos: { ...pickup.pos },
+      collectFrom: pickup.collectFrom ? { ...pickup.collectFrom } : undefined,
+    }));
     let elementCooldowns: Partial<Record<ElementType, number>> = { ...state.elementCooldowns };
     let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
@@ -825,6 +900,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let wavesCleared = state.wavesCleared ?? 0;
     let conveyorQueue = state.conveyorQueue.slice();
     let nextConveyorItemAt = state.nextConveyorItemAt ?? null;
+    let nextSkySunAt = state.nextSkySunAt ?? SKY_SUN_INTERVAL;
+    const autoCollectSun = state.autoCollectSun ?? false;
     const atModeConfig = state.atModeConfig ?? null;
     const disableKillRewards = state.disableKillRewards ?? false;
     const triggerIgniterDeathEffects = () => {
@@ -862,6 +939,28 @@ export const useTDStore = create<TDStore>((set, get) => ({
       conveyorQueue = [];
       nextConveyorItemAt = null;
     }
+
+    while (nextSkySunAt != null && gameTime >= nextSkySunAt) {
+      const x = 1 + Math.random() * Math.max(1, state.mapWidth - 2);
+      sunPickups.push(createSunPickup('sky', { x, y: 0.7 }, SKY_SUN_VALUE, gameTime, state.mapWidth, state.mapHeight));
+      nextSkySunAt += SKY_SUN_INTERVAL;
+    }
+
+    sunPickups = sunPickups.map(pickup => {
+      if (pickup.collecting || pickup.source !== 'sky' || !pickup.falling) return pickup;
+      const bottomY = Math.max(0.8, state.mapHeight - 0.8);
+      const nextY = Math.min(bottomY, pickup.pos.y + SKY_SUN_FALL_SPEED * dt);
+      if (nextY >= bottomY) {
+        return {
+          ...pickup,
+          pos: { ...pickup.pos, y: bottomY },
+          falling: false,
+          landedAt: gameTime,
+          expiresAt: gameTime + SKY_SUN_BOTTOM_LIFETIME,
+        };
+      }
+      return { ...pickup, pos: { ...pickup.pos, y: nextY } };
+    });
 
     if (towers.some(tower => tower.expiresAt != null && tower.expiresAt <= gameTime)) {
       const expiredTowers = towers.filter(tower => tower.expiresAt != null && tower.expiresAt <= gameTime);
@@ -947,8 +1046,38 @@ export const useTDStore = create<TDStore>((set, get) => ({
         tw.lastIncomeTime = lastIncomeTime + cycles * interval;
         return;
       }
-      gold += perTick * cycles;
+      for (let cycle = 0; cycle < cycles; cycle += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 0.22 + Math.random() * 0.45;
+        sunPickups.push(createSunPickup(
+          'plant',
+          {
+            x: tw.pos.x + Math.cos(angle) * radius,
+            y: tw.pos.y + Math.sin(angle) * radius,
+          },
+          perTick,
+          gameTime,
+          state.mapWidth,
+          state.mapHeight,
+        ));
+      }
       tw.lastIncomeTime = lastIncomeTime + cycles * interval;
+    });
+
+    if (autoCollectSun) {
+      sunPickups = sunPickups.map(pickup => {
+        if (pickup.collecting || pickup.value <= 0) return pickup;
+        if (gameTime - pickup.createdAt < AUTO_COLLECT_DELAY) return pickup;
+        gold += pickup.value;
+        return markSunCollected(pickup, gameTime);
+      });
+    }
+
+    sunPickups = sunPickups.filter(pickup => {
+      if (pickup.collecting) {
+        return gameTime < (pickup.collectedAt ?? pickup.createdAt) + SUN_COLLECT_ANIMATION;
+      }
+      return gameTime < pickup.expiresAt;
     });
 
     // auto start scheduled next wave
@@ -987,7 +1116,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
             speed: baseStats.speed,
             shape: g.type,
             leakDamage: g.leakDamage ?? baseStats.leakDamage,
-            reward: g.reward,
             level: g.level,
             isBoss: !!g.isBoss,
             pathIndex: 0,
@@ -1282,7 +1410,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
             speed: baseStats.speed,
             shape: 'circle',
             leakDamage: baseStats.leakDamage,
-            reward: rewardForEnemy(enemy),
             level: enemy.level,
             pathIndex: spawnPathIndex,
             t: spawnT,
@@ -1596,6 +1723,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       spawnCursor = null;
       enemies = [];
       projectiles = [];
+      sunPickups = [];
       nextWaveStartTime = null;
     }
 
@@ -1621,10 +1749,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
       projectiles,
       singleUseCasts,
       damagePopups,
+      sunPickups,
       elementCooldowns,
       plantCooldowns,
       conveyorQueue,
       nextConveyorItemAt,
+      nextSkySunAt,
       gold,
       lives,
       isWaveActive,
@@ -1644,47 +1774,37 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
 function rewardForEnemy(e: Enemy, disabled = false): number {
   if (disabled) return 0;
-  if (typeof e.reward === 'number' && Number.isFinite(e.reward)) {
-    return Math.max(0, Math.round(e.reward));
-  }
+  if (e.isBoss) return 500;
   return rewardForShape(e.shape);
 }
 
 function rewardForShape(shape: Enemy['shape']): number {
-  let base = 5;
   switch (shape) {
-    case 'square':
-      base = 10;
-      break;
+    case 'circle':
+      return 10;
     case 'triangle':
-      base = 7;
-      break;
+      return 7;
+    case 'square':
+      return 13;
     case 'healer':
-      base = 8;
-      break;
+      return 15;
     case 'evilSniper':
-      base = 12;
-      break;
+      return 18;
     case 'rager':
-      base = 9;
-      break;
+      return 15;
     case 'summoner':
-      base = 10;
-      break;
+      return 18;
+    case 'igniter':
+      return 6;
     case 'armored':
-      base = 11;
-      break;
+      return 18;
     case 'iceShell':
-      base = 12;
-      break;
+      return 16;
     case 'purifier':
-      base = 8;
-      break;
+      return 12;
     case 'angryWriter':
-      base = 9;
-      break;
+      return 20;
     default:
-      base = 5;
+      return 10;
   }
-  return base * 6;
 }

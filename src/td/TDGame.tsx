@@ -10,6 +10,26 @@ import { ElementIcon, PlantIcon, ShovelIcon } from './TowerIcons';
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
 const ENEMY_SHAPE_SIZE = 22;
+const SUN_COLLECT_ANIMATION_SEC = 0.55;
+const SUN_COLLECT_TARGET: Position = { x: 1.1, y: 1.1 };
+
+function SunIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="5.2" fill="#fbbf24" stroke="#d97706" strokeWidth="1.6" />
+      <g stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round">
+        <line x1="12" y1="2.5" x2="12" y2="5.2" />
+        <line x1="12" y1="18.8" x2="12" y2="21.5" />
+        <line x1="2.5" y1="12" x2="5.2" y2="12" />
+        <line x1="18.8" y1="12" x2="21.5" y2="12" />
+        <line x1="5.3" y1="5.3" x2="7.2" y2="7.2" />
+        <line x1="16.8" y1="16.8" x2="18.7" y2="18.7" />
+        <line x1="18.7" y1="5.3" x2="16.8" y2="7.2" />
+        <line x1="7.2" y1="16.8" x2="5.3" y2="18.7" />
+      </g>
+    </svg>
+  );
+}
 
 type TDGameProps = {
   onWin?: () => void;
@@ -21,7 +41,7 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
@@ -70,7 +90,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         title: 'Introduction',
         body: selectedPlant
           ? '在地图上的灰色小点附近点击，就能把当前植物种下去。先把攻击植物放在道路拐角旁边。'
-          : '先从左侧选择一个初始植物。瓶子草负责攻击，小喷菇免费但有冷却，向日葵负责产金币。',
+          : '先从左侧选择一个初始植物。瓶子草负责攻击，小喷菇免费但有冷却，向日葵负责产阳光。',
       };
     }
     if (!isWaveActive && waveIndex === 0) {
@@ -83,14 +103,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
       return {
         title: '观察战斗',
         body: enemies.length > 0
-          ? '植物会自动攻击进入射程的怪物。漏怪会扣生命，击败怪物会获得本局金币。'
+          ? '植物会自动攻击进入射程的怪物。漏怪会扣生命，击败怪物会获得本局阳光。'
           : '这一波正在结束。等场上怪物清空后，就可以开始下一波。',
       };
     }
     if (waveIndex < waves.length) {
       return {
         title: '继续布置',
-        body: '用击败怪物获得的金币补植物，然后继续下一波。正式关卡也是这个循环。',
+        body: '用击败怪物获得的阳光补植物，然后继续下一波。正式关卡也是这个循环。',
       };
     }
     return {
@@ -263,12 +283,26 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     onExit?.();
   };
 
+  const getSunDisplayPos = (sun: typeof sunPickups[number]) => {
+    if (!sun.collecting || sun.collectedAt == null) return sun.pos;
+    const start = sun.collectFrom ?? sun.pos;
+    const rawProgress = Math.max(0, Math.min(1, (gameTime - sun.collectedAt) / SUN_COLLECT_ANIMATION_SEC));
+    const progress = 1 - Math.pow(1 - rawProgress, 3);
+    return {
+      x: start.x + (SUN_COLLECT_TARGET.x - start.x) * progress,
+      y: start.y + (SUN_COLLECT_TARGET.y - start.y) * progress,
+    };
+  };
+
 
   return (
     <div className="game-shell">
       <header className="glass-panel game-topbar">
         <div className="game-stats">
-          <div className="game-stat">金币: {gold}</div>
+          <div className="game-stat" aria-label={`阳光 ${gold}`} style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <SunIcon size={24} />
+            <span>{gold}</span>
+          </div>
           <div className="game-stat">生命: {lives}</div>
           <div className="game-stat">波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
           {difficultyLabel && <div className="game-stat difficulty-stat">{difficultyLabel}</div>}
@@ -296,6 +330,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             <button onClick={handleExit} className="action-button danger">
               退出
             </button>
+            <label className="action-button" style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!autoCollectSun}
+                onChange={event => setAutoCollectSun(event.target.checked)}
+              />
+              自动收集
+            </label>
             <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
           </div>
       </header>
@@ -435,7 +477,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                 </div>
                 {selectedConveyorItem && (
                   <div style={{ fontSize:12, color:'#6b7280', padding:'8px 0 0' }}>
-                    当前操作：放置传送带物品（不消耗金币；元素单独释放仍有冷却）
+                    当前操作：放置传送带物品（不消耗阳光；元素单独释放仍有冷却）
                     {selectedConveyorElementRemaining > 0.01 ? `，单放冷却 ${Math.ceil(selectedConveyorElementRemaining)} 秒` : ''}
                   </div>
                 )}
@@ -506,7 +548,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                           </span>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{cfg.name}</span>
-                            <span style={{ fontSize:12, color:'#6b7280' }}>💰 {cfg.cost}{cfg.placementCooldown ? ` · ${cfg.placementCooldown}s` : ''}</span>
+                            <span style={{ fontSize:12, color:'#6b7280', display:'inline-flex', alignItems:'center', gap:4 }}>
+                              <SunIcon size={16} />
+                              {cfg.cost}{cfg.placementCooldown ? ` · ${cfg.placementCooldown}s` : ''}
+                            </span>
                           </div>
                         </>
                       )}
@@ -589,7 +634,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                           </span>
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{cfg.name}</span>
-                            <span style={{ fontSize:12, color: active ? '#f9fafb' : '#6b7280' }}>💰 {cfg.cost}</span>
+                            <span style={{ fontSize:12, color: active ? '#f9fafb' : '#6b7280', display:'inline-flex', alignItems:'center', gap:4 }}>
+                              <SunIcon size={16} />
+                              {cfg.cost}
+                            </span>
                           </div>
                         </>
                       )}
@@ -601,13 +649,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
 
             {selectedPlantInfo && (
               <div style={{ fontSize:12, color:'#6b7280', padding:'4px 0' }}>
-                当前操作：放置 {selectedPlantInfo.name}（消耗 {selectedPlantInfo.cost} 金币）
+                当前操作：放置 {selectedPlantInfo.name}（消耗 {selectedPlantInfo.cost} 阳光）
                 {selectedPlantRemaining > 0.01 ? `，冷却中 ${Math.ceil(selectedPlantRemaining)} 秒` : selectedPlantInfo.placementCooldown ? `，冷却 ${selectedPlantInfo.placementCooldown} 秒` : ''}
               </div>
             )}
           {!selectedPlantInfo && selectedElementInfo && (
             <div style={{ fontSize:12, color:'#6b7280', padding:'4px 0' }}>
-              当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 金币，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
+              当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 阳光，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
             </div>
           )}
               </>
@@ -1038,6 +1086,39 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                 >
                   {Math.round(p.damage)}
                 </text>
+              </g>
+            );
+          })}
+
+          {sunPickups.map(sun => {
+            const pos = getSunDisplayPos(sun);
+            const { left, top } = worldToPx(pos);
+            const size = CELL_SIZE * 0.95;
+            const collectProgress = sun.collecting && sun.collectedAt != null
+              ? Math.max(0, Math.min(1, (gameTime - sun.collectedAt) / SUN_COLLECT_ANIMATION_SEC))
+              : 0;
+            const opacity = sun.collecting ? Math.max(0, 1 - collectProgress) : 1;
+            const scale = sun.collecting ? 1 + collectProgress * 0.18 : 1;
+            return (
+              <g
+                key={sun.id}
+                transform={`translate(${left} ${top}) scale(${scale}) translate(${-size / 2} ${-size / 2})`}
+                opacity={opacity}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  collectSun(sun.id);
+                }}
+                style={{ cursor: sun.collecting ? 'default' : 'pointer', pointerEvents: sun.collecting ? 'none' : 'auto' }}
+              >
+                <title>{`阳光 +${sun.value}`}</title>
+                <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={size * 0.58}
+                  fill="transparent"
+                  pointerEvents="all"
+                />
+                <SunIcon size={size} />
               </g>
             );
           })}

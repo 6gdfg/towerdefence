@@ -49,14 +49,14 @@ function plantTags(entry: PlantBookEntry) {
   const { config, stats } = entry;
   const tags: string[] = [];
 
-  if (config.incomeInterval) tags.push(`${config.incomeInterval}s 产币`);
+  if (config.incomeInterval) tags.push(`${config.incomeInterval}s 产阳光`);
   if (config.sunflowerBoostAura) {
     const speedBonus = config.sunflowerBoostAura.speedBonus + config.sunflowerBoostAura.bonusPerLevel * (entry.level - 1);
-    tags.push(`5x5 金盏花产速 +${Math.round(speedBonus * 100)}%`, '不叠加');
+    tags.push(`5x5 向日葵产速 +${Math.round(speedBonus * 100)}%`, '不叠加');
   }
   if (config.range >= 90 && stats.fireRate > 0) tags.push('全屏索敌');
   if (config.lifetimeSec) tags.push(`${config.lifetimeSec}s 后消失`);
-  if (config.activeAbilityCost) tags.push(`主动 ${config.activeAbilityCost} 金币`);
+  if (config.activeAbilityCost) tags.push(`主动 ${config.activeAbilityCost} 阳光`);
   if (config.penetration) tags.push('直线穿透');
   if (config.pierceLimit) tags.push(`穿透 ${config.pierceLimit}`);
   if (config.damageDecayFactor) tags.push(`衰减 ${Math.round(config.damageDecayFactor * 100)}%`);

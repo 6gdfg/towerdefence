@@ -83,7 +83,11 @@ const UNLOCK_ITEM_OPTIONS = [
 
 function cloneWaves(waves: WaveDef[]): WaveDef[] {
   return waves.map(wave => ({
-    groups: wave.groups.map(group => ({ ...group })),
+    groups: wave.groups.map(group => {
+      const next = { ...group };
+      delete next.reward;
+      return next;
+    }),
   }));
 }
 
@@ -278,7 +282,7 @@ function normalizeConfig(config: BalanceLabConfig | null): BalanceLabConfig | nu
       ...base.towerLevels,
       ...config.towerLevels,
     },
-    waves: Array.isArray(config.waves) && config.waves.length > 0 ? config.waves : base.waves,
+    waves: Array.isArray(config.waves) && config.waves.length > 0 ? cloneWaves(config.waves) : base.waves,
     atModeConfig: config.targetDifficulty === 'AT'
       ? normalizeAtModeConfig(config.atModeConfig ?? base.atModeConfig)
       : undefined,
@@ -317,7 +321,7 @@ function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
     lives: config.lives,
     autoStartFirstWave: config.autoStartFirstWave,
     firstWaveDelaySec: config.firstWaveDelaySec,
-    waves: config.waves,
+    waves: cloneWaves(config.waves),
     atModeConfig: config.targetDifficulty === 'AT' ? normalizeAtModeConfig(config.atModeConfig) : undefined,
     unlockRewards: normalizeUnlockRewards(config.unlockRewards),
   };
@@ -355,7 +359,7 @@ function buildExportSource(config: BalanceLabConfig) {
 }
 
 function createDefaultGroup(): WaveGroup {
-  return { type: 'circle', count: 10, interval: 0.4, level: 1, reward: 5 };
+  return { type: 'circle', count: 10, interval: 0.4, level: 1 };
 }
 
 function normalizePastedGroup(value: unknown): WaveGroup | null {
@@ -368,7 +372,6 @@ function normalizePastedGroup(value: unknown): WaveGroup | null {
     count: Math.max(1, Math.floor(finiteNumber(value.count, 1))),
     interval: Math.max(0.1, finiteNumber(value.interval, 0.4)),
     level: Math.max(1, Math.floor(finiteNumber(value.level, 1))),
-    reward: Math.max(0, Math.floor(finiteNumber(value.reward, 0))),
   };
 
   if (value.isBoss === true) {
@@ -890,7 +893,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             <div className="lab-at-panel">
               <div className="lab-form-grid">
                 <label className="lab-field">
-                  <span>开局金币</span>
+                  <span>开局阳光</span>
                   <input
                     className="lab-input"
                     type="number"
@@ -902,9 +905,9 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
               </div>
               <label className="lab-check">
                 <input type="checkbox" checked readOnly />
-                <span>击杀不掉金币</span>
+                <span>击杀不掉阳光</span>
               </label>
-              <div className="lab-draft-summary">金盏花在该模式中固定禁用；进入后不会自动出怪，点击开始后再刷怪。</div>
+              <div className="lab-draft-summary">向日葵在该模式中固定禁用；进入后不会自动出怪，点击开始后再刷怪。</div>
             </div>
           )}
 
@@ -964,7 +967,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
               </select>
             </label>
             <label className="lab-field">
-              <span>初始金币</span>
+              <span>初始阳光</span>
               <input className="lab-input" type="number" value={config.startGold} onChange={event => updateConfig({ startGold: readNumber(event.target.value, config.startGold) })} />
             </label>
             <label className="lab-field">
@@ -1085,10 +1088,6 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                         title={cardSelectLocksMonsterLevel ? '选卡模式运行时统一按最高植物等级和倍率计算' : undefined}
                         onChange={event => updateWaveGroup(waveIndex, groupIndex, { level: Math.max(1, Math.floor(readNumber(event.target.value, group.level))) })}
                       />
-                    </label>
-                    <label>
-                      <span>奖励</span>
-                      <input type="number" value={group.reward} onChange={event => updateWaveGroup(waveIndex, groupIndex, { reward: Math.max(0, Math.floor(readNumber(event.target.value, group.reward))) })} />
                     </label>
                     <label>
                       <span>路径</span>

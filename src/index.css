@@ -718,11 +718,18 @@ input {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 136px;
+  min-width: 206px;
+}
+
+.phigros-action-row {
+  display: grid;
+  grid-template-columns: 78px minmax(118px, 1fr);
+  gap: 8px;
 }
 
 .phigros-play-button,
-.phigros-unlock-button {
+.phigros-unlock-button,
+.phigros-challenge-button {
   min-height: 38px;
   border-radius: 6px;
   border: 0;
@@ -736,7 +743,20 @@ input {
   color: #ffffff;
 }
 
-.phigros-play-button:disabled {
+.phigros-challenge-button {
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background: rgba(255, 255, 255, 0.76);
+  color: #475569;
+}
+
+.phigros-challenge-button.is-active {
+  border-color: rgba(14, 165, 233, 0.62);
+  background: rgba(14, 165, 233, 0.13);
+  color: #0369a1;
+}
+
+.phigros-play-button:disabled,
+.phigros-challenge-button:disabled {
   background: rgba(100, 116, 139, 0.52);
   color: rgba(255, 255, 255, 0.78);
   cursor: not-allowed;
@@ -1547,8 +1567,63 @@ input {
   gap: 10px;
 }
 
+.challenge-config-modal {
+  width: min(560px, 100%);
+}
+
+.challenge-config-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+
+.challenge-config-item {
+  display: grid;
+  gap: 5px;
+  min-height: 86px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.challenge-config-item span {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.challenge-config-item strong {
+  font-size: 17px;
+  line-height: 1.15;
+}
+
+.challenge-config-item small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.challenge-config-item.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(14, 165, 233, 0.66);
+  background: rgba(224, 242, 254, 0.78);
+}
+
+.challenge-config-close {
+  width: 100%;
+}
+
 @media (max-width: 560px) {
   .level-start-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .phigros-action-row {
     grid-template-columns: 1fr;
   }
 }
