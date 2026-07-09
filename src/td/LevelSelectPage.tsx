@@ -86,7 +86,7 @@ export default function LevelSelectPage({
           const selectedLevel = getLevelSpecForDifficulty(L, selectedDifficulty);
           const M = MAPS.find(m => m.id === selectedLevel.mapId);
           const selectedLabel = selectedDifficulty;
-          const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber && (rule.difficulty !== 'AT' || showAt));
+          const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
           const progressLabel = isLocked
             ? 'LOCKED'
             : clearedMax > 0

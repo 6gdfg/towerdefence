@@ -80,7 +80,9 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     ],
-    "unlockRewards": []
+    "unlockRewards": [
+      "element:fire"
+    ]
   },
   {
     "sourceLevelId": "L1",
@@ -1480,7 +1482,9 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     ],
-    "unlockRewards": []
+    "unlockRewards": [
+      "element:fire"
+    ]
   },
   "L1:HD": {
     "sourceLevelId": "L1",

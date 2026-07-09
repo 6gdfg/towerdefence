@@ -5,6 +5,12 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
   itemId: string;
 }> = [
   {
+    "level": 1,
+    "difficulty": "EZ",
+    "star": 1,
+    "itemId": "element:fire"
+  },
+  {
     "level": 4,
     "difficulty": "AT",
     "star": 3,
