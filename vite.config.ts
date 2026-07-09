@@ -131,9 +131,15 @@ async function readExistingDrafts(file: string) {
     const singleDraft = asBalanceDraft(extractJsonConst(source, 'BALANCE_LAB_LEVEL_DRAFT'));
     if (singleDraft) {
       drafts.set(getDraftKey(singleDraft), singleDraft);
+      return drafts;
     }
-  } catch {
-    return drafts;
+
+    if (source.trim().length > 0) {
+      throw new Error(`Cannot parse existing balance drafts: ${file}`);
+    }
+  } catch (error) {
+    if (isRecord(error) && error.code === 'ENOENT') return drafts;
+    throw error;
   }
 
   return drafts;
