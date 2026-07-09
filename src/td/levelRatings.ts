@@ -1,13 +1,7 @@
 import { BALANCE_LAB_LEVEL_DRAFTS } from './balanceDraft.generated';
 
 export type DifficultyCode = 'EZ' | 'HD' | 'IN' | 'AT';
-export type LevelDifficultyRatings = Record<'EZ' | 'HD' | 'IN', number> & Partial<Record<'AT', number>>;
-
-const BASE_LEVEL_DIFFICULTY_RATINGS: Record<string, LevelDifficultyRatings> = {
-  L1: { EZ: 1, HD: 4, IN: 13 },
-  L2: { EZ: 4, HD: 10, IN: 14 },
-  L3: { EZ: 5, HD: 11, IN: 15, AT: 16 },
-};
+export type LevelDifficultyRatings = Partial<Record<DifficultyCode, number>>;
 
 function buildGeneratedDifficultyRatings() {
   const ratings: Record<string, Partial<Record<DifficultyCode, number>>> = {};
@@ -21,9 +15,8 @@ function buildGeneratedDifficultyRatings() {
 }
 
 export const GENERATED_LEVEL_DIFFICULTY_RATINGS = buildGeneratedDifficultyRatings();
-export const LEVEL_DIFFICULTY_RATINGS: Record<string, LevelDifficultyRatings> = BASE_LEVEL_DIFFICULTY_RATINGS;
 
-export function createFallbackDifficultyRatings(levelNumber: number): LevelDifficultyRatings {
+export function createFallbackDifficultyRatings(levelNumber: number): Required<Pick<LevelDifficultyRatings, 'EZ' | 'HD' | 'IN'>> & Partial<Record<'AT', number>> {
   return {
     EZ: Math.min(15, 4 + Math.floor(levelNumber / 3)),
     HD: Math.min(15, 8 + levelNumber),
@@ -31,9 +24,15 @@ export function createFallbackDifficultyRatings(levelNumber: number): LevelDiffi
   };
 }
 
-export function getLevelDifficultyRatings(levelId: string, levelNumber: number): LevelDifficultyRatings {
+export function createLabDifficultyRatings(levelId: string, levelNumber: number): Required<Pick<LevelDifficultyRatings, 'EZ' | 'HD' | 'IN'>> & Partial<Record<'AT', number>> {
   return {
-    ...(LEVEL_DIFFICULTY_RATINGS[levelId] ?? createFallbackDifficultyRatings(levelNumber)),
+    ...createFallbackDifficultyRatings(levelNumber),
+    ...GENERATED_LEVEL_DIFFICULTY_RATINGS[levelId],
+  };
+}
+
+export function getLevelDifficultyRatings(levelId: string, _levelNumber: number): LevelDifficultyRatings {
+  return {
     ...GENERATED_LEVEL_DIFFICULTY_RATINGS[levelId],
   };
 }

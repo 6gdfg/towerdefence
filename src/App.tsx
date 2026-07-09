@@ -18,7 +18,7 @@ import ResultModal from './td/ResultModal';
 import LevelStartModal from './td/LevelStartModal';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
 import { useTDStore } from './td/store';
-import { getLevelSpecForDifficulty, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
+import { getLevelSpecForDifficulty, hasLevelDifficultyDraft, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems } from './td/progress';
@@ -384,6 +384,7 @@ function App() {
     setActiveChallengeRun(null);
     const L = LEVELS[idx];
     if (!L) return;
+    if (!hasLevelDifficultyDraft(L, difficulty)) return;
     const chosenStar = STAR_BY_DIFFICULTY[difficulty];
     const selectedLevel = getLevelSpecForDifficulty(L, difficulty);
     const M = MAPS.find(m => m.id === selectedLevel.mapId);
@@ -483,6 +484,7 @@ function App() {
       ? DIFFICULTY_BY_STAR[difficultyOverride]
       : difficultyOverride ?? starSel[idx] ?? 'EZ';
     const difficulty = getPlayableDifficulty(LEVELS, idx, requestedDifficulty);
+    if (!hasLevelDifficultyDraft(L, difficulty)) return;
     setPendingLevelStart({ levelIndex: idx, difficulty, challenges: challengeSel[idx] ?? [] });
   };
 
@@ -750,6 +752,7 @@ function App() {
     const level = LEVELS[pendingLevelStart.levelIndex];
     if (!level) return null;
     const selectedLevel = getLevelSpecForDifficulty(level, pendingLevelStart.difficulty);
+    if (!hasLevelDifficultyDraft(level, pendingLevelStart.difficulty)) return null;
     const ratings = getLevelDifficultyRatings(level.id, pendingLevelStart.levelIndex + 1);
     return {
       levelName: selectedLevel.name,
@@ -764,6 +767,7 @@ function App() {
     if (!level) return null;
     const requestedDifficulty = starSel[challengeConfigLevelIndex] ?? 'EZ';
     const difficulty = getPlayableDifficulty(LEVELS, challengeConfigLevelIndex, requestedDifficulty);
+    if (!hasLevelDifficultyDraft(level, difficulty)) return null;
     const selectedLevel = getLevelSpecForDifficulty(level, difficulty);
     const ratings = getLevelDifficultyRatings(level.id, challengeConfigLevelIndex + 1);
     return {
@@ -790,7 +794,7 @@ function App() {
         challengeDiamonds: challengeDiamondReward,
       });
       const ratings = getLevelDifficultyRatings(L.id, levelIndex + 1);
-      const hasAtDifficulty = Boolean(L.difficultyOverrides?.AT && typeof ratings.AT === 'number');
+      const hasAtDifficulty = Boolean(hasLevelDifficultyDraft(L, 'AT') && typeof ratings.AT === 'number');
       if (hasAtDifficulty && result?.newFullHealthClear) {
         setAtUnlockNotice({ levelName: L.name });
       }

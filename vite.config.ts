@@ -227,6 +227,14 @@ function balanceLabSavePlugin(): Plugin {
             const drafts = parsed.replaceAll ? new Map<string, BalanceDraftRecord>() : await readExistingDrafts(file);
             const key = getDraftKey(draft);
             drafts.set(key, draft);
+            if (typeof draft.levelName === 'string' && draft.levelName.trim().length > 0) {
+              const unifiedLevelName = draft.levelName.trim();
+              drafts.forEach(existingDraft => {
+                if (existingDraft.sourceLevelId === draft.sourceLevelId) {
+                  existingDraft.levelName = unifiedLevelName;
+                }
+              });
+            }
             const nextDrafts = [...drafts.values()];
             const source = buildDraftSource(nextDrafts);
             await writeFile(file, source, 'utf8');

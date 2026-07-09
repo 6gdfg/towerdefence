@@ -1,7 +1,7 @@
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../../shared/unlocks';
 import { STAR_LABELS } from './appConfig';
 import { getChapterById, getChapterLevelLabel } from './chapters';
-import { getLevelSpecForDifficulty, LEVELS } from './levels';
+import { getLevelSpecForDifficulty, hasAnyLevelDraft, hasLevelDifficultyDraft, LEVELS } from './levels';
 import { MAPS } from './maps';
 import { getAllStars, getMaxStarSync } from './progress';
 import { resolveUnlockItemLabel } from './labels';
@@ -73,25 +73,30 @@ export default function LevelSelectPage({
         {chapterLevels.map(({ level: L, index: i }, displayIndex) => {
           const clearedMax = getMaxStarSync(L.id);
           const hasStarRecord = L.id in allStars;
-          const isLocked = (i + 1 > unlocked) && !hasStarRecord;
+          const missingLevelDraft = !hasAnyLevelDraft(L);
+          const progressLocked = (i + 1 > unlocked) && !hasStarRecord;
+          const isLocked = missingLevelDraft || progressLocked;
           const levelNumber = i + 1;
           const displayLabel = getChapterLevelLabel(i);
           const ratings = getLevelDifficultyRatings(L.id, levelNumber);
-          const hasAt = Boolean(L.difficultyOverrides?.AT && typeof ratings.AT === 'number');
+          const hasAt = Boolean(hasLevelDifficultyDraft(L, 'AT') && typeof ratings.AT === 'number');
           const showAt = hasAt && isAtDifficultyUnlocked(LEVELS, i);
           const rawSelectedDifficulty = starSel[i] ?? 'EZ';
           const unlockedCoreStar = getCoreDifficultyUnlockStar(LEVELS, i);
           const selectedDifficulty = getPlayableDifficulty(LEVELS, i, rawSelectedDifficulty);
           const selectedChallenges = challengeSel[i] ?? [];
           const selectedLevel = getLevelSpecForDifficulty(L, selectedDifficulty);
+          const selectedConfigured = hasLevelDifficultyDraft(L, selectedDifficulty);
           const M = MAPS.find(m => m.id === selectedLevel.mapId);
           const selectedLabel = selectedDifficulty;
           const unlockInfos = LEVEL_UNLOCK_REQUIREMENTS.filter(rule => rule.level === levelNumber);
-          const progressLabel = isLocked
-            ? 'LOCKED'
-            : clearedMax > 0
-              ? `${STAR_LABELS[clearedMax as 1 | 2 | 3]} CLEAR`
-              : 'NO CLEAR';
+          const progressLabel = missingLevelDraft
+            ? 'NO DRAFT'
+            : progressLocked
+              ? 'LOCKED'
+              : clearedMax > 0
+                ? `${STAR_LABELS[clearedMax as 1 | 2 | 3]} CLEAR`
+                : 'NO CLEAR';
 
           return (
             <article
@@ -132,7 +137,8 @@ export default function LevelSelectPage({
                 {CORE_DIFFICULTIES.map(diff => {
                   const active = selectedDifficulty === diff.label;
                   const cleared = clearedMax >= diff.star;
-                  const difficultyLocked = diff.star > unlockedCoreStar;
+                  const missingDifficultyDraft = !hasLevelDifficultyDraft(L, diff.label);
+                  const difficultyLocked = missingDifficultyDraft || diff.star > unlockedCoreStar;
                   return (
                     <button
                       key={diff.label}
@@ -144,7 +150,7 @@ export default function LevelSelectPage({
                       title={difficultyLocked ? '通关上一关对应或更高难度后解锁' : undefined}
                     >
                       <span className="phigros-diff-content">
-                        <span className="phigros-diff-rating">{ratings[diff.label]}</span>
+                        <span className="phigros-diff-rating">{missingDifficultyDraft ? '-' : ratings[diff.label]}</span>
                         <span className="phigros-diff-label">{diff.label}</span>
                       </span>
                     </button>
@@ -171,7 +177,7 @@ export default function LevelSelectPage({
                   <button
                     type="button"
                     onClick={() => onOpenChallengeConfig(i)}
-                    disabled={isLocked}
+                    disabled={isLocked || !selectedConfigured}
                     className={`phigros-challenge-button ${selectedChallenges.length > 0 ? 'is-active' : ''}`}
                   >
                     {selectedChallenges.length > 0 ? `挑战 ${selectedChallenges.length}` : '挑战'}
@@ -179,13 +185,13 @@ export default function LevelSelectPage({
                   <button
                     type="button"
                     onClick={() => onStartLevel(i, selectedDifficulty)}
-                    disabled={isLocked}
+                    disabled={isLocked || !selectedConfigured}
                     className="phigros-play-button"
                   >
                     {isLocked ? 'LOCKED' : `START ${selectedLabel}`}
                   </button>
                 </div>
-                {isLocked && magicKeys > 0 && (
+                {progressLocked && !missingLevelDraft && magicKeys > 0 && (
                   <button
                     type="button"
                     onClick={() => onUnlockLevel(L.id, L.name)}

@@ -1,4 +1,4 @@
-import type { LevelSpec } from './levels';
+import { getConfiguredDifficulties, hasLevelDifficultyDraft, type LevelSpec } from './levels';
 import { getAllStars, getInFullHealthClearSync, getMaxStarSync } from './progress';
 import { getLevelDifficultyRatings, type DifficultyCode } from './levelRatings';
 
@@ -25,10 +25,12 @@ export function isAtDifficultyUnlocked(levels: LevelSpec[], levelIndex: number) 
   const level = levels[levelIndex];
   if (!level) return false;
   const ratings = getLevelDifficultyRatings(level.id, levelIndex + 1);
-  return Boolean(level.difficultyOverrides?.AT && typeof ratings.AT === 'number' && getInFullHealthClearSync(level.id));
+  return Boolean(hasLevelDifficultyDraft(level, 'AT') && typeof ratings.AT === 'number' && getInFullHealthClearSync(level.id));
 }
 
 export function isDifficultyUnlocked(levels: LevelSpec[], levelIndex: number, difficulty: DifficultyCode) {
+  const level = levels[levelIndex];
+  if (!hasLevelDifficultyDraft(level, difficulty)) return false;
   if (difficulty === 'AT') {
     return isAtDifficultyUnlocked(levels, levelIndex);
   }
@@ -40,8 +42,12 @@ export function getPlayableDifficulty(levels: LevelSpec[], levelIndex: number, p
     return preferred;
   }
 
-  const unlockedCoreStar = getCoreDifficultyUnlockStar(levels, levelIndex);
-  if (unlockedCoreStar >= 3) return 'IN';
-  if (unlockedCoreStar >= 2) return 'HD';
+  const level = levels[levelIndex];
+  const configured = getConfiguredDifficulties(level);
+  const unlockedConfigured = configured.filter(difficulty => isDifficultyUnlocked(levels, levelIndex, difficulty));
+  if (unlockedConfigured.includes('IN')) return 'IN';
+  if (unlockedConfigured.includes('HD')) return 'HD';
+  if (unlockedConfigured.includes('EZ')) return 'EZ';
+  if (unlockedConfigured.includes('AT')) return 'AT';
   return 'EZ';
 }

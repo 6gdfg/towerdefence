@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
 import { ELEMENT_TYPES, MONSTER_LABELS, PLANT_TYPES } from './appConfig';
 import { getLevelSpecForDifficulty, LEVELS } from './levels';
-import { getLevelDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
+import { createLabDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
 import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
@@ -229,6 +229,10 @@ function createTowerLevels(): TowerLevelMap {
   return levels;
 }
 
+function createDefaultWaves(): WaveDef[] {
+  return [{ groups: [createDefaultGroup()] }];
+}
+
 function getLevelIndexById(levelId: string) {
   const index = LEVELS.findIndex(level => level.id === levelId);
   return index >= 0 ? index : 0;
@@ -241,7 +245,7 @@ function getAvailableDifficulties(ratings: LevelDifficultyRatings) {
 function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode): BalanceLabConfig {
   const baseLevel = LEVELS[levelIndex] ?? LEVELS[0];
   const levelNumber = Math.max(1, levelIndex + 1);
-  const ratings: LevelDifficultyRatings = { ...getLevelDifficultyRatings(baseLevel.id, levelNumber) };
+  const ratings: LevelDifficultyRatings = { ...createLabDifficultyRatings(baseLevel.id, levelNumber) };
   const available = getAvailableDifficulties(ratings);
   const targetDifficulty = difficulty && (difficulty === 'AT' || typeof ratings[difficulty] === 'number')
     ? difficulty
@@ -250,10 +254,11 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
     ratings.AT = Math.max(1, Math.round((ratings.IN ?? 15) + 1));
   }
   const level = getLevelSpecForDifficulty(baseLevel, targetDifficulty);
+  const waves = level.waves.length > 0 ? level.waves : createDefaultWaves();
 
   return {
     sourceLevelId: baseLevel.id,
-    levelName: level.name,
+    levelName: baseLevel.name,
     targetDifficulty,
     mapId: level.mapId,
     startGold: level.startGold,
@@ -262,7 +267,7 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
     firstWaveDelaySec: level.firstWaveDelaySec ?? 0.8,
     difficultyRatings: ratings,
     towerLevels: createTowerLevels(),
-    waves: cloneWaves(level.waves),
+    waves: cloneWaves(waves),
     atModeConfig: targetDifficulty === 'AT' ? normalizeAtModeConfig(level.atModeConfig) : undefined,
     unlockRewards: [],
   };
@@ -304,7 +309,7 @@ function loadStoredConfig(): BalanceLabConfig | null {
 function getDraftRating(config: BalanceLabConfig) {
   const rating = config.difficultyRatings[config.targetDifficulty];
   if (typeof rating === 'number') return rating;
-  return config.difficultyRatings.IN;
+  return config.difficultyRatings.IN ?? 1;
 }
 
 function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
@@ -452,6 +457,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
     if (difficulty !== 'AT' && typeof config.difficultyRatings[difficulty] !== 'number') return;
     setConfig(current => ({
       ...createConfigFromLevel(getLevelIndexById(current.sourceLevelId), difficulty),
+      levelName: current.levelName,
       towerLevels: current.towerLevels,
     }));
   };

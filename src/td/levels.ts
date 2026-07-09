@@ -1,5 +1,6 @@
-import type { DifficultyCode } from './levelRatings';
 import { BALANCE_LAB_LEVEL_DRAFTS } from './balanceDraft.generated';
+import { getChapterLevelLabel } from './chapters';
+import type { DifficultyCode } from './levelRatings';
 import type { AtModeConfig, ShapeType, WaveDef } from './types';
 
 export interface LevelDifficultySpec {
@@ -26,8 +27,10 @@ export interface LevelSpec {
   difficultyOverrides?: Partial<Record<DifficultyCode, LevelDifficultySpec>>;
 }
 
+const DIFFICULTY_ORDER: DifficultyCode[] = ['EZ', 'HD', 'IN', 'AT'];
+
 export function getLevelSpecForDifficulty(level: LevelSpec, difficulty: DifficultyCode): LevelSpec {
-  const override = level.difficultyOverrides?.[difficulty] ?? (difficulty === 'EZ' ? undefined : level.difficultyOverrides?.EZ);
+  const override = level.difficultyOverrides?.[difficulty];
   if (!override) return level;
   return {
     ...level,
@@ -42,6 +45,18 @@ export function getLevelSpecForDifficulty(level: LevelSpec, difficulty: Difficul
     atModeConfig: override.atModeConfig ?? level.atModeConfig,
     difficultyOverrides: level.difficultyOverrides,
   };
+}
+
+export function hasLevelDifficultyDraft(level: LevelSpec | undefined, difficulty: DifficultyCode) {
+  return Boolean(level?.difficultyOverrides?.[difficulty]);
+}
+
+export function hasAnyLevelDraft(level: LevelSpec | undefined) {
+  return Boolean(level?.difficultyOverrides && Object.keys(level.difficultyOverrides).length > 0);
+}
+
+export function getConfiguredDifficulties(level: LevelSpec | undefined): DifficultyCode[] {
+  return DIFFICULTY_ORDER.filter(difficulty => hasLevelDifficultyDraft(level, difficulty));
 }
 
 export type MonsterBaseStats = {
@@ -86,72 +101,6 @@ export const INTRODUCTION_LEVEL: LevelSpec = {
 };
 
 const MANUAL_LEVEL_COUNT = 48;
-const MANUAL_SLOT_MAP_IDS = Array.from({ length: 17 }, (_, index) => index + 1);
-
-const UNCONFIGURED_WAVES: WaveDef[] = [
-  { groups: [{ type: 'circle', count: 8, interval: 0.5, level: 1 }] },
-];
-
-const SEED_LEVELS: LevelSpec[] = [
-  {
-    id: 'L1',
-    name: '入门小道',
-    startGold: 1000,
-    lives: 20,
-    mapId: 1,
-    waves: [
-      { groups: [{ type: 'circle', count: 12, interval: 0.35, level: 1 }] },
-      { groups: [{ type: 'circle', count: 35, interval: 0.3, level: 3 }, { type: 'triangle', count: 30, interval: 0.28, level: 2 }] },
-      { groups: [{ type: 'square', count: 20, interval: 0.45, level: 4 }, { type: 'triangle', count: 40, interval: 0.25, level: 3 }] },
-      { groups: [
-        { type: 'circle', count: 68, interval: 0.11249999999999999, level: 54 },
-        { type: 'triangle', count: 51, interval: 0.1325, level: 63 },
-        { type: 'square', count: 1, interval: 1.4, level: 600, isBoss: true, leakDamage: 4 },
-      ] },
-    ],
-    autoStartFirstWave: true,
-    firstWaveDelaySec: 0.8,
-  },
-  {
-    id: 'L2',
-    name: 'Z字回廊',
-    startGold: 1000,
-    lives: 18,
-    mapId: 3,
-    waves: [
-      { groups: [{ type: 'circle', count: 15, interval: 0.32, level: 5 }] },
-      { groups: [{ type: 'triangle', count: 45, interval: 0.28, level: 6 }] },
-      { groups: [{ type: 'square', count: 22, interval: 0.42, level: 7 }, { type: 'triangle', count: 42, interval: 0.26, level: 6 }] },
-      { groups: [
-        { type: 'circle', count: 77, interval: 0.11149999999999999, level: 55 },
-        { type: 'triangle', count: 57, interval: 0.1315, level: 64 },
-        { type: 'square', count: 1, interval: 1.4, level: 650, isBoss: true, leakDamage: 4 },
-      ] },
-    ],
-    autoStartFirstWave: true,
-    firstWaveDelaySec: 0.8,
-  },
-  {
-    id: 'L3',
-    name: '双拐角',
-    startGold: 1000,
-    lives: 16,
-    mapId: 2,
-    waves: [
-      { groups: [{ type: 'circle', count: 18, interval: 0.3, level: 8 }] },
-      { groups: [{ type: 'triangle', count: 50, interval: 0.26, level: 9 }] },
-      { groups: [{ type: 'square', count: 25, interval: 0.4, level: 10 }] },
-      { groups: [{ type: 'circle', count: 48, interval: 0.28, level: 10 }, { type: 'square', count: 24, interval: 0.42, level: 11 }] },
-      { groups: [
-        { type: 'circle', count: 86, interval: 0.1105, level: 56 },
-        { type: 'triangle', count: 64, interval: 0.1305, level: 66 },
-        { type: 'square', count: 1, interval: 1.4, level: 700, isBoss: true, leakDamage: 4 },
-      ] },
-    ],
-    autoStartFirstWave: true,
-    firstWaveDelaySec: 0.8,
-  },
-];
 
 function cloneWaves(waves: WaveDef[]): WaveDef[] {
   return waves.map(wave => ({
@@ -160,24 +109,26 @@ function cloneWaves(waves: WaveDef[]): WaveDef[] {
 }
 
 function createManualLevelSlot(levelNumber: number): LevelSpec {
-  const seed = SEED_LEVELS[levelNumber - 1];
-  if (seed) {
-    return {
-      ...seed,
-      waves: cloneWaves(seed.waves),
-    };
-  }
-
   return {
     id: `L${levelNumber}`,
-    name: `关卡${levelNumber}`,
+    name: getChapterLevelLabel(levelNumber - 1),
     startGold: 1000,
     lives: 20,
-    mapId: MANUAL_SLOT_MAP_IDS[(levelNumber - 1) % MANUAL_SLOT_MAP_IDS.length],
-    waves: cloneWaves(UNCONFIGURED_WAVES),
+    mapId: 1,
+    waves: [],
     autoStartFirstWave: true,
     firstWaveDelaySec: 0.8,
   };
+}
+
+function getUnifiedDraftName(levelId: string, levelNumber: number, fallback: string) {
+  const drafts = BALANCE_LAB_LEVEL_DRAFTS
+    .filter(draft => draft.sourceLevelId === levelId && typeof draft.levelName === 'string' && draft.levelName.trim().length > 0)
+    .sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty));
+  const numberedName = drafts.find(draft => /^\d+-\d+$/.test(draft.levelName.trim()))?.levelName.trim();
+  const oldDefaultName = `关卡${levelNumber}`;
+  const customName = drafts.find(draft => draft.levelName.trim() !== oldDefaultName)?.levelName.trim();
+  return numberedName ?? customName ?? fallback;
 }
 
 function applyGeneratedDrafts(levels: LevelSpec[]): LevelSpec[] {
@@ -186,12 +137,14 @@ function applyGeneratedDrafts(levels: LevelSpec[]): LevelSpec[] {
   BALANCE_LAB_LEVEL_DRAFTS.forEach(draft => {
     const level = byId.get(draft.sourceLevelId);
     if (!level) return;
+    const levelNumber = Number(draft.sourceLevelId.replace(/^L/, '')) || draft.levelNumber || 1;
+    const unifiedName = getUnifiedDraftName(level.id, levelNumber, level.name);
 
-    level.name = draft.levelName || level.name;
+    level.name = unifiedName;
     level.difficultyOverrides = {
       ...level.difficultyOverrides,
       [draft.difficulty]: {
-        name: draft.levelName,
+        name: unifiedName,
         startGold: draft.startGold,
         lives: draft.lives,
         mapId: draft.mapId,

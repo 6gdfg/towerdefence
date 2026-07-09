@@ -908,7 +908,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
   {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "EZ",
     "rating": 4,
     "mapId": 11,
@@ -994,7 +994,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
   {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "HD",
     "rating": 8,
     "mapId": 11,
@@ -1043,7 +1043,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
   {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "IN",
     "rating": 12,
     "mapId": 11,
@@ -1204,7 +1204,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
   {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "AT",
     "rating": 13,
     "mapId": 17,
@@ -1399,6 +1399,114 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "unlockRewards": [
       "doubleBottleGrass"
     ]
+  },
+  {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 5,
+    "mapName": "外圈绕行",
+    "startGold": 700,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 15
+          },
+          {
+            "type": "rager",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 5,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 ];
 
@@ -2310,7 +2418,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
   "L4:EZ": {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "EZ",
     "rating": 4,
     "mapId": 11,
@@ -2396,7 +2504,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
   "L4:HD": {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "HD",
     "rating": 8,
     "mapId": 11,
@@ -2445,7 +2553,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
   "L4:IN": {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "IN",
     "rating": 12,
     "mapId": 11,
@@ -2606,7 +2714,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
   "L4:AT": {
     "sourceLevelId": "L4",
     "levelNumber": 4,
-    "levelName": "关卡4",
+    "levelName": "1-4",
     "difficulty": "AT",
     "rating": 13,
     "mapId": 17,
@@ -2801,6 +2909,114 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "unlockRewards": [
       "doubleBottleGrass"
     ]
+  },
+  "L5:EZ": {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "EZ",
+    "rating": 3,
+    "mapId": 5,
+    "mapName": "外圈绕行",
+    "startGold": 700,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 15
+          },
+          {
+            "type": "rager",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 5,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 };
 
