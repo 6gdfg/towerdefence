@@ -12,6 +12,7 @@ export interface LevelDifficultySpec {
   autoStartFirstWave?: boolean;
   firstWaveDelaySec?: number;
   atModeConfig?: AtModeConfig;
+  unlockRewards?: string[];
 }
 
 export interface LevelSpec {
@@ -24,6 +25,7 @@ export interface LevelSpec {
   autoStartFirstWave?: boolean;
   firstWaveDelaySec?: number;
   atModeConfig?: AtModeConfig;
+  unlockRewards?: string[];
   difficultyOverrides?: Partial<Record<DifficultyCode, LevelDifficultySpec>>;
 }
 
@@ -43,6 +45,7 @@ export function getLevelSpecForDifficulty(level: LevelSpec, difficulty: Difficul
     autoStartFirstWave: override.autoStartFirstWave ?? level.autoStartFirstWave,
     firstWaveDelaySec: override.firstWaveDelaySec ?? level.firstWaveDelaySec,
     atModeConfig: override.atModeConfig ?? level.atModeConfig,
+    unlockRewards: override.unlockRewards ?? level.unlockRewards,
     difficultyOverrides: level.difficultyOverrides,
   };
 }
@@ -152,6 +155,7 @@ function applyGeneratedDrafts(levels: LevelSpec[]): LevelSpec[] {
         autoStartFirstWave: draft.autoStartFirstWave,
         firstWaveDelaySec: draft.firstWaveDelaySec,
         atModeConfig: draft.atModeConfig,
+        unlockRewards: Array.isArray(draft.unlockRewards) ? [...draft.unlockRewards] : [],
       },
     };
   });

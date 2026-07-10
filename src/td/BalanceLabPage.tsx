@@ -269,7 +269,7 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
     towerLevels: createTowerLevels(),
     waves: cloneWaves(waves),
     atModeConfig: targetDifficulty === 'AT' ? normalizeAtModeConfig(level.atModeConfig) : undefined,
-    unlockRewards: [],
+    unlockRewards: normalizeUnlockRewards(level.unlockRewards),
   };
 }
 

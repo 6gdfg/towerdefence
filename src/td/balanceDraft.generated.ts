@@ -1396,7 +1396,9 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     },
-    "unlockRewards": []
+    "unlockRewards": [
+      "doubleBottleGrass"
+    ]
   },
   {
     "sourceLevelId": "L5",
@@ -2223,7 +2225,9 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     },
-    "unlockRewards": []
+    "unlockRewards": [
+      "rocket"
+    ]
   }
 ];
 
@@ -3623,7 +3627,9 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     },
-    "unlockRewards": []
+    "unlockRewards": [
+      "doubleBottleGrass"
+    ]
   },
   "L5:EZ": {
     "sourceLevelId": "L5",
@@ -4450,7 +4456,9 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     },
-    "unlockRewards": []
+    "unlockRewards": [
+      "rocket"
+    ]
   }
 };
 
