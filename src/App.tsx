@@ -783,9 +783,10 @@ function App() {
       const L = LEVELS[levelIndex];
       const selectedLevel = getLevelSpecForDifficulty(L, currentDifficulty);
       const endLives = useTDStore.getState().lives;
-      const fullHealthClear = currentDifficulty === 'IN' && endLives >= selectedLevel.lives;
+      const startLivesForRun = activeChallengeRun?.startLives ?? selectedLevel.lives;
+      const fullHealthClear = currentDifficulty === 'IN' && endLives >= startLivesForRun;
       const challengeDiamondReward = activeChallengeRun
-        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= activeChallengeRun.startLives ? 1 : 0)
+        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= startLivesForRun ? 1 : 0)
           + (hasChallenge(activeChallengeRun.selected, 'halfHealth') ? 1 : 0)
         : 0;
       const result = await setStarCleared(L.id, currentStar, {

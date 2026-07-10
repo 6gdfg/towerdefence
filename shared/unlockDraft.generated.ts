@@ -11,9 +11,9 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "itemId": "element:fire"
   },
   {
-    "level": 4,
-    "difficulty": "AT",
+    "level": 5,
+    "difficulty": "IN",
     "star": 3,
-    "itemId": "doubleBottleGrass"
+    "itemId": "hotPepper"
   }
 ];

@@ -1355,7 +1355,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "atModeConfig": {
       "type": "conveyor",
       "conveyor": {
-        "intervalSec": 3,
+        "intervalSec": 1.5,
         "maxQueue": 8,
         "pool": [
           {
@@ -1396,9 +1396,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     },
-    "unlockRewards": [
-      "doubleBottleGrass"
-    ]
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L5",
@@ -1506,6 +1504,725 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "HD",
+    "rating": 6,
+    "mapId": 13,
+    "mapName": "三线并行",
+    "startGold": 600,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4
+          },
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 30
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 0.4,
+            "level": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 5,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "IN",
+    "rating": 16,
+    "mapId": 15,
+    "mapName": "五线并行",
+    "startGold": 100,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 5,
+            "interval": 0.4,
+            "level": 9,
+            "startDelay": 10
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 11
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          },
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 25,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 3,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 4,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": [
+      "hotPepper"
+    ]
+  },
+  {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 15
+          },
+          {
+            "type": "rager",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "isBoss": true,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "HD",
+    "rating": 8,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 3000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.2,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 15
+          },
+          {
+            "type": "square",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "isBoss": true,
+            "startDelay": 40
+          },
+          {
+            "type": "angryWriter",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 50
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "IN",
+    "rating": 13,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 200,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 40,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15
+          },
+          {
+            "type": "purifier",
+            "count": 100,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 15
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "AT",
+    "rating": 14,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 1000,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 40,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15,
+            "startDelay": 0
+          },
+          {
+            "type": "purifier",
+            "count": 100,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 15
+          },
+          {
+            "type": "evilSniper",
+            "count": 30,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 200,
+            "startDelay": 40,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 1.5,
+        "maxQueue": 10,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "sunflower",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "puffShroom",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "machineGun",
+            "weight": 100
+          },
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "sunlightFlower",
+            "weight": 100
+          }
+        ]
+      }
+    },
     "unlockRewards": []
   }
 ];
@@ -2865,7 +3582,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "atModeConfig": {
       "type": "conveyor",
       "conveyor": {
-        "intervalSec": 3,
+        "intervalSec": 1.5,
         "maxQueue": 8,
         "pool": [
           {
@@ -2906,9 +3623,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     },
-    "unlockRewards": [
-      "doubleBottleGrass"
-    ]
+    "unlockRewards": []
   },
   "L5:EZ": {
     "sourceLevelId": "L5",
@@ -3016,6 +3731,725 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     ],
+    "unlockRewards": []
+  },
+  "L5:HD": {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "HD",
+    "rating": 6,
+    "mapId": 13,
+    "mapName": "三线并行",
+    "startGold": 600,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4
+          },
+          {
+            "type": "triangle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 30
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 0.4,
+            "level": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 5,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L5:IN": {
+    "sourceLevelId": "L5",
+    "levelNumber": 5,
+    "levelName": "1-5",
+    "difficulty": "IN",
+    "rating": 16,
+    "mapId": 15,
+    "mapName": "五线并行",
+    "startGold": 100,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 5,
+            "interval": 0.4,
+            "level": 9,
+            "startDelay": 10
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 11
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          },
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 25,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 3,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 4,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": [
+      "hotPepper"
+    ]
+  },
+  "L6:EZ": {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 15
+          },
+          {
+            "type": "rager",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 3,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "rager",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "isBoss": true,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L6:HD": {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "HD",
+    "rating": 8,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 3000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.2,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 15
+          },
+          {
+            "type": "square",
+            "count": 50,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "isBoss": true,
+            "startDelay": 40
+          },
+          {
+            "type": "angryWriter",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 50
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L6:IN": {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "IN",
+    "rating": 13,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 200,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 40,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15
+          },
+          {
+            "type": "purifier",
+            "count": 100,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 15
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L6:AT": {
+    "sourceLevelId": "L6",
+    "levelNumber": 6,
+    "levelName": "1-6",
+    "difficulty": "AT",
+    "rating": 14,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 1000,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 5
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 8
+          },
+          {
+            "type": "rager",
+            "count": 40,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 5,
+            "interval": 0.4,
+            "level": 10,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 5
+          },
+          {
+            "type": "armored",
+            "count": 30,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 500,
+            "interval": 0.1,
+            "level": 15,
+            "startDelay": 0
+          },
+          {
+            "type": "purifier",
+            "count": 100,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 15
+          },
+          {
+            "type": "evilSniper",
+            "count": 30,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 20
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 200,
+            "startDelay": 40,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 1.5,
+        "maxQueue": 10,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "sunflower",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "puffShroom",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "machineGun",
+            "weight": 100
+          },
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "sunlightFlower",
+            "weight": 100
+          }
+        ]
+      }
+    },
     "unlockRewards": []
   }
 };
