@@ -2228,6 +2228,509 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "unlockRewards": [
       "rocket"
     ]
+  },
+  {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "EZ",
+    "rating": 5,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 1200,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.55,
+            "level": 2,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 6,
+            "interval": 0.65,
+            "level": 2,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.5,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "square",
+            "count": 6,
+            "interval": 0.7,
+            "level": 2,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 2,
+            "interval": 1.2,
+            "level": 2,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 12,
+            "interval": 0.48,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 2,
+            "interval": 1.4,
+            "level": 3,
+            "startDelay": 4
+          },
+          {
+            "type": "square",
+            "count": 8,
+            "interval": 0.65,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.42,
+            "level": 4,
+            "startDelay": 1
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.9,
+            "level": 3,
+            "startDelay": 4
+          },
+          {
+            "type": "taunter",
+            "count": 2,
+            "interval": 1.3,
+            "level": 4,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 2,
+            "interval": 1.3,
+            "level": 4,
+            "startDelay": 10
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 24,
+            "startDelay": 14,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 900,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.48,
+            "level": 5,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 8,
+            "interval": 0.58,
+            "level": 5,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.44,
+            "level": 6,
+            "startDelay": 1
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.65,
+            "level": 6,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1.1,
+            "level": 5,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 3,
+            "interval": 1.1,
+            "level": 7,
+            "startDelay": 4
+          },
+          {
+            "type": "igniter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 6,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.75,
+            "level": 8,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.42,
+            "level": 8,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 1,
+            "level": 8,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 3,
+            "interval": 1.1,
+            "level": 8,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.36,
+            "level": 9,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 16,
+            "interval": 0.38,
+            "level": 10,
+            "startDelay": 3
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.9,
+            "level": 10,
+            "startDelay": 6
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1,
+            "level": 9,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 3,
+            "interval": 1,
+            "level": 12,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 55,
+            "startDelay": 15,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 500,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.46,
+            "level": 20,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.52,
+            "level": 22,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.62,
+            "level": 24,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 1,
+            "level": 22,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1.1,
+            "level": 20,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.7,
+            "level": 28,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.4,
+            "level": 26,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.72,
+            "level": 25,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.95,
+            "level": 28,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.34,
+            "level": 32,
+            "startDelay": 1
+          },
+          {
+            "type": "angryWriter",
+            "count": 6,
+            "interval": 0.8,
+            "level": 30,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 0.9,
+            "level": 30,
+            "startDelay": 7
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.85,
+            "level": 32,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 1.1,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 12,
+            "interval": 0.58,
+            "level": 36,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.85,
+            "level": 34,
+            "startDelay": 7
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 36,
+            "startDelay": 10
+          },
+          {
+            "type": "purifier",
+            "count": 3,
+            "interval": 1,
+            "level": 32,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 24,
+            "interval": 0.3,
+            "level": 40,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.32,
+            "level": 42,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.62,
+            "level": 40,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 6,
+            "interval": 0.72,
+            "level": 45,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 6,
+            "interval": 0.75,
+            "level": 42,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 48,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 180,
+            "startDelay": 16,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 ];
 
@@ -4459,6 +4962,509 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "unlockRewards": [
       "rocket"
     ]
+  },
+  "L7:EZ": {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "EZ",
+    "rating": 5,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 1200,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.55,
+            "level": 2,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 6,
+            "interval": 0.65,
+            "level": 2,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.5,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "square",
+            "count": 6,
+            "interval": 0.7,
+            "level": 2,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 2,
+            "interval": 1.2,
+            "level": 2,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 12,
+            "interval": 0.48,
+            "level": 3,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 2,
+            "interval": 1.4,
+            "level": 3,
+            "startDelay": 4
+          },
+          {
+            "type": "square",
+            "count": 8,
+            "interval": 0.65,
+            "level": 3,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.42,
+            "level": 4,
+            "startDelay": 1
+          },
+          {
+            "type": "igniter",
+            "count": 4,
+            "interval": 0.9,
+            "level": 3,
+            "startDelay": 4
+          },
+          {
+            "type": "taunter",
+            "count": 2,
+            "interval": 1.3,
+            "level": 4,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 2,
+            "interval": 1.3,
+            "level": 4,
+            "startDelay": 10
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 24,
+            "startDelay": 14,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L7:HD": {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 900,
+    "lives": 16,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.48,
+            "level": 5,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 8,
+            "interval": 0.58,
+            "level": 5,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.44,
+            "level": 6,
+            "startDelay": 1
+          },
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.65,
+            "level": 6,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1.1,
+            "level": 5,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 3,
+            "interval": 1.1,
+            "level": 7,
+            "startDelay": 4
+          },
+          {
+            "type": "igniter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 6,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.75,
+            "level": 8,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.42,
+            "level": 8,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 1,
+            "level": 8,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 3,
+            "interval": 1.1,
+            "level": 8,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.36,
+            "level": 9,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 16,
+            "interval": 0.38,
+            "level": 10,
+            "startDelay": 3
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.9,
+            "level": 10,
+            "startDelay": 6
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1,
+            "level": 9,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 3,
+            "interval": 1,
+            "level": 12,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 55,
+            "startDelay": 15,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L7:IN": {
+    "sourceLevelId": "L7",
+    "levelNumber": 7,
+    "levelName": "1-7",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 7,
+    "mapName": "左右蛇形",
+    "startGold": 500,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.46,
+            "level": 20,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.52,
+            "level": 22,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 10,
+            "interval": 0.62,
+            "level": 24,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 1,
+            "level": 22,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 1.1,
+            "level": 20,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.7,
+            "level": 28,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.4,
+            "level": 26,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.72,
+            "level": 25,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.95,
+            "level": 28,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.34,
+            "level": 32,
+            "startDelay": 1
+          },
+          {
+            "type": "angryWriter",
+            "count": 6,
+            "interval": 0.8,
+            "level": 30,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 0.9,
+            "level": 30,
+            "startDelay": 7
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.85,
+            "level": 32,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 1.1,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 12,
+            "interval": 0.58,
+            "level": 36,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.85,
+            "level": 34,
+            "startDelay": 7
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 36,
+            "startDelay": 10
+          },
+          {
+            "type": "purifier",
+            "count": 3,
+            "interval": 1,
+            "level": 32,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 24,
+            "interval": 0.3,
+            "level": 40,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.32,
+            "level": 42,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.62,
+            "level": 40,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 6,
+            "interval": 0.72,
+            "level": 45,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 6,
+            "interval": 0.75,
+            "level": 42,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.8,
+            "level": 48,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 180,
+            "startDelay": 16,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
   }
 };
 

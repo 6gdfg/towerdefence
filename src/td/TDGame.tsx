@@ -41,7 +41,7 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
@@ -59,6 +59,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
   const isConveyorMode = atModeConfig?.type === 'conveyor';
   const selectedConveyorItem = selectedConveyorIndex == null ? null : conveyorQueue[selectedConveyorIndex] ?? null;
+  const selectedConveyorPlantInfo = selectedConveyorItem?.kind === 'plant'
+    ? getPlantRuntimeConfig(selectedConveyorItem.id, labOverrides)
+    : null;
   const selectedConveyorElementRemaining = selectedConveyorItem?.kind === 'element'
     ? Math.max(0, (elementCooldowns?.[selectedConveyorItem.id] ?? 0) - gameTime)
     : 0;
@@ -241,7 +244,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     if (nearestGrid && minDist < 1.0) {
       if (selectedConveyorItem && selectedConveyorIndex != null) {
         if (selectedConveyorItem.kind === 'plant') {
-          if (canPlaceTower(nearestGrid)) {
+          const overlayTarget = selectedConveyorPlantInfo?.overlayType
+            ? towers.find(tower => Math.hypot(tower.pos.x - nearestGrid.x, tower.pos.y - nearestGrid.y) <= 0.75)
+            : null;
+          const canPlaceOverlay = Boolean(overlayTarget && !plantCovers.some(cover => cover.towerId === overlayTarget.id));
+          if (canPlaceOverlay || (!selectedConveyorPlantInfo?.overlayType && canPlaceTower(nearestGrid))) {
             placeTowerFromConveyor(selectedConveyorIndex, nearestGrid);
             setSelectedConveyorIndex(null);
           }
@@ -255,7 +262,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           }
         }
       } else if (selectedPlant) {
-        if (canPlaceTower(nearestGrid)) {
+        if (selectedPlantInfo?.overlayType || canPlaceTower(nearestGrid)) {
           placeTower(selectedPlant, nearestGrid);
         }
       } else if (selectedElement) {
@@ -793,6 +800,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const from = worldToPx(t.pos);
             const to = worldToPx(target.pos);
             const charge = Math.max(0.01, Math.min(1, t.channelDamagePct ?? 0.01));
+            if (t.frozenUntil && gameTime < t.frozenUntil) return null;
             return (
               <g key={`channel-${t.id}`} style={{ pointerEvents: 'none' }}>
                 <line
@@ -819,13 +827,15 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             );
           })}
           {towers.map(t => {
+            const towerFrozen = !!t.frozenUntil && gameTime < t.frozenUntil;
+            const pumpkinCover = plantCovers.some(cover => cover.towerId === t.id);
             const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
-            const iconStroke = t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : (t.color || '#9ca3af');
+            const iconStroke = towerFrozen ? '#2563eb' : t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : (t.color || '#9ca3af');
             const lifetimeSec = getPlantRuntimeConfig(t.type, labOverrides)?.lifetimeSec;
             const lifetimePercent = t.expiresAt != null && lifetimeSec
               ? Math.max(0, Math.min(1, (t.expiresAt - gameTime) / lifetimeSec))
               : 1;
-            const lifetimeOpacity = Math.max(0.25, Math.min(1, 0.25 + lifetimePercent * 0.7));
+            const lifetimeOpacity = Math.max(0.25, Math.min(1, 0.25 + lifetimePercent * 0.7)) * (towerFrozen ? 0.58 : 1);
             const { left, top } = worldToPx(t.pos);
             const tileSize = CELL_SIZE * 0.9;
             const iconSize = CELL_SIZE * 0.78;
@@ -858,13 +868,44 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                   rx={6}
                   ry={6}
                   fill="rgba(255,255,255,0.45)"
-                  stroke="rgba(148,163,184,0.25)"
+                  stroke={towerFrozen ? 'rgba(37,99,235,0.72)' : 'rgba(148,163,184,0.25)'}
                   strokeWidth={1}
                   opacity={lifetimeOpacity}
                 />
+                {pumpkinCover && (
+                  <g pointerEvents="none">
+                    <rect
+                      x={left - tileSize * 0.47}
+                      y={top - tileSize * 0.4}
+                      width={tileSize * 0.94}
+                      height={tileSize * 0.8}
+                      rx={tileSize * 0.28}
+                      ry={tileSize * 0.28}
+                      fill="rgba(249,115,22,0.10)"
+                      stroke="#ea580c"
+                      strokeWidth={2.2}
+                    />
+                    <path
+                      d={`M${left - tileSize * 0.2} ${top - tileSize * 0.35} C${left - tileSize * 0.31} ${top - tileSize * 0.1}, ${left - tileSize * 0.31} ${top + tileSize * 0.1}, ${left - tileSize * 0.2} ${top + tileSize * 0.35} M${left + tileSize * 0.2} ${top - tileSize * 0.35} C${left + tileSize * 0.31} ${top - tileSize * 0.1}, ${left + tileSize * 0.31} ${top + tileSize * 0.1}, ${left + tileSize * 0.2} ${top + tileSize * 0.35} M${left} ${top - tileSize * 0.4} V${top - tileSize * 0.53} L${left + tileSize * 0.12} ${top - tileSize * 0.56}`}
+                      fill="none"
+                      stroke="#c2410c"
+                      strokeWidth={1.35}
+                      strokeLinecap="round"
+                    />
+                  </g>
+                )}
                 <g transform={`translate(${left - iconSize / 2} ${top - iconSize / 2})`} opacity={lifetimeOpacity}>
                   <PlantIcon type={t.type} color={iconStroke} size={iconSize} />
                 </g>
+                {towerFrozen && (
+                  <path
+                    d={`M${left - tileSize * 0.32} ${top} H${left + tileSize * 0.32} M${left} ${top - tileSize * 0.32} V${top + tileSize * 0.32}`}
+                    stroke="rgba(147,197,253,0.9)"
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    pointerEvents="none"
+                  />
+                )}
                 <text
                   x={left}
                   y={top + CELL_SIZE * 0.74}
@@ -989,6 +1030,21 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
                       <path d="M6 12 C8.2 8 15.8 8 18 12 C15.8 16 8.2 16 6 12 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.75} strokeLinejoin="round" />
                       <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
+                    </svg>
+                  );
+                case 'freezer':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M12 5 V19 M5.9 8.5 L18.1 15.5 M5.9 15.5 L18.1 8.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.72} strokeLinecap="round" />
+                    </svg>
+                  );
+                case 'taunter':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M12 6.5 V13.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinecap="round" />
+                      <circle cx="12" cy="17" r="1.1" fill={enemyColor} />
                     </svg>
                   );
                 case 'purifier':

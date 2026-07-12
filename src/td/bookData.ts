@@ -11,7 +11,7 @@ export function buildPlantBookData(
     .map<PlantBookEntry | null>(type => {
       const config = BASE_PLANTS_CONFIG[type];
       if (!config) return null;
-      const level = towerLevels?.[type] ?? 1;
+      const level = config.upgradeable === false ? 1 : towerLevels?.[type] ?? 1;
       const stats = getPlantStatsForLevel(type, level);
       if (!stats) return null;
       return { type, level, stats, config };

@@ -52,7 +52,7 @@ type BalanceLabDraftReadResponse = {
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
-const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'purifier', 'angryWriter', 'bunker'];
+const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker'];
 const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'EZ', label: 'EZ' },
   { code: 'HD', label: 'HD' },
@@ -221,6 +221,7 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
 function createTowerLevels(): TowerLevelMap {
   const levels: TowerLevelMap = {};
   PLANT_TYPES.forEach(plant => {
+    if (BASE_PLANTS_CONFIG[plant].upgradeable === false) return;
     levels[plant] = 5;
   });
   ELEMENT_TYPES.forEach(element => {
@@ -1000,7 +1001,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             <span>测试等级</span>
           </div>
           <div className="lab-level-grid compact">
-            {PLANT_TYPES.map(plant => (
+            {PLANT_TYPES.filter(plant => BASE_PLANTS_CONFIG[plant].upgradeable !== false).map(plant => (
               <label key={plant} className="lab-level-tile">
                 <span>{BASE_PLANTS_CONFIG[plant].name}</span>
                 <input

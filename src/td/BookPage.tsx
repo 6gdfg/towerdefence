@@ -49,6 +49,8 @@ function plantTags(entry: PlantBookEntry) {
   const { config, stats } = entry;
   const tags: string[] = [];
 
+  if (config.overlayType === 'pumpkinHead') tags.push('特殊护罩', '只能覆盖植物', '免疫怪物影响', '无等级');
+
   if (config.incomeInterval) tags.push(`${config.incomeInterval}s 产阳光`);
   if (config.sunflowerBoostAura) {
     const speedBonus = config.sunflowerBoostAura.speedBonus + config.sunflowerBoostAura.bonusPerLevel * (entry.level - 1);
@@ -101,6 +103,13 @@ function plantTags(entry: PlantBookEntry) {
 
 function plantMetrics(entry: PlantBookEntry) {
   const { config, stats } = entry;
+  if (config.overlayType === 'pumpkinHead') {
+    return [
+      ['费用', config.cost],
+      ['放置', '已有植物'],
+      ['保护', '怪物影响免疫'],
+    ] as const;
+  }
   if (config.channelAttack) {
     return [
       ['费用', config.cost],
@@ -163,6 +172,12 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'iceShell':
       tags.push('免疫冻结/减速', '灼烧易伤 x2');
       break;
+    case 'freezer':
+      tags.push('免疫冻结/减速', '灼烧易伤 x2', '30s 范围冻结植物 2s', '死亡全场冻结植物 1s');
+      break;
+    case 'taunter':
+      tags.push('半径 4.5 挑衅', '强制植物锁定', '五芒星/非攻击植物免疫');
+      break;
     case 'purifier':
       tags.push('3s 净化', '半径 3', '清除负面状态');
       break;
@@ -185,6 +200,8 @@ function plantRole(type: PlantType) {
     doubleBottleGrass: '双发',
     puffShroom: '临时',
     fourLeafClover: '穿透',
+    pentagram: '五向弹幕',
+    pumpkinHead: '植物护罩',
     machineGun: '高速',
     sniper: '高伤',
     rocket: '穿透',
@@ -230,7 +247,7 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
                 <div className="book-title-row">
                   <div>
                     <div className="item-name">{entry.config.name}</div>
-                    <div className="book-subtitle">Lv.{entry.level} · {plantRole(entry.type)}</div>
+                    <div className="book-subtitle">{entry.config.upgradeable === false ? plantRole(entry.type) : `Lv.${entry.level} · ${plantRole(entry.type)}`}</div>
                   </div>
                 </div>
                 <div className="book-metrics">

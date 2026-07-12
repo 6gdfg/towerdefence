@@ -12,6 +12,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
     { id: 'bottleGrass', weight: 18 },
     { id: 'puffShroom', weight: 18 },
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'pentagram', weight: 4 },
     { id: 'rocket', weight: 6 },
     { id: 'holyFlower', weight: 2 },
     { id: 'hotPepper', weight: 3 },
@@ -27,6 +28,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
     { id: 'bottleGrass', weight: 10 },
     { id: 'puffShroom', weight: 10 },
     { id: 'fourLeafClover', weight: 10 },
+    { id: 'pentagram', weight: 8 },
     { id: 'rocket', weight: 10 },
     { id: 'machineGun', weight: 8 },
     { id: 'sunlightFlower', weight: 7 },
@@ -43,6 +45,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
   epic: [
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'pentagram', weight: 9 },
     { id: 'puffShroom', weight: 6 },
     { id: 'rocket', weight: 9 },
     { id: 'machineGun', weight: 10 },
@@ -63,6 +66,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
   legendary: [
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'pentagram', weight: 9 },
     { id: 'puffShroom', weight: 6 },
     { id: 'rocket', weight: 9 },
     { id: 'machineGun', weight: 10 },

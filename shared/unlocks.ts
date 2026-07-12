@@ -1,6 +1,7 @@
 import { GENERATED_LEVEL_UNLOCK_REQUIREMENTS } from './unlockDraft.generated.js';
 
-export const PLANT_ITEM_IDS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'puffShroom', 'fourLeafClover', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'] as const;
+export const PLANT_ITEM_IDS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'puffShroom', 'fourLeafClover', 'pentagram', 'pumpkinHead', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'] as const;
+export const NON_UPGRADEABLE_PLANT_ITEMS = ['pumpkinHead'] as const;
 export const ELEMENT_ITEM_IDS = ['element:fire', 'element:wind', 'element:ice', 'element:electric', 'element:gold', 'element:light'] as const;
 export const DEFAULT_UNLOCKED_ITEMS = ['sunflower', 'bottleGrass'] as const;
 export const INITIAL_PLAYER_COINS = 1000;

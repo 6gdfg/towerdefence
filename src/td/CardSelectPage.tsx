@@ -88,7 +88,7 @@ export default function CardSelectPage({
               >
                 <PlantIcon type={plant} color={selected ? '#111827' : DEFAULT_PLANT_COLOR} size={30} />
                 <span>{cfg.name}</span>
-                <small>{getLevelLabel(plant, towerLevels)}</small>
+                <small>{cfg.upgradeable === false ? '特殊' : getLevelLabel(plant, towerLevels)}</small>
               </button>
             );
           })}

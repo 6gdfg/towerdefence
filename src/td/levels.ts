@@ -80,6 +80,8 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   igniter: { hp: 50, speed: 2.5, leakDamage: 1 },
   armored: { hp: 80, armorHp: 200, speed: 1.8, leakDamage: 2 },
   iceShell: { hp: 280, speed: 2.5, leakDamage: 1 },
+  freezer: { hp: 50, speed: 2.5, leakDamage: 1 },
+  taunter: { hp: 250, speed: 1.6, leakDamage: 2 },
   purifier: { hp: 80, speed: 1.5, leakDamage: 1 },
   angryWriter: { hp: 100, armorHp: 50, speed: 1.5, leakDamage: 1 },
   bunker: { hp: 1000, speed: 0.7, leakDamage: 3 },

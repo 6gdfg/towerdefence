@@ -75,7 +75,8 @@ function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] 
 }
 
 function getHighestPlantLevel(plants: PlantType[], towerLevels?: TowerLevelMap) {
-  return Math.max(1, ...plants.map(plant => Math.max(1, Math.floor(towerLevels?.[plant] || 1))));
+  const upgradeablePlants = plants.filter(plant => BASE_PLANTS_CONFIG[plant]?.upgradeable !== false);
+  return Math.max(1, ...upgradeablePlants.map(plant => Math.max(1, Math.floor(towerLevels?.[plant] || 1))));
 }
 
 function hasChallenge(challenges: ChallengeId[], id: ChallengeId) {
@@ -440,6 +441,7 @@ function App() {
         allowedElements = Array.from(new Set(poolElements));
       }
       allowedPlants.forEach(plant => {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
         towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
       });
       allowedElements.forEach(element => {
@@ -561,6 +563,7 @@ function App() {
       );
       const towerLevels: TowerLevelMap = {};
       allowedPlants.forEach(plant => {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
         towerLevels[plant] = getRandomInt(RANDOM_MODE_LEVEL_RANGE.min, RANDOM_MODE_LEVEL_RANGE.max);
       });
       allowedElements.forEach(element => {
@@ -601,6 +604,7 @@ function App() {
       allowedElements = [...ELEMENT_TYPES];
       const configuredLevels: TowerLevelMap = {};
       for (const plant of PLANT_TYPES) {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) continue;
         const label = BASE_PLANTS_CONFIG[plant]?.name ?? plant;
         const defaultLv = hub?.towerLevels?.[plant] ?? 5;
         const input = window.prompt(`Set ${label} level (>=1)`, String(defaultLv));
@@ -702,6 +706,7 @@ function App() {
         allowedElements = Array.from(new Set(pool.filter((item): item is { kind: 'element'; id: ElementType } => item.kind === 'element').map(item => item.id)));
       }
       allowedPlants.forEach(plant => {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
         towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
       });
       allowedElements.forEach(element => {

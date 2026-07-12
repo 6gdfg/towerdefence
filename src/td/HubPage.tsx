@@ -99,7 +99,7 @@ export default function HubPage({
         <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.08s', padding: 16 }}>
           <div className="section-title">植物升级</div>
           <div className="item-list">
-            {PLANT_TYPES.map(t => {
+            {PLANT_TYPES.filter(t => BASE_PLANTS_CONFIG[t]?.upgradeable !== false).map(t => {
               const lv = hub?.towerLevels?.[t] ?? 1;
               const shards = hub?.plantShards?.[t] ?? hub?.shards?.[t] ?? 0;
               const cost = getUpgradeCost(lv);

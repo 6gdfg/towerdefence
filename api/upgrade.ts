@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
-import { getUpgradeCost } from '../shared/unlocks.js';
+import { getUpgradeCost, NON_UPGRADEABLE_PLANT_ITEMS } from '../shared/unlocks.js';
 import { getErrorMessage } from './_errors.js';
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
@@ -27,6 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { action, towerType } = req.body || {} as { action?: string; towerType?: string };
     if (action !== 'upgrade') return res.status(400).json({ error: 'bad action' });
     if (!towerType || typeof towerType !== 'string') return res.status(400).json({ error: 'towerType required' });
+    if ((NON_UPGRADEABLE_PLANT_ITEMS as readonly string[]).includes(towerType)) return res.status(400).json({ error: 'not upgradeable' });
 
     const [walletRows, levelRows, shardRows] = await Promise.all([
       sql`SELECT coins FROM player_wallet WHERE player_id=${pid}`,

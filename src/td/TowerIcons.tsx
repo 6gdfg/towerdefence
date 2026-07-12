@@ -64,6 +64,20 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <circle cx="15" cy="16" r="4" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
         </svg>
       );
+    case 'pentagram':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <polygon points="12 2.8 14.7 8.5 21 9.3 16.3 13.6 17.5 20 12 16.8 6.5 20 7.7 13.6 3 9.3 9.3 8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinejoin="round" />
+          <polygon points="12 8.2 15.6 10.8 14.2 15 9.8 15 8.4 10.8" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.58} strokeLinejoin="round" />
+        </svg>
+      );
+    case 'pumpkinHead':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 6 C17.5 6 20.5 9 20.5 14 C20.5 18.2 17.4 20 12 20 C6.6 20 3.5 18.2 3.5 14 C3.5 9 6.5 6 12 6 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinejoin="round" />
+          <path d="M12 6 C9.8 8.8 9.8 17.2 12 20 M12 6 C14.2 8.8 14.2 17.2 12 20 M12 6 V3.5 L15 3" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.68} strokeLinecap="round" />
+        </svg>
+      );
     case 'machineGun':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -239,6 +253,21 @@ export function MonsterIcon({ type, color = '#475569', size = 28, style }: Monst
           <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
           <path d="M6 12 C8.2 8 15.8 8 18 12 C15.8 16 8.2 16 6 12 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.75} strokeLinejoin="round" />
           <path d="M12 3.5 V7 M12 17 V20.5 M3.5 12 H7 M17 12 H20.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
+        </svg>
+      );
+    case 'freezer':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M12 5 V19 M5.9 8.5 L18.1 15.5 M5.9 15.5 L18.1 8.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.72} strokeLinecap="round" />
+        </svg>
+      );
+    case 'taunter':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M12 6.5 V13.5" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" />
+          <circle cx="12" cy="17" r="1.1" fill={stroke} />
         </svg>
       );
     case 'purifier':

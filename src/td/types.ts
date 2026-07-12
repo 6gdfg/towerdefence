@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'purifier' | 'angryWriter' | 'bunker';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker';
 
 export interface Enemy {
   id: string;
@@ -39,7 +39,7 @@ export interface Enemy {
   newspaperEnraged?: boolean;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -102,6 +102,7 @@ export interface Tower {
   controlAuraLastPulseTime?: number;
   channelDamagePct?: number;
   channelNextTickTime?: number;
+  frozenUntil?: number;
   expiresAt?: number;
   element?: {
     type: ElementType;
@@ -123,6 +124,7 @@ export interface Projectile {
   slowDuration?: number;
   color?: string;
   direction?: { x: number; y: number };
+  unguided?: boolean;
   piercing?: boolean;
   pierced?: Record<string, boolean>;
   sourceTowerId?: string;
@@ -154,6 +156,12 @@ export interface DamagePopup {
   damage: number;
   color: string;
   until: number;
+}
+
+export interface PlantCover {
+  id: string;
+  type: 'pumpkinHead';
+  towerId: string;
 }
 
 export interface SunPickup {
@@ -206,6 +214,7 @@ export interface TDState {
   // 实体
   enemies: Enemy[];
   towers: Tower[];
+  plantCovers: PlantCover[];
   projectiles: Projectile[];
   singleUseCasts: ElementCast[];
   damagePopups: DamagePopup[];

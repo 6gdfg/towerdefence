@@ -13,6 +13,9 @@ export interface BasePlantConfig {
   fireRate: number;
   projectileSpeed: number;
   shotCount?: number;
+  radialShotCount?: number;
+  overlayType?: 'pumpkinHead';
+  upgradeable?: boolean;
   penetration?: boolean;
   pierceLimit?: number;
   damageDecayFactor?: number;
@@ -166,11 +169,37 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     penetration: true,
     description: '子弹直线穿透敌人，射程略长。',
   },
+  pentagram: {
+    id: 'pentagram',
+    name: '五芒星',
+    icon: '*',
+    cost: 220,
+    range: 3.2,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 8,
+    radialShotCount: 5,
+    description: '无视敌人位置，始终向正五边形的五个方向发射无锁敌子弹；普通子弹在命中或到达地图边界时消失。',
+  },
+  pumpkinHead: {
+    id: 'pumpkinHead',
+    name: '南瓜头',
+    icon: 'O',
+    cost: 100,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    overlayType: 'pumpkinHead',
+    upgradeable: false,
+    elementAllowed: false,
+    description: '只能覆盖在已有植物上，使被覆盖植物免疫所有怪物对植物施加的影响。南瓜头是独立护罩，没有等级。',
+  },
   machineGun: {
     id: 'machineGun',
     name: '机枪',
     icon: '▲',
-    cost: 300,
+    cost: 200,
     range: 3.0,
     damage: 10,
     fireRate: 4.5,
@@ -417,6 +446,10 @@ export function getPlantRuntimeConfig(type: PlantType, labOverrides?: LabOverrid
   if (!base) return undefined;
   const override = labOverrides?.plants?.[type];
   return override ? { ...base, ...override } : base;
+}
+
+export function isPlantUpgradeable(type: PlantType) {
+  return BASE_PLANTS_CONFIG[type]?.upgradeable !== false;
 }
 
 export function scalePlantStats(base: BasePlantConfig, level: number) {
