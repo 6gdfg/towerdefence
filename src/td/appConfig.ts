@@ -1,7 +1,7 @@
 import { MONSTER_BASE_STATS } from './levels';
 import { ElementType, PlantType } from './types';
 
-export const PLANT_TYPES: PlantType[] = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'puffShroom', 'fourLeafClover', 'pentagram', 'pumpkinHead', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'];
+export const PLANT_TYPES: PlantType[] = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'flameBottleGrass', 'puffShroom', 'fourLeafClover', 'pentagram', 'pumpkinHead', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'magnetNeedle', 'electricFlower'];
 export const ELEMENT_TYPES: ElementType[] = ['fire', 'wind', 'ice', 'electric', 'gold', 'light'];
 
 export const STAR_LABELS: Record<1 | 2 | 3, string> = { 1: 'EZ', 2: 'HD', 3: 'IN' };

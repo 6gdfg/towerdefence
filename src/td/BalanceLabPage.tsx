@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
 import { ELEMENT_TYPES, MONSTER_LABELS, PLANT_TYPES } from './appConfig';
-import { getLevelSpecForDifficulty, LEVELS } from './levels';
+import { getLevelSpecForDifficulty, LEVELS, MONSTER_BASE_STATS } from './levels';
 import { createLabDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
 import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
-import type { AtModeConfig, AtModeType, ConveyorItem, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef, WaveGroup } from './types';
+import { getAtBaseModeType } from './atMode';
+import type { AtBaseModeType, AtModeConfig, AtModeType, ConveyorItem, ElementType, PlantType, ShapeType, SpecialEnemyConfig, TowerLevelMap, WaveDef, WaveGroup } from './types';
 
 export type BalanceLabConfig = {
   sourceLevelId: string;
@@ -21,6 +22,7 @@ export type BalanceLabConfig = {
   towerLevels: TowerLevelMap;
   waves: WaveDef[];
   atModeConfig?: AtModeConfig;
+  specialEnemyConfig: SpecialEnemyConfig;
   unlockRewards: string[];
 };
 
@@ -38,6 +40,7 @@ export type BalanceLabLevelDraft = {
   firstWaveDelaySec: number;
   waves: WaveDef[];
   atModeConfig?: AtModeConfig;
+  specialEnemyConfig?: SpecialEnemyConfig;
   unlockRewards?: string[];
 };
 
@@ -64,7 +67,11 @@ const AT_MODE_OPTIONS: Array<{ type: AtModeType; label: string }> = [
   { type: 'conveyor', label: '传送带' },
   { type: 'lastStand', label: '孤注一掷' },
   { type: 'cardSelect', label: '选卡' },
+  { type: 'phantom', label: '神出鬼没' },
 ];
+
+const PHANTOM_SUB_MODE_OPTIONS: Array<{ type: AtBaseModeType; label: string }> = AT_MODE_OPTIONS
+  .filter((option): option is { type: AtBaseModeType; label: string } => option.type !== 'phantom');
 
 const DEFAULT_CONVEYOR_POOL: ConveyorItem[] = [
   { kind: 'plant', id: 'sunflower', weight: 100 },
@@ -128,6 +135,9 @@ function normalizeUnlockRewards(value: unknown): string[] {
 }
 
 function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
+  if (type === 'phantom') {
+    return { type, phantom: { subMode: 'normal' } };
+  }
   if (type === 'conveyor') {
     return {
       type,
@@ -178,12 +188,20 @@ function normalizeConveyorPool(pool: ConveyorItem[] | undefined) {
 }
 
 function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
-  const type = config?.type ?? 'normal';
-  const defaults = createDefaultAtModeConfig(type);
-  if (type === 'conveyor') {
+  const legacyPhantom = config?.type !== 'phantom' && config?.phantomSpawn === true;
+  const type: AtModeType = config?.type === 'phantom' || legacyPhantom ? 'phantom' : (config?.type ?? 'normal');
+  const baseType: AtBaseModeType = type === 'phantom'
+    ? (config?.type === 'phantom' ? config.phantom?.subMode : config?.type) ?? 'normal'
+    : type;
+  const defaults = createDefaultAtModeConfig(baseType);
+  const identity = type === 'phantom'
+    ? { type: 'phantom' as const, phantom: { subMode: baseType } }
+    : { type: baseType };
+
+  if (baseType === 'conveyor') {
     const conveyor = config?.conveyor ?? defaults.conveyor!;
     return {
-      type,
+      ...identity,
       conveyor: {
         intervalSec: Math.max(0.2, finiteNumber(conveyor.intervalSec, defaults.conveyor!.intervalSec)),
         maxQueue: Math.max(1, Math.floor(finiteNumber(conveyor.maxQueue, defaults.conveyor!.maxQueue))),
@@ -191,12 +209,12 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
       },
     };
   }
-  if (type === 'lastStand') {
+  if (baseType === 'lastStand') {
     const lastStand = config?.lastStand ?? defaults.lastStand!;
     const bannedPlants = Array.from(new Set([...(lastStand.bannedPlants ?? []), 'sunflower']))
       .filter((plant): plant is PlantType => PLANT_TYPES.includes(plant as PlantType));
     return {
-      type,
+      ...identity,
       lastStand: {
         startGold: Math.max(0, Math.floor(finiteNumber(lastStand.startGold, defaults.lastStand!.startGold))),
         bannedPlants,
@@ -204,10 +222,10 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
       },
     };
   }
-  if (type === 'cardSelect') {
+  if (baseType === 'cardSelect') {
     const cardSelect = config?.cardSelect ?? defaults.cardSelect!;
     return {
-      type,
+      ...identity,
       cardSelect: {
         maxPlants: Math.max(1, Math.floor(finiteNumber(cardSelect.maxPlants, defaults.cardSelect!.maxPlants))),
         maxElements: Math.max(0, Math.floor(finiteNumber(cardSelect.maxElements, defaults.cardSelect!.maxElements))),
@@ -215,7 +233,15 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
       },
     };
   }
-  return { type: 'normal' };
+  return identity;
+}
+
+function normalizeSpecialEnemyConfig(config?: SpecialEnemyConfig | null): SpecialEnemyConfig {
+  return {
+    enabled: config?.enabled === true,
+    type: 'charityAmbassador',
+    chance: Math.max(0, Math.min(1, finiteNumber(config?.chance, 0.1))),
+  };
 }
 
 function createTowerLevels(): TowerLevelMap {
@@ -270,6 +296,7 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
     towerLevels: createTowerLevels(),
     waves: cloneWaves(waves),
     atModeConfig: targetDifficulty === 'AT' ? normalizeAtModeConfig(level.atModeConfig) : undefined,
+    specialEnemyConfig: normalizeSpecialEnemyConfig(level.specialEnemyConfig),
     unlockRewards: normalizeUnlockRewards(level.unlockRewards),
   };
 }
@@ -292,6 +319,7 @@ function normalizeConfig(config: BalanceLabConfig | null): BalanceLabConfig | nu
     atModeConfig: config.targetDifficulty === 'AT'
       ? normalizeAtModeConfig(config.atModeConfig ?? base.atModeConfig)
       : undefined,
+    specialEnemyConfig: normalizeSpecialEnemyConfig(config.specialEnemyConfig ?? base.specialEnemyConfig),
     unlockRewards: normalizeUnlockRewards((config as Partial<BalanceLabConfig>).unlockRewards),
   };
 }
@@ -329,6 +357,7 @@ function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
     firstWaveDelaySec: config.firstWaveDelaySec,
     waves: cloneWaves(config.waves),
     atModeConfig: config.targetDifficulty === 'AT' ? normalizeAtModeConfig(config.atModeConfig) : undefined,
+    specialEnemyConfig: normalizeSpecialEnemyConfig(config.specialEnemyConfig),
     unlockRewards: normalizeUnlockRewards(config.unlockRewards),
   };
 }
@@ -356,6 +385,7 @@ function createConfigFromDraft(draft: BalanceLabLevelDraft, current: BalanceLabC
     towerLevels: current.towerLevels,
     waves: cloneWaves(draft.waves),
     atModeConfig: draft.difficulty === 'AT' ? normalizeAtModeConfig(draft.atModeConfig) : undefined,
+    specialEnemyConfig: normalizeSpecialEnemyConfig(draft.specialEnemyConfig),
     unlockRewards: normalizeUnlockRewards(draft.unlockRewards),
   };
 }
@@ -382,6 +412,9 @@ function normalizePastedGroup(value: unknown): WaveGroup | null {
 
   if (value.isBoss === true) {
     group.isBoss = true;
+    if (value.bossSpeed != null) {
+      group.bossSpeed = Math.max(0.1, finiteNumber(value.bossSpeed, MONSTER_BASE_STATS[type].speed));
+    }
   }
   if (value.startDelay != null) {
     group.startDelay = Math.max(0, finiteNumber(value.startDelay, 0));
@@ -429,7 +462,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const isAtEditing = config.targetDifficulty === 'AT';
   const atModeConfig = isAtEditing ? normalizeAtModeConfig(config.atModeConfig) : createDefaultAtModeConfig('normal');
   const atModeType = atModeConfig.type;
-  const cardSelectLocksMonsterLevel = isAtEditing && atModeType === 'cardSelect';
+  const atBaseModeType = getAtBaseModeType(atModeConfig);
+  const cardSelectLocksMonsterLevel = isAtEditing && atBaseModeType === 'cardSelect';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -498,11 +532,20 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
     }));
   };
 
+  const setPhantomSubMode = (subMode: AtBaseModeType) => {
+    updateAtModeConfig({
+      ...createDefaultAtModeConfig(subMode),
+      type: 'phantom',
+      phantom: { subMode },
+    });
+    if (subMode === 'lastStand') updateConfig({ autoStartFirstWave: false });
+  };
+
   const updateConveyorConfig = (patch: Partial<NonNullable<AtModeConfig['conveyor']>>) => {
     const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    const base = currentMode.conveyor ? currentMode : createDefaultAtModeConfig('conveyor');
     updateAtModeConfig({
-      type: 'conveyor',
+      ...currentMode,
       conveyor: {
         ...base.conveyor!,
         ...patch,
@@ -512,7 +555,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
 
   const toggleConveyorItem = (item: ConveyorItem) => {
     const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    const base = currentMode.conveyor ? currentMode : createDefaultAtModeConfig('conveyor');
     const key = getConveyorItemKey(item);
     const exists = base.conveyor!.pool.some(poolItem => getConveyorItemKey(poolItem) === key);
     const pool = exists
@@ -523,7 +566,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
 
   const updateConveyorItemWeight = (item: ConveyorItem, weight: number) => {
     const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.type === 'conveyor' ? currentMode : createDefaultAtModeConfig('conveyor');
+    const base = currentMode.conveyor ? currentMode : createDefaultAtModeConfig('conveyor');
     const key = getConveyorItemKey(item);
     const pool = base.conveyor!.pool.map(poolItem => (
       getConveyorItemKey(poolItem) === key
@@ -535,9 +578,9 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
 
   const updateLastStandConfig = (patch: Partial<NonNullable<AtModeConfig['lastStand']>>) => {
     const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.type === 'lastStand' ? currentMode : createDefaultAtModeConfig('lastStand');
+    const base = currentMode.lastStand ? currentMode : createDefaultAtModeConfig('lastStand');
     updateAtModeConfig({
-      type: 'lastStand',
+      ...currentMode,
       lastStand: {
         ...base.lastStand!,
         ...patch,
@@ -547,14 +590,21 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
 
   const updateCardSelectConfig = (patch: Partial<NonNullable<AtModeConfig['cardSelect']>>) => {
     const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.type === 'cardSelect' ? currentMode : createDefaultAtModeConfig('cardSelect');
+    const base = currentMode.cardSelect ? currentMode : createDefaultAtModeConfig('cardSelect');
     updateAtModeConfig({
-      type: 'cardSelect',
+      ...currentMode,
       cardSelect: {
         ...base.cardSelect!,
         ...patch,
       },
     });
+  };
+
+  const updateSpecialEnemyConfig = (patch: Partial<SpecialEnemyConfig>) => {
+    setConfig(current => ({
+      ...current,
+      specialEnemyConfig: normalizeSpecialEnemyConfig({ ...current.specialEnemyConfig, ...patch }),
+    }));
   };
 
   const updateWaveGroup = (waveIndex: number, groupIndex: number, patch: Partial<WaveGroup>) => {
@@ -821,7 +871,25 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             ))}
           </div>
 
-          {atModeType === 'conveyor' && (
+          {atModeType === 'phantom' && (
+            <div className="lab-at-panel">
+              <div className="lab-pool-title">神出鬼没子模式</div>
+              <div className="lab-mode-grid">
+                {PHANTOM_SUB_MODE_OPTIONS.map(option => (
+                  <button
+                    key={`phantom-${option.type}`}
+                    onClick={() => setPhantomSubMode(option.type)}
+                    className={`lab-mode-card ${atBaseModeType === option.type ? 'is-active' : ''}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="lab-draft-summary">普通怪随机出现在路径前60%，Boss为前40%。</div>
+            </div>
+          )}
+
+          {atBaseModeType === 'conveyor' && (
             <div className="lab-at-panel">
               <div className="lab-form-grid">
                 <label className="lab-field">
@@ -896,7 +964,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             </div>
           )}
 
-          {atModeType === 'lastStand' && (
+          {atBaseModeType === 'lastStand' && (
             <div className="lab-at-panel">
               <div className="lab-form-grid">
                 <label className="lab-field">
@@ -918,7 +986,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             </div>
           )}
 
-          {atModeType === 'cardSelect' && (
+          {atBaseModeType === 'cardSelect' && (
             <div className="lab-at-panel">
               <div className="lab-form-grid">
                 <label className="lab-field">
@@ -958,6 +1026,41 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
           )}
         </section>
       )}
+
+      <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.085s' }}>
+        <div className="lab-panel-title">
+          <span>特殊怪物</span>
+        </div>
+        <label className="lab-check">
+          <input
+            type="checkbox"
+            checked={config.specialEnemyConfig.enabled}
+            onChange={event => updateSpecialEnemyConfig({ enabled: event.target.checked })}
+          />
+          <span>启用慈善大使</span>
+        </label>
+        {config.specialEnemyConfig.enabled && (
+          <div className="lab-at-panel">
+            <div className="lab-form-grid">
+              <label className="lab-field">
+                <span>出现概率（%）</span>
+                <input
+                  className="lab-input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={Math.round(config.specialEnemyConfig.chance * 10000) / 100}
+                  onChange={event => updateSpecialEnemyConfig({
+                    chance: Math.max(0, Math.min(100, readNumber(event.target.value, 10))) / 100,
+                  })}
+                />
+              </label>
+            </div>
+            <div className="lab-draft-summary">每只生成的怪物独立判定；慈善大使保留原怪物全部特性，击杀后恢复1点生命。</div>
+          </div>
+        )}
+      </section>
 
       <section className="balance-lab-grid">
         <div className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.09s' }}>
@@ -1119,9 +1222,29 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                       <input
                         type="checkbox"
                         checked={!!group.isBoss}
-                        onChange={event => updateWaveGroup(waveIndex, groupIndex, { isBoss: event.target.checked })}
+                        onChange={event => updateWaveGroup(
+                          waveIndex,
+                          groupIndex,
+                          event.target.checked
+                            ? { isBoss: true }
+                            : { isBoss: undefined, bossSpeed: undefined },
+                        )}
                       />
                     </label>
+                    {group.isBoss && (
+                      <label>
+                        <span>Boss 速度</span>
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={group.bossSpeed ?? MONSTER_BASE_STATS[group.type].speed}
+                          onChange={event => updateWaveGroup(waveIndex, groupIndex, {
+                            bossSpeed: Math.max(0.1, readNumber(event.target.value, group.bossSpeed ?? MONSTER_BASE_STATS[group.type].speed)),
+                          })}
+                        />
+                      </label>
+                    )}
                     <button onClick={() => removeGroup(waveIndex, groupIndex)} className="lab-mini-button danger">删</button>
                   </div>
                 ))}

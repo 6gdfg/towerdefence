@@ -6,6 +6,7 @@ import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPla
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { ElementIcon, PlantIcon, ShovelIcon } from './TowerIcons';
+import { getAtBaseModeType, isPhantomAtMode } from './atMode';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
@@ -57,7 +58,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const selectedPlantInfo = selectedPlant ? getPlantRuntimeConfig(selectedPlant, labOverrides) : null;
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
-  const isConveyorMode = atModeConfig?.type === 'conveyor';
+  const atBaseModeType = getAtBaseModeType(atModeConfig);
+  const isConveyorMode = atBaseModeType === 'conveyor';
   const selectedConveyorItem = selectedConveyorIndex == null ? null : conveyorQueue[selectedConveyorIndex] ?? null;
   const selectedConveyorPlantInfo = selectedConveyorItem?.kind === 'plant'
     ? getPlantRuntimeConfig(selectedConveyorItem.id, labOverrides)
@@ -73,16 +75,19 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
+  const atModeVariantLabel = atModeConfig
+    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡' } as const)[atBaseModeType]}`
+    : null;
   const modeLabel = mode === 'endless'
     ? '无尽模式'
     : mode === 'endlessTest'
       ? '测试模式'
       : mode === 'lab'
-        ? '平衡测试'
+        ? `平衡测试${atModeVariantLabel ? ` · ${atModeVariantLabel}` : ''}`
         : mode === 'random'
           ? '随机模式'
           : mode === 'at'
-            ? 'AT 模式'
+            ? `AT · ${atModeVariantLabel ?? '普通'}`
             : mode === 'campaign'
               ? '关卡模式'
               : null;
@@ -955,7 +960,6 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const totalMaxHp = Math.max(1, e.maxHp + maxArmorHp);
             const hpPercent = Math.max(0, (Math.max(0, e.hp) + armorHp) / totalMaxHp);
             const armorPercent = maxArmorHp > 0 ? armorHp / maxArmorHp : 0;
-            const bossSize = 10 + (totalMaxHp / 15);
             const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
             const grayValue = Math.round(31 + (1 - hpPercent) * 180);
             let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
@@ -968,7 +972,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
               enemyColor = `rgba(37,99,235,${alpha})`;
             }
-            const shapeSize = e.isBoss ? Math.max(ENEMY_SHAPE_SIZE, bossSize) : ENEMY_SHAPE_SIZE;
+            // Boss appearance is deliberately independent from level-scaled HP.
+            // Otherwise high-level bosses create an invalidly large SVG and disappear.
+            const shapeSize = e.isBoss ? 48 : ENEMY_SHAPE_SIZE;
             const strokeWidth = 2.2;
             const angryWriterStunned = e.shape === 'angryWriter' && !!e.newspaperStunUntil && gameTime < e.newspaperStunUntil;
             const angryWriterEnraged = e.shape === 'angryWriter' && !!e.newspaperEnraged && !angryWriterStunned;
@@ -1094,6 +1100,16 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const { left, top } = worldToPx(e.pos);
             return (
               <g key={e.id} pointerEvents="none">
+                {e.specialType === 'charityAmbassador' && (
+                  <circle
+                    className="charity-ambassador-aura"
+                    cx={left}
+                    cy={top}
+                    r={shapeSize * 0.72}
+                    fill="rgba(239,68,68,0.12)"
+                    stroke="rgba(239,68,68,0.82)"
+                  />
+                )}
                 <g transform={`translate(${left - shapeSize / 2} ${top - shapeSize / 2})`}>
                   {shapeNode}
                 </g>

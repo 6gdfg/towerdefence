@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem, SunPickup, PlantCover } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem, SunPickup, PlantCover, SpecialEnemyConfig } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats, getPlantRuntimeConfig } from './plants';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
+import { getAtBaseModeType, isPhantomAtMode } from './atMode';
 
 const IGNITER_DEATH_RADIUS = 2.8;
 const IGNITER_DEATH_SPEED_MULTIPLIER = 1.6;
@@ -24,7 +25,8 @@ const DEFAULT_WAVE_GAP_SECONDS = 2;
 const DEFAULT_GROUP_GAP_SECONDS = 2;
 const ANGRY_WRITER_STUN_DURATION = 1.5;
 const ANGRY_WRITER_ENRAGED_SPEED = 5;
-const MULTI_SHOT_OFFSET = 0.08;
+// Keep multi-shot projectiles visibly separate while they track the same target.
+const MULTI_SHOT_OFFSET = 0.38;
 const SKY_SUN_INTERVAL = 6;
 const SKY_SUN_VALUE = 20;
 const SKY_SUN_FALL_SPEED = 1.35;
@@ -32,6 +34,8 @@ const SKY_SUN_BOTTOM_LIFETIME = 10;
 const PLANT_SUN_LIFETIME = 14;
 const AUTO_COLLECT_DELAY = 0.5;
 const SUN_COLLECT_ANIMATION = 0.55;
+const PHANTOM_NORMAL_MAX_PROGRESS = 0.6;
+const PHANTOM_BOSS_MAX_PROGRESS = 0.4;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -193,11 +197,24 @@ function createProjectileForTower(tower: Tower, target: Pick<Enemy, 'id' | 'pos'
     projectile.targetId = target.id;
   }
 
-  const elementState = tower.element;
+  const randomElement = baseConfig?.randomElementShot;
+  const randomElementTriggered = randomElement && Math.random() < Math.max(0, Math.min(1, randomElement.chance));
+  const elementState = tower.element ?? (randomElementTriggered
+    ? {
+        type: randomElement.type,
+        level: Math.max(1, Math.floor(randomElement.level)),
+        color: ELEMENT_PLANT_CONFIG[randomElement.type].color,
+        bulletColor: ELEMENT_PLANT_CONFIG[randomElement.type].bulletColor,
+      }
+    : undefined);
   if (elementState) {
     projectile.elementType = elementState.type;
     const elementCfg = ELEMENT_PLANT_CONFIG[elementState.type];
     if (elementCfg) {
+      if (randomElementTriggered) {
+        projectile.color = elementCfg.bulletColor;
+        projectile.damage = Number((projectile.damage * (elementCfg.damageMultiplier ?? 1)).toFixed(2));
+      }
       if (elementCfg.breakArmor) {
         projectile.breakArmorDamageMultiplier = elementCfg.breakArmor.multiplier + elementCfg.breakArmor.bonusPerLevel * (elementState.level - 1);
         projectile.breakArmorDuration = elementCfg.breakArmor.duration;
@@ -437,6 +454,33 @@ function totalPathLength(path: Position[]): number {
   return s;
 }
 
+function getPathLocationAtProgress(path: Position[], progress: number) {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  const totalLen = totalPathLength(path);
+  if (path.length < 2 || totalLen <= 0) {
+    return { pos: { ...(path[0] ?? { x: 0, y: 0 }) }, pathIndex: 0, t: 0, progress: 0 };
+  }
+
+  const targetDistance = totalLen * clampedProgress;
+  let traversed = 0;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const length = segmentLength(path[index], path[index + 1]);
+    if (targetDistance <= traversed + length || index === path.length - 2) {
+      const t = length > 0 ? Math.max(0, Math.min(1, (targetDistance - traversed) / length)) : 0;
+      return {
+        pos: lerp(path[index], path[index + 1], t),
+        pathIndex: index,
+        t,
+        progress: clampedProgress,
+      };
+    }
+    traversed += length;
+  }
+
+  const lastIndex = path.length - 2;
+  return { pos: { ...path[path.length - 1] }, pathIndex: lastIndex, t: 1, progress: 1 };
+}
+
 function resolveSpawnPathId(pathId: number | undefined, paths: Position[][], enemies: Enemy[]) {
   const pathCount = paths.length;
   if (pathCount <= 1) return 0;
@@ -494,7 +538,7 @@ function createSpawnCursorsForWave(wave: WaveDef, startTime: number): SpawnCurso
 }
 
 function getConveyorPool(config: AtModeConfig | null | undefined, plants: PlantType[], elements: ElementType[]) {
-  const configuredPool = config?.type === 'conveyor' ? (config.conveyor?.pool ?? []) : [];
+  const configuredPool = getAtBaseModeType(config) === 'conveyor' ? (config?.conveyor?.pool ?? []) : [];
   if (configuredPool.length > 0) return configuredPool;
   return [
     ...plants.map((id): ConveyorItem => ({ kind: 'plant', id, weight: 100 })),
@@ -518,11 +562,17 @@ function pickWeightedConveyorItem(pool: ConveyorItem[]) {
 }
 
 function getConveyorInterval(config: AtModeConfig | null | undefined) {
-  return Math.max(0.2, config?.type === 'conveyor' ? (config.conveyor?.intervalSec ?? 3) : 3);
+  return Math.max(0.2, getAtBaseModeType(config) === 'conveyor' ? (config?.conveyor?.intervalSec ?? 3) : 3);
 }
 
 function getConveyorMaxQueue(config: AtModeConfig | null | undefined) {
-  return Math.max(1, Math.floor(config?.type === 'conveyor' ? (config.conveyor?.maxQueue ?? 8) : 8));
+  return Math.max(1, Math.floor(getAtBaseModeType(config) === 'conveyor' ? (config?.conveyor?.maxQueue ?? 8) : 8));
+}
+
+function rollSpecialEnemyType(config?: SpecialEnemyConfig | null) {
+  if (!config?.enabled) return undefined;
+  const chance = Math.max(0, Math.min(1, Number(config.chance) || 0));
+  return Math.random() < chance ? config.type : undefined;
 }
 
 function clampToMap(value: number, min: number, max: number) {
@@ -576,7 +626,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; disableKillRewards?: boolean }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean }) => void;
   togglePause: () => void;
 }
 
@@ -585,6 +635,7 @@ const INITIAL_TD_STATE: TDState = {
   gameTime: 0,
   gold: 100,
   lives: 20,
+  maxLives: 20,
   // 地图
   paths: [TD_PATH], // 包装成数组以符合类型定义
   mapWidth: MAP_CONFIG.width,
@@ -604,6 +655,7 @@ const INITIAL_TD_STATE: TDState = {
   availablePlants: ['sunflower', 'bottleGrass'] as PlantType[],
   availableElements: [] as ElementType[],
   atModeConfig: null,
+  specialEnemyConfig: null,
   conveyorQueue: [],
   nextConveyorItemAt: null,
   nextSkySunAt: SKY_SUN_INTERVAL,
@@ -679,6 +731,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       gameTime: 0,
       gold: level.startGold,
       lives: level.lives,
+      maxLives: Math.max(level.lives, opts?.maxLives ?? level.lives),
       paths,
       mapWidth: map.size.w,
       mapHeight: map.size.h,
@@ -696,8 +749,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       availablePlants: opts?.allowedPlants ? [...opts.allowedPlants] : [...INITIAL_TD_STATE.availablePlants],
       availableElements: opts?.allowedElements ? [...opts.allowedElements] : [...INITIAL_TD_STATE.availableElements],
       atModeConfig,
+      specialEnemyConfig: opts?.specialEnemyConfig ?? null,
       conveyorQueue: [],
-      nextConveyorItemAt: atModeConfig?.type === 'conveyor' ? conveyorInterval : null,
+      nextConveyorItemAt: getAtBaseModeType(atModeConfig) === 'conveyor' ? conveyorInterval : null,
       nextSkySunAt: SKY_SUN_INTERVAL,
       autoCollectSun: previousAutoCollectSun,
       disableKillRewards: opts?.disableKillRewards ?? false,
@@ -759,7 +813,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
   placeTowerFromConveyor: (queueIndex, pos) => {
     const state = get();
-    if (state.atModeConfig?.type !== 'conveyor') return;
+    if (getAtBaseModeType(state.atModeConfig) !== 'conveyor') return;
     const item = state.conveyorQueue[queueIndex];
     if (!item || item.kind !== 'plant') return;
     const type = item.id;
@@ -857,7 +911,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
   applyElementFromConveyor: (queueIndex, pos) => {
     const state = get();
-    if (state.atModeConfig?.type !== 'conveyor') return;
+    if (getAtBaseModeType(state.atModeConfig) !== 'conveyor') return;
     const item = state.conveyorQueue[queueIndex];
     if (!item || item.kind !== 'element') return;
     const elementType = item.id;
@@ -986,6 +1040,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
     let lives = state.lives;
+    const maxLives = Math.max(1, state.maxLives ?? state.lives);
     let waveIndex = state.waveIndex;
     let isWaveActive = state.isWaveActive;
     let spawnCursor = state.spawnCursor ? state.spawnCursor.map(cursor => ({ ...cursor })) : null;
@@ -1000,12 +1055,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let nextSkySunAt = state.nextSkySunAt ?? SKY_SUN_INTERVAL;
     const autoCollectSun = state.autoCollectSun ?? false;
     const atModeConfig = state.atModeConfig ?? null;
+    const specialEnemyConfig = state.specialEnemyConfig ?? null;
     const disableKillRewards = state.disableKillRewards ?? false;
     const triggerEnemyDeathEffects = () => {
       enemies.forEach(enemy => {
         if (enemy.hp > 0 || enemy.deathEffectTriggered) return;
-        if (enemy.shape !== 'igniter' && enemy.shape !== 'freezer') return;
         enemy.deathEffectTriggered = true;
+        if (enemy.specialType === 'charityAmbassador') {
+          lives = Math.min(maxLives, lives + 1);
+        }
         if (enemy.shape === 'igniter') {
           enemies.forEach(target => {
             if (target.id === enemy.id || target.hp <= 0) return;
@@ -1013,7 +1071,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             target.speedBoostMultiplier = Math.max(target.speedBoostMultiplier || 1, IGNITER_DEATH_SPEED_MULTIPLIER);
             target.speedBoostUntil = Math.max(target.speedBoostUntil || 0, gameTime + IGNITER_DEATH_DURATION);
           });
-        } else {
+        } else if (enemy.shape === 'freezer') {
           towers.forEach(tower => {
             if (isTowerProtected(tower, plantCovers)) return;
             applyTowerFreeze(tower, gameTime + FREEZER_DEATH_DURATION);
@@ -1030,7 +1088,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
     });
 
-    if (atModeConfig?.type === 'conveyor') {
+    if (getAtBaseModeType(atModeConfig) === 'conveyor') {
       const interval = getConveyorInterval(atModeConfig);
       const maxQueue = getConveyorMaxQueue(atModeConfig);
       const pool = getConveyorPool(atModeConfig, state.availablePlants, state.availableElements);
@@ -1150,13 +1208,20 @@ export const useTDStore = create<TDStore>((set, get) => ({
     towers.forEach(tw => {
       if (isTowerFrozen(tw, gameTime)) return;
       if (!tw.incomeInterval || tw.incomeInterval <= 0) return;
+      const incomeConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
+      const incomeLevel = Math.max(1, tw.level ?? 1);
+      const intervalFloor = Math.max(0.1, incomeConfig?.incomeIntervalFloor ?? 0.1);
+      const levelInterval = Math.max(
+        intervalFloor,
+        tw.incomeInterval - (incomeConfig?.incomeIntervalReductionPerLevel ?? 0) * (incomeLevel - 1),
+      );
       const speedBoost = getSunflowerSpeedBoost(tw, towers, gameTime, state.labOverrides);
-      const interval = tw.incomeInterval / (1 + speedBoost);
+      const interval = Math.max(intervalFloor, levelInterval / (1 + speedBoost));
       const lastIncomeTime = tw.lastIncomeTime ?? prevGameTime;
       if (gameTime - lastIncomeTime < interval) return;
       const cycles = Math.floor((gameTime - lastIncomeTime) / interval);
       if (cycles <= 0) return;
-      const perTick = (tw.incomeBase ?? 0) + (tw.incomeBonusPerLevel ?? 0) * ((tw.level ?? 1) - 1);
+      const perTick = (tw.incomeBase ?? 0) + (tw.incomeBonusPerLevel ?? 0) * (incomeLevel - 1);
       if (perTick <= 0) {
         tw.lastIncomeTime = lastIncomeTime + cycles * interval;
         return;
@@ -1219,23 +1284,33 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const mul = getMonsterLevelMultiplier(g.level);
           const hp = Math.round(baseStats.hp * mul);
           const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
-          const pathId = resolveSpawnPathId(g.pathId, state.paths, enemies);
+          const phantomSpawn = isPhantomAtMode(atModeConfig);
+          const pathId = phantomSpawn
+            ? Math.floor(Math.random() * state.paths.length)
+            : resolveSpawnPathId(g.pathId, state.paths, enemies);
           const path = state.paths[pathId];
+          const spawnLocation = getPathLocationAtProgress(
+            path,
+            phantomSpawn
+              ? Math.random() * (g.isBoss ? PHANTOM_BOSS_MAX_PROGRESS : PHANTOM_NORMAL_MAX_PROGRESS)
+              : 0,
+          );
           const enemy: Enemy = {
             id: `e-${Date.now()}-${Math.random()}`,
-            pos: { ...path[0] },
+            pos: spawnLocation.pos,
             hp,
             maxHp: hp,
             armorHp,
             maxArmorHp: armorHp,
-            speed: baseStats.speed,
+            speed: g.isBoss && g.bossSpeed != null ? Math.max(0.1, g.bossSpeed) : baseStats.speed,
             shape: g.type,
             leakDamage: g.leakDamage ?? baseStats.leakDamage,
             level: g.level,
             isBoss: !!g.isBoss,
-            pathIndex: 0,
-            t: 0,
-            progress: 0,
+            specialType: rollSpecialEnemyType(specialEnemyConfig),
+            pathIndex: spawnLocation.pathIndex,
+            t: spawnLocation.t,
+            progress: spawnLocation.progress,
             pathId, // 记录该敌人走的路径ID
           };
           if (enemy.shape === 'healer') {
@@ -1532,6 +1607,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             shape: 'circle',
             leakDamage: baseStats.leakDamage,
             level: enemy.level,
+            specialType: rollSpecialEnemyType(specialEnemyConfig),
             pathIndex: spawnPathIndex,
             t: spawnT,
             progress: spawnProgress,

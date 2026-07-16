@@ -49,6 +49,13 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <rect x="12" y="5" width="8" height="14" rx="1.5" ry="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
         </svg>
       );
+    case 'flameBottleGrass':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <circle cx="12" cy="12" r="3.8" fill="rgba(239,68,68,0.18)" stroke="#ef4444" strokeWidth={STROKE_WIDTH * 0.82} />
+        </svg>
+      );
     case 'puffShroom':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">

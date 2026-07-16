@@ -10,6 +10,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   common: [
     { id: 'sunflower', weight: 20 },
     { id: 'bottleGrass', weight: 18 },
+    { id: 'flameBottleGrass', weight: 6 },
     { id: 'puffShroom', weight: 18 },
     { id: 'fourLeafClover', weight: 8 },
     { id: 'pentagram', weight: 4 },
@@ -26,6 +27,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   rare: [
     { id: 'sunflower', weight: 10 },
     { id: 'bottleGrass', weight: 10 },
+    { id: 'flameBottleGrass', weight: 10 },
     { id: 'puffShroom', weight: 10 },
     { id: 'fourLeafClover', weight: 10 },
     { id: 'pentagram', weight: 8 },
@@ -45,6 +47,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
   epic: [
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'flameBottleGrass', weight: 9 },
     { id: 'pentagram', weight: 9 },
     { id: 'puffShroom', weight: 6 },
     { id: 'rocket', weight: 9 },
@@ -66,6 +69,7 @@ const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number
   ],
   legendary: [
     { id: 'fourLeafClover', weight: 8 },
+    { id: 'flameBottleGrass', weight: 9 },
     { id: 'pentagram', weight: 9 },
     { id: 'puffShroom', weight: 6 },
     { id: 'rocket', weight: 9 },

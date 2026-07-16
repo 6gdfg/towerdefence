@@ -27,5 +27,11 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "difficulty": "AT",
     "star": 3,
     "itemId": "rocket"
+  },
+  {
+    "level": 8,
+    "difficulty": "AT",
+    "star": 3,
+    "itemId": "flameBottleGrass"
   }
 ];

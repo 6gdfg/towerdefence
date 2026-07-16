@@ -51,7 +51,17 @@ function plantTags(entry: PlantBookEntry) {
 
   if (config.overlayType === 'pumpkinHead') tags.push('特殊护罩', '只能覆盖植物', '免疫怪物影响', '无等级');
 
-  if (config.incomeInterval) tags.push(`${config.incomeInterval}s 产阳光`);
+  if (config.incomeInterval) {
+    const intervalFloor = config.incomeIntervalFloor ?? 0.1;
+    const levelInterval = Math.max(
+      intervalFloor,
+      config.incomeInterval - (config.incomeIntervalReductionPerLevel ?? 0) * (entry.level - 1),
+    );
+    tags.push(`${fmt(levelInterval)}s 产阳光`);
+    if (config.incomeIntervalReductionPerLevel) {
+      tags.push(`每级 -${config.incomeIntervalReductionPerLevel}s`, `最低 ${intervalFloor}s`);
+    }
+  }
   if (config.sunflowerBoostAura) {
     const speedBonus = config.sunflowerBoostAura.speedBonus + config.sunflowerBoostAura.bonusPerLevel * (entry.level - 1);
     tags.push(`5x5 向日葵产速 +${Math.round(speedBonus * 100)}%`, '不叠加');
@@ -65,6 +75,7 @@ function plantTags(entry: PlantBookEntry) {
   if (config.breakArmorDuration) tags.push(`破甲 ${config.breakArmorDuration}s`);
   if (config.targetPriority === 'armorFirst') tags.push('优先护甲');
   if (config.shotCount && config.shotCount > 1) tags.push(`每次 ${config.shotCount} 发`);
+  if (config.randomElementShot) tags.push(`${Math.round(config.randomElementShot.chance * 100)}% 火元素子弹`);
 
   if (config.instantEffect?.type === 'crossDamage') {
     tags.push('一次性', `延迟 ${config.instantEffect.delaySec}s`, '横竖爆炸', '升级仅伤害');
@@ -198,6 +209,7 @@ function plantRole(type: PlantType) {
     sunflower: '经济',
     bottleGrass: '单体',
     doubleBottleGrass: '双发',
+    flameBottleGrass: '随机火弹',
     puffShroom: '临时',
     fourLeafClover: '穿透',
     pentagram: '五向弹幕',
@@ -292,6 +304,26 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
             ))}
           </div>
         )}
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2 className="section-title">特殊怪物</h2>
+        <div className="book-grid">
+          <article className="soft-card book-card">
+            <div className="book-title-row">
+              <div>
+                <div className="item-name">慈善大使</div>
+                <div className="book-subtitle">怪物附加身份</div>
+              </div>
+              <span
+                aria-hidden="true"
+                style={{ width: 30, height: 30, borderRadius: '50%', border: '3px solid #ef4444', boxShadow: '0 0 0 6px rgba(239,68,68,0.14)' }}
+              />
+            </div>
+            <FeatureTags tags={['保留原怪物特性', '击杀恢复1生命']} />
+            <div className="book-note">关卡可按概率让任意怪物获得该身份；红色晕圈用于辨认，生命最多恢复至本局上限。</div>
+          </article>
+        </div>
       </section>
 
       <section style={{ marginTop: 24 }}>

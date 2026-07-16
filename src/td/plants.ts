@@ -14,6 +14,11 @@ export interface BasePlantConfig {
   projectileSpeed: number;
   shotCount?: number;
   radialShotCount?: number;
+  randomElementShot?: {
+    type: ElementType;
+    chance: number;
+    level: number;
+  };
   overlayType?: 'pumpkinHead';
   upgradeable?: boolean;
   penetration?: boolean;
@@ -23,6 +28,8 @@ export interface BasePlantConfig {
   targetPriority?: 'armorFirst';
   activeAbilityCost?: number;
   incomeInterval?: number;
+  incomeIntervalReductionPerLevel?: number;
+  incomeIntervalFloor?: number;
   incomeBase?: number;
   incomeBonusPerLevel?: number;
   sunflowerBoostAura?: {
@@ -116,10 +123,12 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     damage: 0,
     fireRate: 0,
     projectileSpeed: 0,
-    incomeInterval: 8,
-    incomeBase: 20,
+    incomeInterval: 7,
+    incomeIntervalReductionPerLevel: 0.1,
+    incomeIntervalFloor: 4,
+    incomeBase: 25,
     incomeBonusPerLevel: 1,
-    description: '每8秒在附近生成一个阳光，可升级提高阳光数值，无攻击能力。',
+    description: '每7秒在附近生成一个基础价值25的阳光；每级阳光+1、周期-0.1秒，周期最低4秒。',
   },
   bottleGrass: {
     id: 'bottleGrass',
@@ -143,6 +152,23 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     projectileSpeed: 8,
     shotCount: 2,
     description: '一次发射两颗瓶子草子弹，其他数值与瓶子草相同。',
+  },
+  flameBottleGrass: {
+    id: 'flameBottleGrass',
+    name: '火焰瓶子草',
+    icon: 'o',
+    cost: 120,
+    range: 3.2,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 8,
+    elementAllowed: false,
+    randomElementShot: {
+      type: 'fire',
+      chance: 0.5,
+      level: 1,
+    },
+    description: '每发子弹独立判定，50% 概率变为一级火元素子弹；其余数值与瓶子草相同，禁止附加元素。',
   },
   puffShroom: {
     id: 'puffShroom',

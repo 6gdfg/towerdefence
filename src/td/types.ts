@@ -14,6 +14,7 @@ export interface Enemy {
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
   level?: number; // 怪物等级（显示用，可选，默认1）
   isBoss?: boolean; // Boss 只影响显示体型等表现，不参与基础数值公式
+  specialType?: SpecialEnemyType;
   // 路径进度
   pathIndex: number; // 当前处于 path[pathIndex] -> path[pathIndex+1] 之间
   t: number; // [0,1)
@@ -39,18 +40,24 @@ export interface Enemy {
   newspaperEnraged?: boolean;
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 
-export type AtModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect';
+export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect';
+export type AtModeType = AtBaseModeType | 'phantom';
 export type ConveyorItem =
   | { kind: 'plant'; id: PlantType; weight?: number }
   | { kind: 'element'; id: ElementType; weight?: number };
 
 export type AtModeConfig = {
   type: AtModeType;
+  phantom?: {
+    subMode: AtBaseModeType;
+  };
+  /** @deprecated Legacy draft compatibility. New drafts use type: 'phantom'. */
+  phantomSpawn?: boolean;
   conveyor?: {
     intervalSec: number;
     maxQueue: number;
@@ -66,6 +73,14 @@ export type AtModeConfig = {
     maxElements: number;
     monsterLevelMultiplier: number;
   };
+};
+
+export type SpecialEnemyType = 'charityAmbassador';
+
+export type SpecialEnemyConfig = {
+  enabled: boolean;
+  type: SpecialEnemyType;
+  chance: number;
 };
 
 export type LabPlantStatOverride = Partial<Record<'cost' | 'range' | 'damage' | 'fireRate' | 'projectileSpeed' | 'placementCooldown' | 'incomeInterval' | 'incomeBase' | 'incomeBonusPerLevel', number>>;
@@ -179,6 +194,7 @@ export interface SunPickup {
 }
 
 export interface WaveGroup {
+  bossSpeed?: number;
   type: ShapeType;
   count: number;
   interval: number; // 秒
@@ -205,6 +221,7 @@ export interface TDState {
   gameTime: number;
   gold: number;
   lives: number;
+  maxLives: number;
   // 地图
   paths: Position[][];
   mapWidth: number;
@@ -224,6 +241,7 @@ export interface TDState {
   availablePlants: PlantType[];
   availableElements: ElementType[];
   atModeConfig?: AtModeConfig | null;
+  specialEnemyConfig?: SpecialEnemyConfig | null;
   conveyorQueue: ConveyorItem[];
   nextConveyorItemAt?: number | null;
   nextSkySunAt?: number | null;

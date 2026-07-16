@@ -2731,6 +2731,427 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       }
     ],
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "EZ",
+    "rating": 6,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 800,
+    "lives": 1,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 300,
+            "interval": 0.2,
+            "level": 5,
+            "type": "circle"
+          },
+          {
+            "count": 1,
+            "interval": 0.1,
+            "level": 400,
+            "type": "bunker"
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "HD",
+    "rating": 13,
+    "mapId": 8,
+    "mapName": "上路压迫",
+    "startGold": 700,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.42,
+            "level": 12,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 12,
+            "interval": 0.46,
+            "level": 13,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 12,
+            "interval": 0.58,
+            "level": 14,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.95,
+            "level": 13,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 1,
+            "level": 12,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.68,
+            "level": 16,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.36,
+            "level": 15,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.7,
+            "level": 15,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.85,
+            "level": 16,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.32,
+            "level": 18,
+            "startDelay": 1
+          },
+          {
+            "type": "angryWriter",
+            "count": 6,
+            "interval": 0.75,
+            "level": 18,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.85,
+            "level": 17,
+            "startDelay": 7
+          },
+          {
+            "type": "purifier",
+            "count": 3,
+            "interval": 1,
+            "level": 16,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 1,
+            "level": 20,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 14,
+            "interval": 0.52,
+            "level": 21,
+            "startDelay": 3
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.75,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.8,
+            "level": 20,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.28,
+            "level": 22,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 22,
+            "interval": 0.3,
+            "level": 24,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.58,
+            "level": 22,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 6,
+            "interval": 0.68,
+            "level": 24,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.72,
+            "level": 22,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.75,
+            "level": 24,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 100,
+            "startDelay": 16,
+            "isBoss": true,
+            "bossSpeed": 0.55
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 700,
+    "lives": 12,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.46,
+            "level": 1000,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          },
+          {
+            "type": "triangle",
+            "count": 25,
+            "interval": 0.52,
+            "level": 22,
+            "startDelay": 10
+          },
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 30
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 50
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 70
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 150,
+            "startDelay": 80,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "AT",
+    "rating": 14,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 600,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.4,
+            "level": 8
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 12
+          },
+          {
+            "type": "armored",
+            "count": 5,
+            "interval": 0.4,
+            "level": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 80,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 160,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 500,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 6,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "phantom",
+      "phantom": {
+        "subMode": "normal"
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.03
+    },
+    "unlockRewards": [
+      "flameBottleGrass"
+    ]
   }
 ];
 
@@ -5465,6 +5886,427 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
       }
     ],
     "unlockRewards": []
+  },
+  "L8:EZ": {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "EZ",
+    "rating": 6,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 800,
+    "lives": 1,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 300,
+            "interval": 0.2,
+            "level": 5,
+            "type": "circle"
+          },
+          {
+            "count": 1,
+            "interval": 0.1,
+            "level": 400,
+            "type": "bunker"
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L8:HD": {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "HD",
+    "rating": 13,
+    "mapId": 8,
+    "mapName": "上路压迫",
+    "startGold": 700,
+    "lives": 14,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.42,
+            "level": 12,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 12,
+            "interval": 0.46,
+            "level": 13,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 12,
+            "interval": 0.58,
+            "level": 14,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.95,
+            "level": 13,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 1,
+            "level": 12,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.68,
+            "level": 16,
+            "startDelay": 1
+          },
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.36,
+            "level": 15,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.7,
+            "level": 15,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 4,
+            "interval": 0.85,
+            "level": 16,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.32,
+            "level": 18,
+            "startDelay": 1
+          },
+          {
+            "type": "angryWriter",
+            "count": 6,
+            "interval": 0.75,
+            "level": 18,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.85,
+            "level": 17,
+            "startDelay": 7
+          },
+          {
+            "type": "purifier",
+            "count": 3,
+            "interval": 1,
+            "level": 16,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 1,
+            "level": 20,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 14,
+            "interval": 0.52,
+            "level": 21,
+            "startDelay": 3
+          },
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 0.75,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.8,
+            "level": 20,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.28,
+            "level": 22,
+            "startDelay": 1
+          },
+          {
+            "type": "triangle",
+            "count": 22,
+            "interval": 0.3,
+            "level": 24,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.58,
+            "level": 22,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 6,
+            "interval": 0.68,
+            "level": 24,
+            "startDelay": 7
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 0.72,
+            "level": 22,
+            "startDelay": 9
+          },
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.75,
+            "level": 24,
+            "startDelay": 11
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 100,
+            "startDelay": 16,
+            "isBoss": true,
+            "bossSpeed": 0.55
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L8:IN": {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 700,
+    "lives": 12,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.46,
+            "level": 1000,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          },
+          {
+            "type": "triangle",
+            "count": 25,
+            "interval": 0.52,
+            "level": 22,
+            "startDelay": 10
+          },
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 30
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 50
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 70
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 150,
+            "startDelay": 80,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L8:AT": {
+    "sourceLevelId": "L8",
+    "levelNumber": 8,
+    "levelName": "1-8",
+    "difficulty": "AT",
+    "rating": 14,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 600,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 15
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 25
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.4,
+            "level": 8
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 12
+          },
+          {
+            "type": "armored",
+            "count": 5,
+            "interval": 0.4,
+            "level": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 80,
+            "interval": 0.4,
+            "level": 2,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 160,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 500,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.4,
+            "level": 3,
+            "startDelay": 5
+          },
+          {
+            "type": "bunker",
+            "count": 6,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "phantom",
+      "phantom": {
+        "subMode": "normal"
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.03
+    },
+    "unlockRewards": [
+      "flameBottleGrass"
+    ]
   }
 };
 

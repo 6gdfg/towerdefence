@@ -24,6 +24,7 @@ import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTu
 import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
+import { getAtBaseModeType } from './td/atMode';
 import { craftLegendaryChest, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
@@ -405,6 +406,7 @@ function App() {
     let disableKillRewards = false;
     const towerLevels: TowerLevelMap = hub?.towerLevels ? { ...hub.towerLevels } : {};
     const atModeConfig: AtModeConfig | null = difficulty === 'AT' ? (selectedLevel.atModeConfig ?? { type: 'normal' }) : null;
+    const atBaseModeType = getAtBaseModeType(atModeConfig);
     const challengeStartLives = hasChallenge(challenges, 'halfHealth')
       ? Math.max(1, Math.ceil(selectedLevel.lives / 2))
       : selectedLevel.lives;
@@ -421,6 +423,8 @@ function App() {
           allowedElements: elements,
           mode: atModeConfig ? 'at' : 'campaign',
           atModeConfig,
+          specialEnemyConfig: selectedLevel.specialEnemyConfig,
+          maxLives: selectedLevel.lives,
           disableKillRewards,
         }
       );
@@ -432,7 +436,7 @@ function App() {
       navigateWithTransition('playing');
     };
 
-    if (atModeConfig?.type === 'conveyor') {
+    if (atModeConfig && atBaseModeType === 'conveyor') {
       const pool = atModeConfig.conveyor?.pool ?? [];
       const poolPlants = pool.filter((item): item is { kind: 'plant'; id: PlantType } => item.kind === 'plant').map(item => item.id);
       const poolElements = pool.filter((item): item is { kind: 'element'; id: ElementType } => item.kind === 'element').map(item => item.id);
@@ -448,14 +452,14 @@ function App() {
         const key = `element:${element}` as const;
         towerLevels[key] = Math.max(1, Math.floor(towerLevels[key] || 1));
       });
-    } else if (atModeConfig?.type === 'lastStand') {
+    } else if (atModeConfig && atBaseModeType === 'lastStand') {
       const bannedPlants = new Set<PlantType>([...(atModeConfig.lastStand?.bannedPlants ?? []), 'sunflower']);
       allowedPlants = allowedPlants.filter(plant => !bannedPlants.has(plant));
       startGold = atModeConfig.lastStand?.startGold ?? startGold;
       autoStartFirstWave = false;
       firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
       disableKillRewards = true;
-    } else if (atModeConfig?.type === 'cardSelect') {
+    } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({
         title: `${selectedLevel.name} / AT Lv.${getLevelDifficultyRatings(L.id, idx + 1).AT ?? '-'}`,
@@ -673,6 +677,7 @@ function App() {
     setPendingCardSelect(null);
 
     const atModeConfig = config.targetDifficulty === 'AT' ? (config.atModeConfig ?? { type: 'normal' }) : null;
+    const atBaseModeType = getAtBaseModeType(atModeConfig);
     let allowedPlants: PlantType[] = [...PLANT_TYPES];
     let allowedElements: ElementType[] = [...ELEMENT_TYPES];
     let startGold = config.startGold;
@@ -693,13 +698,15 @@ function App() {
           allowedElements: elements,
           mode: 'lab',
           atModeConfig,
+          specialEnemyConfig: config.specialEnemyConfig,
+          maxLives: config.lives,
           disableKillRewards,
         },
       );
       navigateWithTransition('playing');
     };
 
-    if (atModeConfig?.type === 'conveyor') {
+    if (atModeConfig && atBaseModeType === 'conveyor') {
       const pool = atModeConfig.conveyor?.pool ?? [];
       if (pool.length > 0) {
         allowedPlants = Array.from(new Set(pool.filter((item): item is { kind: 'plant'; id: PlantType } => item.kind === 'plant').map(item => item.id)));
@@ -713,14 +720,14 @@ function App() {
         const key = `element:${element}` as const;
         towerLevels[key] = Math.max(1, Math.floor(towerLevels[key] || 1));
       });
-    } else if (atModeConfig?.type === 'lastStand') {
+    } else if (atModeConfig && atBaseModeType === 'lastStand') {
       const bannedPlants = new Set<PlantType>([...(atModeConfig.lastStand?.bannedPlants ?? []), 'sunflower']);
       allowedPlants = allowedPlants.filter(plant => !bannedPlants.has(plant));
       startGold = atModeConfig.lastStand?.startGold ?? startGold;
       autoStartFirstWave = false;
       firstWaveDelaySec = config.firstWaveDelaySec;
       disableKillRewards = true;
-    } else if (atModeConfig?.type === 'cardSelect') {
+    } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({
         title: `${config.levelName} / AT Lv.${config.difficultyRatings.AT ?? '-'}`,

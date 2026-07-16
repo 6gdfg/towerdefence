@@ -1110,7 +1110,7 @@ input {
 
 .lab-mode-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 10px;
 }
 
@@ -1634,6 +1634,15 @@ input {
   border-radius: 8px;
   border: 1px solid rgba(203, 213, 225, 0.62);
   background: rgba(248, 250, 252, 0.78);
+}
+
+@keyframes charity-ambassador-pulse {
+  0%, 100% { opacity: 0.38; stroke-width: 2; }
+  50% { opacity: 0.9; stroke-width: 4; }
+}
+
+.charity-ambassador-aura {
+  animation: charity-ambassador-pulse 1.25s ease-in-out infinite;
 }
 
 .game-shell {

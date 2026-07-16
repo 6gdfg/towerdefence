@@ -1,7 +1,7 @@
 import { BALANCE_LAB_LEVEL_DRAFTS } from './balanceDraft.generated';
 import { getChapterLevelLabel } from './chapters';
 import type { DifficultyCode } from './levelRatings';
-import type { AtModeConfig, ShapeType, WaveDef } from './types';
+import type { AtModeConfig, ShapeType, SpecialEnemyConfig, WaveDef } from './types';
 
 export interface LevelDifficultySpec {
   name?: string;
@@ -12,6 +12,7 @@ export interface LevelDifficultySpec {
   autoStartFirstWave?: boolean;
   firstWaveDelaySec?: number;
   atModeConfig?: AtModeConfig;
+  specialEnemyConfig?: SpecialEnemyConfig;
   unlockRewards?: string[];
 }
 
@@ -25,6 +26,7 @@ export interface LevelSpec {
   autoStartFirstWave?: boolean;
   firstWaveDelaySec?: number;
   atModeConfig?: AtModeConfig;
+  specialEnemyConfig?: SpecialEnemyConfig;
   unlockRewards?: string[];
   difficultyOverrides?: Partial<Record<DifficultyCode, LevelDifficultySpec>>;
 }
@@ -45,6 +47,7 @@ export function getLevelSpecForDifficulty(level: LevelSpec, difficulty: Difficul
     autoStartFirstWave: override.autoStartFirstWave ?? level.autoStartFirstWave,
     firstWaveDelaySec: override.firstWaveDelaySec ?? level.firstWaveDelaySec,
     atModeConfig: override.atModeConfig ?? level.atModeConfig,
+    specialEnemyConfig: override.specialEnemyConfig ?? level.specialEnemyConfig,
     unlockRewards: override.unlockRewards ?? level.unlockRewards,
     difficultyOverrides: level.difficultyOverrides,
   };
@@ -157,6 +160,7 @@ function applyGeneratedDrafts(levels: LevelSpec[]): LevelSpec[] {
         autoStartFirstWave: draft.autoStartFirstWave,
         firstWaveDelaySec: draft.firstWaveDelaySec,
         atModeConfig: draft.atModeConfig,
+        specialEnemyConfig: draft.specialEnemyConfig,
         unlockRewards: Array.isArray(draft.unlockRewards) ? [...draft.unlockRewards] : [],
       },
     };
