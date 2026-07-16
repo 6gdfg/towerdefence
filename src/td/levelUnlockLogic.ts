@@ -17,8 +17,9 @@ export function getCoreDifficultyUnlockStar(levels: LevelSpec[], levelIndex: num
   const previousMaxStar = previousLevel ? getMaxStarSync(previousLevel.id) : 0;
   const ownMaxStar = getMaxStarSync(level.id);
   const hasOwnProgressRecord = Object.prototype.hasOwnProperty.call(getAllStars(), level.id);
+  const ownProgressUnlockStar = ownMaxStar > 0 ? Math.min(3, ownMaxStar + 1) : 0;
 
-  return Math.max(previousMaxStar, ownMaxStar, hasOwnProgressRecord ? 1 : 0);
+  return Math.max(previousMaxStar, ownProgressUnlockStar, hasOwnProgressRecord ? 1 : 0);
 }
 
 export function isAtDifficultyUnlocked(levels: LevelSpec[], levelIndex: number) {
