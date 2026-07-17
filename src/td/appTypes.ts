@@ -5,6 +5,7 @@ export type HubData = {
   coins: number;
   magicKeys: number;
   diamonds: number;
+  experience?: number;
   shards: Record<string, number>;
   plantShards: Record<string, number>;
   elementShards: Record<string, number>;

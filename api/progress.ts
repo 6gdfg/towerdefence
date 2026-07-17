@@ -20,7 +20,7 @@ function readDbBoolean(value: unknown) {
 }
 
 type ProgressRow = { level_id: string; max_star: number | string; in_full_health_clear?: boolean | string | number | null; at_cleared?: boolean | string | number | null };
-type WalletRow = { coins?: number | string; magic_keys?: number | string; diamonds?: number | string };
+type WalletRow = { coins?: number | string; magic_keys?: number | string; diamonds?: number | string; experience?: number | string };
 type ShardRow = { tower_type: string; shards: number | string };
 type TowerLevelRow = { tower_type: string; level: number | string };
 type UnlockedItemRow = { item_id: string };
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const [prog, wallet, shards, levels, chests, unlockedRows] = await Promise.all([
         sql`SELECT level_id, max_star, in_full_health_clear, at_cleared FROM player_progress WHERE player_id=${playerId}`,
-        sql`SELECT coins, magic_keys, diamonds FROM player_wallet WHERE player_id=${playerId}`,
+        sql`SELECT coins, magic_keys, diamonds, experience FROM player_wallet WHERE player_id=${playerId}`,
         sql`SELECT tower_type, shards FROM inventory_shards WHERE player_id=${playerId}`,
         sql`SELECT tower_type, level FROM tower_levels WHERE player_id=${playerId}`,
         sql`SELECT chest_id, status, awarded_at, unlock_start_at, unlock_ready_at, duration_seconds, chest_type FROM chests WHERE player_id=${playerId} ORDER BY awarded_at DESC LIMIT 50`,
@@ -64,6 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const coins = Number((wallet as WalletRow[])[0]?.coins ?? 0);
       const magicKeys = Number((wallet as WalletRow[])[0]?.magic_keys ?? 0);
       const diamonds = Number((wallet as WalletRow[])[0]?.diamonds ?? 0);
+      const experience = Number((wallet as WalletRow[])[0]?.experience ?? 0);
       const shardInv: Record<string, number> = {};
       (shards as ShardRow[]).forEach(r => shardInv[r.tower_type] = Number(r.shards));
       const splitShards = splitShardInventory(shardInv);
@@ -81,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      return res.json({ stars, fullHealthClears, coins, magicKeys, diamonds, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
+      return res.json({ stars, fullHealthClears, coins, magicKeys, diamonds, experience, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
     }
 
     if (req.method === 'POST') {

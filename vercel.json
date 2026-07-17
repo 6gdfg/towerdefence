@@ -1,4 +1,8 @@
 {
-  "buildCommand": "npm run vercel-build"
+  "buildCommand": "npm run vercel-build",
+  "rewrites": [
+    { "source": "/study", "destination": "/index.html" },
+    { "source": "/tasks", "destination": "/index.html" }
+  ]
 }
 

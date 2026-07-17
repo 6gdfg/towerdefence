@@ -36,6 +36,8 @@ import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
 import { getChapterForLevelIndex } from './td/chapters';
 import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRatings';
 import { getPlayableDifficulty } from './td/levelUnlockLogic';
+import StudyPage from './study/StudyPage';
+import TasksPage from './tasks/TasksPage';
 type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'cardSelect' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PageTransitionState = 'idle' | 'leaving' | 'entering';
@@ -239,6 +241,7 @@ function App() {
         coins: d.coins ?? 0,
         magicKeys: d.magicKeys ?? 0,
         diamonds: d.diamonds ?? 0,
+        experience: d.experience ?? 0,
         shards: d.shards ?? {},
         plantShards: d.plantShards ?? {},
         elementShards: d.elementShards ?? {},
@@ -908,9 +911,14 @@ function App() {
             {/* 简易登录/注册栏 - 游戏进行时不显示 */}
             {stage !== 'playing' && stage !== 'tutorial' && (
               <AuthBar
+                wallet={hub ?? undefined}
                 onShowAbout={() => setShowAbout(true)}
                 onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook}
                 onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking}
+                onNavigateTasks={stage === 'hub' ? () => {
+                  window.history.pushState({}, '', '/tasks');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } : undefined}
               />
             )}
             {stage === 'tutorial' && (
@@ -1117,4 +1125,43 @@ function App() {
   );
 }
 
-export default App;
+function RootApp() {
+  const readPath = () => typeof window === 'undefined' ? '/' : window.location.pathname.replace(/\/+$/, '') || '/';
+  const [pathname, setPathname] = useState(readPath);
+
+  useEffect(() => {
+    const handlePopState = () => setPathname(readPath());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (pathname === '/study') {
+    return (
+      <StudyPage
+        onExit={() => {
+          window.history.pushState({}, '', '/');
+          setPathname('/');
+        }}
+        onOpenTasks={() => {
+          window.history.pushState({}, '', '/tasks');
+          setPathname('/tasks');
+        }}
+      />
+    );
+  }
+
+  if (pathname === '/tasks') {
+    return (
+      <TasksPage
+        onBack={() => {
+          window.history.pushState({}, '', '/study');
+          setPathname('/study');
+        }}
+      />
+    );
+  }
+
+  return <App />;
+}
+
+export default RootApp;

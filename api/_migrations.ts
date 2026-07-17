@@ -136,4 +136,28 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `UPDATE player_progress SET at_cleared = FALSE WHERE at_cleared IS NULL`,
     ],
   },
+  {
+    id: '007_player_study_progress',
+    description: 'Store compact per-player study progress and mistake records',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS player_study_progress (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+        progress JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+    ],
+  },
+  {
+    id: '008_player_tasks_and_experience',
+    description: 'Add task progress and experience currency',
+    statements: [
+      `ALTER TABLE player_wallet ADD COLUMN IF NOT EXISTS experience BIGINT DEFAULT 0`,
+      `UPDATE player_wallet SET experience = 0 WHERE experience IS NULL`,
+      `CREATE TABLE IF NOT EXISTS player_task_progress (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+        progress JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+    ],
+  },
 ];
