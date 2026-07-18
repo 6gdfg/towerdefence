@@ -38,6 +38,7 @@ import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRating
 import { getPlayableDifficulty } from './td/levelUnlockLogic';
 import StudyPage from './study/StudyPage';
 import TasksPage from './tasks/TasksPage';
+import GardenPage from './garden/GardenPage';
 type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'cardSelect' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PageTransitionState = 'idle' | 'leaving' | 'entering';
@@ -306,6 +307,8 @@ function App() {
           elementShards: data.elementShards || {},
           coins: data.coins || 0,
           magicKeys: data.magicKeys || 0,
+          plantSeeds: data.plantSeeds || 0,
+          chestSeeds: data.chestSeeds || 0,
           chestType: data.chestType || 'common',
           newUnlocks: data.newUnlocks || [],
         });
@@ -845,6 +848,9 @@ function App() {
             : chestTypeName
               ? `重复通关：金币 +${result.rewardCoins}，掉落${chestTypeName}宝箱${chanceText}${diamondText}`
               : `重复通关：金币 +${result.rewardCoins}，宝箱未掉落${chanceText}${diamondText}`;
+        const finalRewardMsg = result.chestInventoryFull
+          ? `${rewardMsg}（宝箱库存已满，超出部分未发放）`
+          : rewardMsg;
         setWinReward({
           coins: result.rewardCoins,
           chestType: result.chestType ?? null,
@@ -853,7 +859,7 @@ function App() {
           repeatChestChance: result.repeatChestChance,
           newRecord: Boolean(result.newRecord),
           diamonds: result.diamondReward ?? 0,
-          message: rewardMsg,
+          message: finalRewardMsg,
         });
       }
       const prevUnlocked = getUnlocked();
@@ -917,6 +923,10 @@ function App() {
                 onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking}
                 onNavigateTasks={stage === 'hub' ? () => {
                   window.history.pushState({}, '', '/tasks');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } : undefined}
+                onNavigateGarden={stage === 'hub' ? () => {
+                  window.history.pushState({}, '', '/garden');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 } : undefined}
               />
@@ -1142,10 +1152,6 @@ function RootApp() {
           window.history.pushState({}, '', '/');
           setPathname('/');
         }}
-        onOpenTasks={() => {
-          window.history.pushState({}, '', '/tasks');
-          setPathname('/tasks');
-        }}
       />
     );
   }
@@ -1154,8 +1160,19 @@ function RootApp() {
     return (
       <TasksPage
         onBack={() => {
-          window.history.pushState({}, '', '/study');
-          setPathname('/study');
+          window.history.pushState({}, '', '/');
+          setPathname('/');
+        }}
+      />
+    );
+  }
+
+  if (pathname === '/garden') {
+    return (
+      <GardenPage
+        onBack={() => {
+          window.history.pushState({}, '', '/');
+          setPathname('/');
         }}
       />
     );

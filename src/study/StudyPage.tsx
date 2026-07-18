@@ -4,12 +4,11 @@ import AuthBar from '../td/AuthBar';
 import { fetchStudyProgress, saveStudyProgressToCloud } from './studyApi';
 import { completeDailyPractice, recordBrowseTask } from '../tasks/tasksApi';
 import { loadStudyData } from './studyData';
-import { DAILY_QUESTION_LIMIT, fromStudyProgressWire, getTodayKey, loadStudyProgress, mergeStudyProgress, normalizeDailyStats, saveStudyProgress, toStudyProgressWire } from './studyStorage';
+import { DAILY_QUESTION_LIMIT, fromStudyProgressWire, getTodayKey, limitStudyMistakes, loadStudyProgress, mergeStudyProgress, normalizeDailyStats, saveStudyProgress, toStudyProgressWire } from './studyStorage';
 import type { MistakeRecord, StudyData, StudyItem, StudyMode, StudyProgress, StudyQuestion } from './types';
 
 type StudyPageProps = {
   onExit: () => void;
-  onOpenTasks: () => void;
 };
 
 type AnswerResult = {
@@ -59,7 +58,7 @@ function modeTitle(mode: StudyMode) {
   return MODE_OPTIONS.find(option => option.id === mode)?.label ?? '英语学习';
 }
 
-export default function StudyPage({ onExit, onOpenTasks }: StudyPageProps) {
+export default function StudyPage({ onExit }: StudyPageProps) {
   const [data, setData] = useState<StudyData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [progress, setProgress] = useState<StudyProgress>(() => loadStudyProgress());
@@ -237,7 +236,7 @@ export default function StudyPage({ onExit, onOpenTasks }: StudyPageProps) {
             correct: currentDaily.correct + (correct ? 1 : 0),
           }
         : currentDaily;
-      return { ...current, mistakes, daily };
+      return { ...current, mistakes: limitStudyMistakes(mistakes), daily };
     });
 
     setAnswerResult({ selectedIndex, correct });
@@ -547,7 +546,6 @@ export default function StudyPage({ onExit, onOpenTasks }: StudyPageProps) {
             <div><strong>{mistakeItems.length}</strong><span>错题</span></div>
             <div><strong>{progress.daily.answered}/{DAILY_QUESTION_LIMIT}</strong><span>本轮练习</span></div>
           </div>
-          <button className="action-button" onClick={onOpenTasks}>任务中心</button>
         </div>
       </header>
 

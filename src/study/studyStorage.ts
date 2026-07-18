@@ -3,6 +3,16 @@ import type { DailyStudyStats, MistakeRecord, StudyData, StudyProgress, StudyPro
 const STUDY_PROGRESS_KEY = 'tower-defence-study-progress-v1';
 const STUDY_MODES = new Set(['browse', 'wordTest', 'phraseTest', 'daily', 'mistakes', 'mistakeTest']);
 export const DAILY_QUESTION_LIMIT = 50;
+export const MAX_STUDY_MISTAKES = 1000;
+
+export function limitStudyMistakes(mistakes: Record<string, MistakeRecord>) {
+  return Object.fromEntries(
+    Object.values(mistakes)
+      .sort((a, b) => b.lastWrongAt - a.lastWrongAt)
+      .slice(0, MAX_STUDY_MISTAKES)
+      .map(mistake => [mistake.id, mistake]),
+  );
+}
 
 export function getTodayKey() {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -48,7 +58,9 @@ export function loadStudyProgress(): StudyProgress {
     return {
       activeMode: parsed.activeMode && STUDY_MODES.has(parsed.activeMode) ? parsed.activeMode : fallback.activeMode,
       browseIndex: Math.max(0, Math.floor(parsed.browseIndex ?? 0)),
-      mistakes: parsed.mistakes && typeof parsed.mistakes === 'object' ? parsed.mistakes : {},
+      mistakes: parsed.mistakes && typeof parsed.mistakes === 'object'
+        ? limitStudyMistakes(parsed.mistakes)
+        : {},
       daily,
     };
   } catch {
@@ -67,7 +79,7 @@ export function toStudyProgressWire(progress: StudyProgress): StudyProgressWire 
     m: progress.activeMode,
     b: Math.max(0, Math.floor(progress.browseIndex)),
     d: [daily.date, daily.answered, daily.correct],
-    x: Object.values(progress.mistakes).map(mistake => [
+    x: Object.values(limitStudyMistakes(progress.mistakes)).map(mistake => [
       mistake.id,
       Math.max(1, Math.floor(mistake.wrongCount)),
       Math.max(0, Math.min(2, Math.floor(mistake.correctStreak))),
@@ -92,7 +104,7 @@ export function fromStudyProgressWire(wire: StudyProgressWire | null | undefined
   return {
     activeMode: wire.m,
     browseIndex: Math.max(0, Math.floor(wire.b)),
-    mistakes,
+    mistakes: limitStudyMistakes(mistakes),
     daily: normalizeDailyStats({ date: wire.d[0], answered: wire.d[1], correct: wire.d[2] }),
   };
 }
@@ -122,7 +134,7 @@ export function mergeStudyProgress(local: StudyProgress, cloud: StudyProgress): 
   return {
     activeMode: primary.activeMode,
     browseIndex: primary.browseIndex,
-    mistakes,
+    mistakes: limitStudyMistakes(mistakes),
     daily,
   };
 }

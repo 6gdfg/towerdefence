@@ -8,6 +8,8 @@ export type ChestOpenResult = {
   coins: number;
   chestType: string;
   magicKeys?: number;
+  plantSeeds?: number;
+  chestSeeds?: number;
   newUnlocks?: string[];
 };
 

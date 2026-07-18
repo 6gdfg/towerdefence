@@ -160,4 +160,37 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       )`,
     ],
   },
+  {
+    id: '009_player_garden',
+    description: 'Add persistent garden plots and seed inventory',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS player_garden (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+        plant_seeds INTEGER NOT NULL DEFAULT 0 CHECK (plant_seeds >= 0),
+        chest_seeds INTEGER NOT NULL DEFAULT 0 CHECK (chest_seeds >= 0),
+        unlocked_plots INTEGER NOT NULL DEFAULT 8 CHECK (unlocked_plots >= 8),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS garden_plots (
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        plot_index INTEGER NOT NULL CHECK (plot_index >= 0),
+        seed_type TEXT NOT NULL CHECK (seed_type IN ('plant','chest')),
+        target_item TEXT,
+        planted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ready_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (player_id, plot_index)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_garden_plots_player_ready ON garden_plots(player_id, ready_at)`,
+    ],
+  },
+  {
+    id: '010_garden_upgrades',
+    description: 'Add efficiency and luck levels to player gardens',
+    statements: [
+      `ALTER TABLE player_garden ADD COLUMN IF NOT EXISTS efficiency_level INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE player_garden ADD COLUMN IF NOT EXISTS luck_level INTEGER NOT NULL DEFAULT 1`,
+      `UPDATE player_garden SET efficiency_level=1 WHERE efficiency_level IS NULL OR efficiency_level < 1`,
+      `UPDATE player_garden SET luck_level=1 WHERE luck_level IS NULL OR luck_level < 1`,
+    ],
+  },
 ];

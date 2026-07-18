@@ -18,6 +18,7 @@ export type SetStarResult = {
   chestType?: string | null;
   chestTypes?: string[];
   chestAwarded?: boolean;
+  chestInventoryFull?: boolean;
   repeatChestChance?: number;
   newRecord?: boolean;
   newUnlocks?: string[];

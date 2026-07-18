@@ -98,6 +98,13 @@ const LEGENDARY_CRAFT_COST = {
   common: 10,
 } as const;
 
+const SEED_DROP_CHANCE: Record<ChestType, number> = {
+  common: 0.2,
+  rare: 0.5,
+  epic: 0.8,
+  legendary: 1,
+};
+
 type ChestDurationRow = {
   duration_seconds?: number | string;
 };
@@ -289,6 +296,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : randInt(chestConfig.coins.min, chestConfig.coins.max);
       const shardCount = randInt(chestConfig.shardRolls.min, chestConfig.shardRolls.max);
       const magicKeyReward = Math.random() < chestConfig.magicKeyChance ? 1 : 0;
+      const plantSeeds = Math.random() < SEED_DROP_CHANCE[chestType]
+        ? (chestType === 'legendary' ? randInt(3, 5) : 1)
+        : 0;
+      const chestSeeds = Math.random() < SEED_DROP_CHANCE[chestType]
+        ? (chestType === 'legendary' ? randInt(3, 5) : 1)
+        : 0;
 
       const sum: Record<string, number> = {};
       for (let i = 0; i < shardCount; i++) {
@@ -330,6 +343,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           WHERE player_id=${playerId}`;
       }
 
+      if (plantSeeds > 0 || chestSeeds > 0) {
+        await sql`INSERT INTO player_garden (player_id, plant_seeds, chest_seeds, unlocked_plots)
+          VALUES (${playerId}, ${plantSeeds}, ${chestSeeds}, 8)
+          ON CONFLICT (player_id) DO UPDATE SET
+            plant_seeds=player_garden.plant_seeds + EXCLUDED.plant_seeds,
+            chest_seeds=player_garden.chest_seeds + EXCLUDED.chest_seeds,
+            updated_at=NOW()`;
+      }
+
       await sql`DELETE FROM chests WHERE chest_id=${chestId} AND player_id=${playerId}`;
 
       try {
@@ -338,7 +360,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('Failed to record chest open task', taskError);
       }
 
-      return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, chestType, newUnlocks });
+      return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, plantSeeds, chestSeeds, chestType, newUnlocks });
     }
 
     return res.status(400).json({ error: 'bad action' });

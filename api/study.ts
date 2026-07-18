@@ -4,7 +4,8 @@ import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 
 const STUDY_MODES = new Set(['browse', 'wordTest', 'phraseTest', 'daily', 'mistakes', 'mistakeTest']);
-const MAX_MISTAKES = 65000;
+const MAX_MISTAKES = 1000;
+const MAX_MISTAKE_INPUT = 5000;
 
 type CompactProgress = {
   v: 1;
@@ -36,7 +37,7 @@ function parseProgress(value: unknown): CompactProgress | null {
   const mistakes = new Map<string, [string, number, number, number]>();
 
   if (Array.isArray(value.x)) {
-    for (const entry of value.x.slice(0, MAX_MISTAKES)) {
+    for (const entry of value.x.slice(0, MAX_MISTAKE_INPUT)) {
       if (!Array.isArray(entry) || typeof entry[0] !== 'string') continue;
       const id = entry[0].trim();
       if (!/^(?:[wjp]:|(?:word|phrase):)/.test(id) || id.length > 220) continue;
@@ -54,7 +55,9 @@ function parseProgress(value: unknown): CompactProgress | null {
     m: mode,
     b: boundedInt(value.b, 0, 100_000),
     d: [date, answered, correct],
-    x: [...mistakes.values()],
+    x: [...mistakes.values()]
+      .sort((a, b) => b[3] - a[3])
+      .slice(0, MAX_MISTAKES),
   };
 }
 
@@ -78,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       const rows = await sql`SELECT progress FROM player_study_progress WHERE player_id=${playerId}`;
       const stored = rows[0]?.progress;
-      const progress = typeof stored === 'string'
+      const rawProgress = typeof stored === 'string'
         ? (() => {
             try {
               return JSON.parse(stored);
@@ -87,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           })()
         : stored ?? null;
+      const progress = parseProgress(rawProgress);
       return res.json({ progress });
     }
 

@@ -48,7 +48,7 @@ export default function TasksPage({ onBack }: TasksPageProps) {
         <main className="tasks-shell">
         <div className="soft-card tasks-empty-state">
           <strong>登录后可查看任务</strong>
-          <button className="action-button primary" onClick={onBack}>返回学习</button>
+          <button className="action-button primary" onClick={onBack}>返回主页</button>
         </div>
         </main>
       </>
@@ -86,7 +86,7 @@ export default function TasksPage({ onBack }: TasksPageProps) {
         </div>
         <div className="tasks-header-actions">
           {payload && <div className="tasks-wallet"><span>金币 {payload.wallet.coins}</span><span>钻石 {payload.wallet.diamonds}</span><span>经验 {payload.wallet.experience}</span></div>}
-          <button className="action-button" onClick={onBack}>返回学习</button>
+          <button className="action-button" onClick={onBack}>返回主页</button>
         </div>
       </header>
 
@@ -100,8 +100,10 @@ export default function TasksPage({ onBack }: TasksPageProps) {
             <p className="tasks-note">每日练习已完成 {payload.dailyPracticeRuns} 轮</p>
           </section>
           <section>
-            <div className="tasks-section-title"><h2>每周任务</h2></div>
-            <div className="soft-card tasks-empty-state"><strong>本周暂未开放任务</strong></div>
+            <div className="tasks-section-title"><h2>每周任务</h2><span>每周一 00:00 重置</span></div>
+            {payload.weekly.length > 0
+              ? <div className="tasks-grid">{payload.weekly.map(renderTask)}</div>
+              : <div className="soft-card tasks-empty-state"><strong>本周暂无任务</strong></div>}
           </section>
         </div>
       )}

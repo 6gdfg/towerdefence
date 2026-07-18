@@ -18,6 +18,8 @@ export type ChestRewardConfig = {
   magicKeyChance: number;
 };
 
+export const MAX_CHEST_INVENTORY = 20;
+
 export const REPEAT_CLEAR_COIN_MULTIPLIER = 0.5;
 
 export const STAR_REWARD_CONFIG: Record<LevelStar, StarRewardConfig> = {

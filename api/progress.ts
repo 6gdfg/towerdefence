@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { splitShardInventory } from '../shared/shards.js';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
-import { CHEST_REWARD_CONFIG, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
+import { CHEST_REWARD_CONFIG, MAX_CHEST_INVENTORY, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
@@ -168,10 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? baseRewardCoins
           : Math.max(1, Math.floor(baseRewardCoins * REPEAT_CLEAR_COIN_MULTIPLIER));
         const repeatChestChance = repeatOneStar ? 1 : getRepeatClearChestChance(levelNum);
-        const chestAwarded = atFirstClear || newRecord || repeatOneStar || Math.random() < repeatChestChance;
-        const chestTypes: ChestType[] = atFirstClear
+        const chestRollSucceeded = atFirstClear || newRecord || repeatOneStar || Math.random() < repeatChestChance;
+        const requestedChestTypes: ChestType[] = atFirstClear
           ? ['epic', 'epic', 'legendary']
-          : chestAwarded
+          : chestRollSucceeded
             ? [rewardConfig.chestType]
             : [];
         const diamondReward = challengeDiamondReward + (atFirstClear ? 1 : 0);
@@ -189,6 +189,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error('Failed to record level clear task', taskError);
         }
 
+        const chestCountRows = await sql`SELECT COUNT(*)::int AS count FROM chests WHERE player_id=${pid}`;
+        const chestCount = Number(chestCountRows[0]?.count ?? 0);
+        const chestCapacity = Math.max(0, MAX_CHEST_INVENTORY - chestCount);
+        const chestTypes = requestedChestTypes.slice(0, chestCapacity);
         let chestId: string | null = null;
         for (const awardedChestType of chestTypes) {
           const chestConfig = CHEST_REWARD_CONFIG[awardedChestType];
@@ -207,7 +211,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           chestId,
           chestType: chestTypes[0] ?? null,
           chestTypes,
-          chestAwarded,
+          chestAwarded: chestTypes.length > 0,
+          chestInventoryFull: requestedChestTypes.length > chestTypes.length,
           repeatChestChance,
           previousStar: prev,
           newRecord,

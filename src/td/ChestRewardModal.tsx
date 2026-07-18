@@ -55,6 +55,18 @@ export default function ChestRewardModal({ reward, onClose }: ChestRewardModalPr
               <span style={{ fontWeight:600, color:'#8b5cf6' }}>+{reward.magicKeys}</span>
             </div>
           )}
+          {(reward.plantSeeds ?? 0) > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', fontSize:14 }}>
+              <span>植物种子</span>
+              <span style={{ fontWeight:600, color:'#16a34a' }}>+{reward.plantSeeds}</span>
+            </div>
+          )}
+          {(reward.chestSeeds ?? 0) > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', fontSize:14 }}>
+              <span>宝箱种子</span>
+              <span style={{ fontWeight:600, color:'#a16207' }}>+{reward.chestSeeds}</span>
+            </div>
+          )}
           {unlockEntries.length > 0 && (
             <>
               <div style={{ fontWeight:600, marginTop: 10, marginBottom:8 }}>直接解锁：</div>

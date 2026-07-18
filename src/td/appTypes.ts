@@ -47,6 +47,8 @@ export type ChestReward = {
   elementShards: Record<string, number>;
   coins: number;
   magicKeys?: number;
+  plantSeeds?: number;
+  chestSeeds?: number;
   chestType: string;
   newUnlocks?: string[];
 };
