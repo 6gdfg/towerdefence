@@ -929,6 +929,10 @@ function App() {
                   window.history.pushState({}, '', '/garden');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 } : undefined}
+                onNavigateStudy={stage === 'hub' ? () => {
+                  window.history.pushState({}, '', '/study');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } : undefined}
               />
             )}
             {stage === 'tutorial' && (

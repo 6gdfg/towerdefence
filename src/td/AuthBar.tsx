@@ -11,6 +11,7 @@ type AuthBarProps = {
   onNavigateRanking?: () => void;
   onNavigateTasks?: () => void;
   onNavigateGarden?: () => void;
+  onNavigateStudy?: () => void;
   wallet?: Pick<HubData, 'coins' | 'diamonds' | 'experience'>;
 };
 
@@ -29,6 +30,7 @@ export default function AuthBar({
   onNavigateRanking,
   onNavigateTasks,
   onNavigateGarden,
+  onNavigateStudy,
   wallet,
 }: AuthBarProps) {
   const [username, setUsername] = useState(() => getUsername() || '');
@@ -102,6 +104,7 @@ export default function AuthBar({
             <button onClick={refresh} className="action-button">刷新</button>
             {onNavigateTasks && <button onClick={onNavigateTasks} className="action-button">任务</button>}
             {onNavigateGarden && <button onClick={onNavigateGarden} className="action-button">花园</button>}
+            {onNavigateStudy && <button onClick={onNavigateStudy} className="action-button">学习</button>}
             {onNavigateBook && <button onClick={onNavigateBook} className="action-button">图鉴</button>}
             {onNavigateRanking && <button onClick={onNavigateRanking} className="action-button">排行榜</button>}
           </div>
