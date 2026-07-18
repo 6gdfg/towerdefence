@@ -117,6 +117,9 @@ export default function LevelSelectPage({
                     <span>{selectedLevel.lives} LIVES</span>
                     <span>{progressLabel}</span>
                   </div>
+                  {selectedLevel.contributor && (
+                    <div className="phigros-contributor">Provided by {selectedLevel.contributor}</div>
+                  )}
                   {unlockInfos.length > 0 && (
                     <div className="phigros-unlock-row">
                       {unlockInfos.map(info => {

@@ -2736,6 +2736,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "sourceLevelId": "L8",
     "levelNumber": 8,
     "levelName": "1-8",
+    "contributor": "驱蚊花露水",
     "difficulty": "EZ",
     "rating": 6,
     "mapId": 4,
@@ -2762,6 +2763,11 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         ]
       }
     ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
     "unlockRewards": []
   },
   {
@@ -5891,6 +5897,7 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "sourceLevelId": "L8",
     "levelNumber": 8,
     "levelName": "1-8",
+    "contributor": "驱蚊花露水",
     "difficulty": "EZ",
     "rating": 6,
     "mapId": 4,
@@ -5917,6 +5924,11 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
     "unlockRewards": []
   },
   "L8:HD": {

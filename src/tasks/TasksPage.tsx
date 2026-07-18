@@ -8,7 +8,7 @@ type TasksPageProps = { onBack: () => void };
 function RewardLine({ task }: { task: PlayerTask }) {
   const reward = task.reward;
   const parts = [
-    reward.coins > 0 ? `${reward.coins} 阳光` : '',
+    reward.coins > 0 ? `${reward.coins}${reward.coinsMax ? `-${reward.coinsMax}` : ''} 金币` : '',
     reward.experience > 0 ? `${reward.experience} 经验` : '',
     reward.diamonds > 0 ? `${reward.diamonds} 钻石` : '',
   ].filter(Boolean);
@@ -70,7 +70,7 @@ export default function TasksPage({ onBack }: TasksPageProps) {
         disabled={!task.complete || task.claimed || claiming !== null}
         onClick={() => void handleClaim(task.id)}
       >
-        {task.claimed ? '已领取' : task.complete ? '领取' : '进行中'}
+        {task.claimed ? '已领取' : task.complete ? (task.claimLabel ?? '领取') : '进行中'}
       </button>
     </article>
   );
@@ -85,7 +85,7 @@ export default function TasksPage({ onBack }: TasksPageProps) {
           <h1>任务中心</h1>
         </div>
         <div className="tasks-header-actions">
-          {payload && <div className="tasks-wallet"><span>阳光 {payload.wallet.coins}</span><span>钻石 {payload.wallet.diamonds}</span><span>经验 {payload.wallet.experience}</span></div>}
+          {payload && <div className="tasks-wallet"><span>金币 {payload.wallet.coins}</span><span>钻石 {payload.wallet.diamonds}</span><span>经验 {payload.wallet.experience}</span></div>}
           <button className="action-button" onClick={onBack}>返回学习</button>
         </div>
       </header>

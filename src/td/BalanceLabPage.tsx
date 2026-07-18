@@ -12,6 +12,7 @@ import type { AtBaseModeType, AtModeConfig, AtModeType, ConveyorItem, ElementTyp
 export type BalanceLabConfig = {
   sourceLevelId: string;
   levelName: string;
+  contributor: string;
   targetDifficulty: DifficultyCode;
   mapId: number;
   startGold: number;
@@ -30,6 +31,7 @@ export type BalanceLabLevelDraft = {
   sourceLevelId: string;
   levelNumber: number;
   levelName: string;
+  contributor?: string;
   difficulty: DifficultyCode;
   rating: number;
   mapId: number;
@@ -286,6 +288,7 @@ function createConfigFromLevel(levelIndex: number, difficulty?: DifficultyCode):
   return {
     sourceLevelId: baseLevel.id,
     levelName: baseLevel.name,
+    contributor: baseLevel.contributor ?? '',
     targetDifficulty,
     mapId: level.mapId,
     startGold: level.startGold,
@@ -321,6 +324,7 @@ function normalizeConfig(config: BalanceLabConfig | null): BalanceLabConfig | nu
       : undefined,
     specialEnemyConfig: normalizeSpecialEnemyConfig(config.specialEnemyConfig ?? base.specialEnemyConfig),
     unlockRewards: normalizeUnlockRewards((config as Partial<BalanceLabConfig>).unlockRewards),
+    contributor: typeof config.contributor === 'string' ? config.contributor.trim() : '',
   };
 }
 
@@ -347,6 +351,7 @@ function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
     sourceLevelId: config.sourceLevelId,
     levelNumber: getLevelIndexById(config.sourceLevelId) + 1,
     levelName: config.levelName,
+    contributor: config.contributor.trim() || undefined,
     difficulty: config.targetDifficulty,
     rating: getDraftRating(config),
     mapId: config.mapId,
@@ -372,6 +377,7 @@ function createConfigFromDraft(draft: BalanceLabLevelDraft, current: BalanceLabC
     ...base,
     sourceLevelId: draft.sourceLevelId,
     levelName: draft.levelName,
+    contributor: typeof draft.contributor === 'string' ? draft.contributor.trim() : '',
     targetDifficulty: draft.difficulty,
     mapId: draft.mapId,
     startGold: draft.startGold,
@@ -813,6 +819,10 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
           <label className="lab-field">
             <span>关卡名</span>
             <input className="lab-input" value={config.levelName} onChange={event => updateConfig({ levelName: event.target.value })} />
+          </label>
+          <label className="lab-field">
+            <span>贡献者</span>
+            <input className="lab-input" value={config.contributor} onChange={event => updateConfig({ contributor: event.target.value })} placeholder="留空则不显示" />
           </label>
           <label className="lab-field">
             <span>当前定数</span>

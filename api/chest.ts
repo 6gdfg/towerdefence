@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
+import { recordPlayerTaskEvent } from './tasks.js';
 import { getChestRewardConfig, isChestType, type ChestType } from '../shared/rewards.js';
 import { splitShardInventory } from '../shared/shards.js';
 import { ELEMENT_ITEM_IDS, PLANT_ITEM_IDS } from '../shared/unlocks.js';
@@ -330,6 +331,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await sql`DELETE FROM chests WHERE chest_id=${chestId} AND player_id=${playerId}`;
+
+      try {
+        await recordPlayerTaskEvent(playerId, 'chestOpen');
+      } catch (taskError) {
+        console.error('Failed to record chest open task', taskError);
+      }
 
       return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, chestType, newUnlocks });
     }

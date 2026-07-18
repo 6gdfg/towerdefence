@@ -2134,6 +2134,13 @@ input {
 .tasks-empty-state { display: grid; place-items: center; gap: 12px; min-height: 180px; padding: 24px; text-align: center; }
 .tasks-error { margin-top: 20px; padding: 12px 14px; border-left: 4px solid #fb7185; background: rgba(255, 241, 242, 0.8); color: #9f1239; }
 
+.phigros-contributor {
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 12px;
+  font-style: italic;
+}
+
 .study-summary > div {
   display: flex;
   flex-direction: column;

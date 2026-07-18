@@ -5,6 +5,7 @@ import { CHEST_REWARD_CONFIG, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestC
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
+import { recordPlayerTaskEvent } from './tasks.js';
 
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -181,6 +182,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await sql`UPDATE player_wallet SET coins = coins + ${rewardCoins}, magic_keys = magic_keys + ${rewardMagicKeys}, diamonds = diamonds + ${diamondReward}, updated_at=NOW()
           WHERE player_id=${pid}`;
+
+        try {
+          await recordPlayerTaskEvent(pid, 'levelClear');
+        } catch (taskError) {
+          console.error('Failed to record level clear task', taskError);
+        }
 
         let chestId: string | null = null;
         for (const awardedChestType of chestTypes) {

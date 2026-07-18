@@ -1,15 +1,16 @@
 import { getToken } from '../td/authProgress';
 import { readApiJson } from '../td/apiClient';
 
-export type TaskReward = { coins: number; experience: number; diamonds: number };
+export type TaskReward = { coins: number; coinsMax?: number; experience: number; diamonds: number };
 
 export type PlayerTask = {
-  id: 'browse15' | 'dailyPractice';
+  id: 'dailySignIn' | 'browse15' | 'dailyPractice' | 'levelClear' | 'chestOpen' | 'weeklyBrowse50' | 'weeklyPractice5';
   title: string;
   progress: number;
   target: number;
   complete: boolean;
   claimed: boolean;
+  claimLabel?: string;
   reward: TaskReward;
 };
 

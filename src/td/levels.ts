@@ -5,6 +5,7 @@ import type { AtModeConfig, ShapeType, SpecialEnemyConfig, WaveDef } from './typ
 
 export interface LevelDifficultySpec {
   name?: string;
+  contributor?: string;
   startGold?: number;
   lives?: number;
   mapId?: number;
@@ -19,6 +20,7 @@ export interface LevelDifficultySpec {
 export interface LevelSpec {
   id: string;
   name: string;
+  contributor?: string;
   startGold: number;
   lives: number;
   mapId: number;
@@ -41,6 +43,7 @@ export function getLevelSpecForDifficulty(level: LevelSpec, difficulty: Difficul
     ...override,
     id: level.id,
     name: override.name ?? level.name,
+    contributor: override.contributor ?? level.contributor,
     startGold: override.startGold ?? level.startGold,
     lives: override.lives ?? level.lives,
     mapId: override.mapId ?? level.mapId,
@@ -153,6 +156,7 @@ function applyGeneratedDrafts(levels: LevelSpec[]): LevelSpec[] {
       ...level.difficultyOverrides,
       [draft.difficulty]: {
         name: unifiedName,
+        contributor: typeof draft.contributor === 'string' && draft.contributor.trim().length > 0 ? draft.contributor.trim() : undefined,
         startGold: draft.startGold,
         lives: draft.lives,
         mapId: draft.mapId,
