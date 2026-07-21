@@ -66,6 +66,13 @@ function plantTags(entry: PlantBookEntry) {
     const speedBonus = config.sunflowerBoostAura.speedBonus + config.sunflowerBoostAura.bonusPerLevel * (entry.level - 1);
     tags.push(`5x5 向日葵产速 +${Math.round(speedBonus * 100)}%`, '不叠加');
   }
+  if (config.fireRateAura) {
+    const bonus = Math.min(
+      config.fireRateAura.maxBonus,
+      config.fireRateAura.baseBonus + config.fireRateAura.bonusPerLevel * (entry.level - 1),
+    );
+    tags.push(`${config.fireRateAura.radiusCells * 2 + 1}x${config.fireRateAura.radiusCells * 2 + 1} 攻速 +${Math.round(bonus * 100)}%`, '不叠加');
+  }
   if (config.range >= 90 && stats.fireRate > 0) tags.push('全屏索敌');
   if (config.lifetimeSec) tags.push(`${config.lifetimeSec}s 后消失`);
   if (config.activeAbilityCost) tags.push(`主动 ${config.activeAbilityCost} 阳光`);
@@ -198,6 +205,12 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'bunker':
       tags.push('极高生命', '低速', '高漏怪伤害');
       break;
+    case 'windShield':
+      tags.push('风盾护甲', '护甲存在时击退减半', '破甲可直击本体');
+      break;
+    case 'windEye':
+      tags.push('首领', '3s 后释放风压', '以后每 10s 一次', '半径 2.8', '怪物加速/植物减攻速', '气旋菇可驱散');
+      break;
     default:
       tags.push('标准怪');
   }
@@ -222,6 +235,7 @@ function plantRole(type: PlantType) {
     hotPepper: '灰烬',
     frostBlastShroom: '控制',
     cycloneShroom: '光环',
+    windSailGrass: '攻速光环',
     magnetNeedle: '反甲',
     electricFlower: '持续单体',
   };

@@ -17,6 +17,7 @@ import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
 import LevelStartModal from './td/LevelStartModal';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
+import UpdateAnnouncementModal from './td/UpdateAnnouncementModal';
 import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, hasLevelDifficultyDraft, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
@@ -25,7 +26,7 @@ import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refresh
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { getAtBaseModeType } from './td/atMode';
-import { craftLegendaryChest, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
+import { acknowledgeReleaseAnnouncement, craftLegendaryChest, hasReadReleaseAnnouncement, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
@@ -33,6 +34,7 @@ import { buildElementBookData, buildPlantBookData } from './td/bookData';
 import { getErrorMessage } from './td/errors';
 import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
+import { CURRENT_RELEASE } from '../shared/releaseNotes';
 import { getChapterForLevelIndex } from './td/chapters';
 import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRatings';
 import { getPlayableDifficulty } from './td/levelUnlockLogic';
@@ -210,6 +212,9 @@ function App() {
   }, [stage]);
 
   const [hub, setHub] = useState<HubData | null>(null);
+  const [showUpdateAnnouncement, setShowUpdateAnnouncement] = useState(false);
+  const [confirmingUpdateAnnouncement, setConfirmingUpdateAnnouncement] = useState(false);
+  const [updateAnnouncementError, setUpdateAnnouncementError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [winReward, setWinReward] = useState<WinReward | null>(null);
   const unlockedItemsSet = useMemo(() => {
@@ -287,6 +292,36 @@ function App() {
       loadHub();
     }
   }, [stage, hub]);
+
+  useEffect(() => {
+    if (!dataFinished || !getToken()) {
+      setShowUpdateAnnouncement(false);
+      return;
+    }
+
+    let cancelled = false;
+    void hasReadReleaseAnnouncement(CURRENT_RELEASE.version).then(seen => {
+      if (!cancelled && seen === false) {
+        setUpdateAnnouncementError(null);
+        setShowUpdateAnnouncement(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [dataFinished]);
+
+  const confirmUpdateAnnouncement = useCallback(async () => {
+    setConfirmingUpdateAnnouncement(true);
+    setUpdateAnnouncementError(null);
+    try {
+      const saved = await acknowledgeReleaseAnnouncement(CURRENT_RELEASE.version);
+      if (!saved) throw new Error('更新公告状态保存失败，请检查网络后重试。');
+      setShowUpdateAnnouncement(false);
+    } catch (error) {
+      setUpdateAnnouncementError(getErrorMessage(error, '更新公告状态保存失败，请重试。'));
+    } finally {
+      setConfirmingUpdateAnnouncement(false);
+    }
+  }, []);
 
   const [chestReward, setChestReward] = useState<ChestReward | null>(null);
   const [openingChestId, setOpeningChestId] = useState<string | null>(null);
@@ -1135,6 +1170,13 @@ function App() {
       )}
 
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+      {showUpdateAnnouncement && stage !== 'auth' && (
+        <UpdateAnnouncementModal
+          confirming={confirmingUpdateAnnouncement}
+          error={updateAnnouncementError}
+          onConfirm={confirmUpdateAnnouncement}
+        />
+      )}
     </div>
   );
 }

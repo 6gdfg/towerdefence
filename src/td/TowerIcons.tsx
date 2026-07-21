@@ -71,6 +71,13 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <circle cx="15" cy="16" r="4" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
         </svg>
       );
+    case 'boomerangLeaf':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M18.8 5.2 C12.4 4.3 6.4 8 5.3 13.8 C4.5 17.8 7.1 20 10.1 19.1 C13.6 18.1 15.3 13.6 14.4 10.2 C13.9 8.2 12.3 7.5 10.8 8.3" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <path d="M18.8 5.2 L16.1 8.6 M18.8 5.2 L14.5 5.8" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinecap="round" />
+        </svg>
+      );
     case 'pentagram':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -135,6 +142,14 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <circle cx="12" cy="12" r="8.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
           <path d="M16.8 8.2 C14 5.9 8.6 6.9 8 11 C7.5 14.4 11.5 15.8 14.3 14.1 C16.6 12.7 15.6 10.1 13.1 10.2" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.82} strokeLinecap="round" />
           <path d="M7.2 16.2 C10 18.5 15.4 17.5 16 13.4" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinecap="round" />
+        </svg>
+      );
+    case 'windSailGrass':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 3 V21" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <path d="M12 5 C17.6 6.4 19.2 9.4 19 13.8 C15.5 12.5 13.6 9.6 12 5 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.82} strokeLinejoin="round" />
+          <path d="M11.8 9.2 C7.1 10.5 5.3 13.4 5.5 17.8 C8.8 16.8 11.1 13.7 11.8 9.2 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinejoin="round" />
         </svg>
       );
     case 'magnetNeedle':
@@ -223,6 +238,21 @@ export function MonsterIcon({ type, color = '#475569', size = 28, style }: Monst
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
           <polygon points="12 3 14.6 8.7 20.8 9.4 16.2 13.6 17.4 19.7 12 16.6 6.6 19.7 7.8 13.6 3.2 9.4 9.4 8.7" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+        </svg>
+      );
+    case 'windShield':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="11" cy="12" r="7" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M15.5 4.4 C20.2 6 21.3 10.2 19.3 14.8 C18.1 17.6 16.3 19 14.8 19.7" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.82} strokeLinecap="round" />
+        </svg>
+      );
+    case 'windEye':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <circle cx="12" cy="12" r="2.4" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.75} />
+          <path d="M4.4 12 C7.2 8.5 16.8 8.5 19.6 12 C16.8 15.5 7.2 15.5 4.4 12 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.62} strokeLinejoin="round" />
         </svg>
       );
     case 'evilSniper':

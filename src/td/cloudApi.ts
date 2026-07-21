@@ -52,3 +52,19 @@ export function upgradeCloudTower(towerType: string) {
 export function unlockLevelWithKey(levelId: string) {
   return postCloudAction<{ ok: boolean; remainingKeys: number }>('/api/progress', { action: 'unlockWithKey', levelId });
 }
+
+export async function hasReadReleaseAnnouncement(version: string) {
+  const token = getToken();
+  if (!token) return null;
+  const response = await fetch(`/api/announcement?version=${encodeURIComponent(version)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) return null;
+  const data = await readApiJson<{ seen?: boolean }>(response, 'Failed to load announcement');
+  return data?.seen === true;
+}
+
+export async function acknowledgeReleaseAnnouncement(version: string) {
+  const result = await postCloudAction<{ ok: boolean }>('/api/announcement', { version });
+  return result?.ok === true;
+}

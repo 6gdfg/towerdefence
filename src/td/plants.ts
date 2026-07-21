@@ -24,6 +24,7 @@ export interface BasePlantConfig {
   penetration?: boolean;
   pierceLimit?: number;
   damageDecayFactor?: number;
+  returnToSource?: boolean;
   breakArmorDuration?: number;
   targetPriority?: 'armorFirst';
   activeAbilityCost?: number;
@@ -45,6 +46,12 @@ export interface BasePlantConfig {
     pulseInterval: number;
     knockbackDistance: number;
     knockbackBonusPerLevel: number;
+  };
+  fireRateAura?: {
+    radiusCells: number;
+    baseBonus: number;
+    bonusPerLevel: number;
+    maxBonus: number;
   };
   channelAttack?: {
     tickInterval: number;
@@ -195,6 +202,20 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     penetration: true,
     description: '子弹直线穿透敌人，射程略长。',
   },
+  boomerangLeaf: {
+    id: 'boomerangLeaf',
+    name: '回旋叶',
+    icon: '<',
+    cost: 150,
+    range: 4.5,
+    damage: 26,
+    fireRate: 1.2,
+    projectileSpeed: 11,
+    penetration: true,
+    returnToSource: true,
+    allowedElementTypes: ['gold', 'fire', 'electric', 'ice', 'wind'],
+    description: '叶刃无限穿透，飞至射程边缘后折返；去程和回程均可命中敌人。',
+  },
   pentagram: {
     id: 'pentagram',
     name: '五芒星',
@@ -327,7 +348,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     id: 'cycloneShroom',
     name: '气旋菇',
     icon: '◎',
-    cost: 50,
+    cost: 70,
     range: 3.2,
     damage: 0,
     fireRate: 0,
@@ -341,6 +362,24 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
       knockbackBonusPerLevel: 0.1,
     },
     description: '永久风场植物：范围内怪物持续减速，并每隔一段时间轻微击退范围内全部怪物。',
+  },
+  windSailGrass: {
+    id: 'windSailGrass',
+    name: '风帆草',
+    icon: 'W',
+    cost: 100,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    elementAllowed: false,
+    fireRateAura: {
+      radiusCells: 3,
+      baseBonus: 0.18,
+      bonusPerLevel: 0.02,
+      maxBonus: 0.6,
+    },
+    description: '以自身为中心的 7x7 区域内植物获得攻速加成；加成随自身等级提升，多个风帆草不叠加。',
   },
   magnetNeedle: {
     id: 'magnetNeedle',

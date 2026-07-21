@@ -954,6 +954,24 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             );
           })}
  
+          {enemies.filter(enemy => enemy.windPressure).map(enemy => {
+            const pressure = enemy.windPressure!;
+            const { left, top } = worldToPx(pressure.pos);
+            return (
+              <circle
+                key={`${enemy.id}-wind-pressure`}
+                cx={left}
+                cy={top}
+                r={pressure.radius * CELL_SIZE}
+                fill="rgba(20, 184, 166, 0.08)"
+                stroke="rgba(13, 148, 136, 0.52)"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                pointerEvents="none"
+              />
+            );
+          })}
+
           {enemies.map(e => {
             const armorHp = Math.max(0, e.armorHp ?? 0);
             const maxArmorHp = Math.max(0, e.maxArmorHp ?? 0);
@@ -999,6 +1017,21 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <rect x="3.5" y="4.5" width="17" height="16" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} rx={3} ry={3} />
                       <path d="M7 8 H17 M7 12 H17 M7 16 H17" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.72} strokeLinecap="round" strokeOpacity={Math.max(0.28, armorPercent)} />
                       <path d="M12 4.5 V20.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.55} strokeLinecap="round" strokeOpacity={Math.max(0.28, armorPercent)} />
+                    </svg>
+                  );
+                case 'windShield':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="11" cy="12" r="7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M15.5 4.4 C20.2 6 21.3 10.2 19.3 14.8 C18.1 17.6 16.3 19 14.8 19.7" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.82} strokeLinecap="round" strokeOpacity={Math.max(0.28, armorPercent)} />
+                    </svg>
+                  );
+                case 'windEye':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="8.6" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <circle cx="12" cy="12" r="2.4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.75} />
+                      <path d="M4.4 12 C7.2 8.5 16.8 8.5 19.6 12 C16.8 15.5 7.2 15.5 4.4 12 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.62} strokeLinejoin="round" />
                     </svg>
                   );
                 case 'evilSniper':

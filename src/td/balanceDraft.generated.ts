@@ -3158,6 +3158,340 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "unlockRewards": [
       "flameBottleGrass"
     ]
+  },
+  {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4
+          },
+          {
+            "type": "windShield",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 150,
+            "interval": 0.2,
+            "level": 1,
+            "startDelay": 8
+          },
+          {
+            "type": "evilSniper",
+            "count": 2,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 38
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 9,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "element:wind"
+    ]
+  },
+  {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 850,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.35,
+            "level": 8
+          },
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.48,
+            "level": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 22,
+            "interval": 0.28,
+            "level": 9
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.45,
+            "level": 8,
+            "startDelay": 2.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.34,
+            "level": 11
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.42,
+            "level": 10,
+            "startDelay": 1.5
+          },
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.7,
+            "level": 9,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.25,
+            "level": 12
+          },
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.5,
+            "level": 11,
+            "startDelay": 4.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.42,
+            "level": 14
+          },
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.3,
+            "level": 14,
+            "startDelay": 2.5
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.1,
+            "level": 30,
+            "isBoss": true,
+            "startDelay": 6
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 200,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 18
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 20
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 3,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 12
+          },
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 17,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 19,
+            "startDelay": 9
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 130,
+            "startDelay": 15,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 180,
+            "startDelay": 25,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "taunter",
+            "count": 88,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 35
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 
@@ -6319,6 +6653,340 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "unlockRewards": [
       "flameBottleGrass"
     ]
+  },
+  "L9:EZ": {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "EZ",
+    "rating": 4,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4
+          },
+          {
+            "type": "windShield",
+            "count": 5,
+            "interval": 0.4,
+            "level": 3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 150,
+            "interval": 0.2,
+            "level": 1,
+            "startDelay": 8
+          },
+          {
+            "type": "evilSniper",
+            "count": 2,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 38
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.4,
+            "level": 5,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 4,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 9,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "element:wind"
+    ]
+  },
+  "L9:HD": {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 850,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.35,
+            "level": 8
+          },
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.48,
+            "level": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 22,
+            "interval": 0.28,
+            "level": 9
+          },
+          {
+            "type": "igniter",
+            "count": 8,
+            "interval": 0.45,
+            "level": 8,
+            "startDelay": 2.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.34,
+            "level": 11
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.42,
+            "level": 10,
+            "startDelay": 1.5
+          },
+          {
+            "type": "rager",
+            "count": 2,
+            "interval": 0.7,
+            "level": 9,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 20,
+            "interval": 0.25,
+            "level": 12
+          },
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 2
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.5,
+            "level": 11,
+            "startDelay": 4.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.42,
+            "level": 14
+          },
+          {
+            "type": "circle",
+            "count": 16,
+            "interval": 0.3,
+            "level": 14,
+            "startDelay": 2.5
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.1,
+            "level": 30,
+            "isBoss": true,
+            "startDelay": 6
+          }
+        ]
+      }
+    ],
+    "unlockRewards": []
+  },
+  "L9:IN": {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 200,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          },
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 18
+          },
+          {
+            "type": "square",
+            "count": 1,
+            "interval": 0.4,
+            "level": 20
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 3,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 12
+          },
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 17,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 3
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 19,
+            "startDelay": 9
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 130,
+            "startDelay": 15,
+            "isBoss": true
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 180,
+            "startDelay": 25,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "taunter",
+            "count": 88,
+            "interval": 0.4,
+            "level": 1,
+            "startDelay": 35
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 };
 

@@ -9,7 +9,7 @@ export default function AboutModal({ onClose }: AboutModalProps) {
     <div className="modal-backdrop" style={{ zIndex: 100 }}>
       <div className="glass-panel modal-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <h2>关于</h2>
-        <RainbowText text="Tower Defence Version 0.0.5" />
+        <RainbowText text="Tower Defence Version 0.5.4" />
         <h2>鸣谢</h2>
         <p>总策划:hebscyf</p>
         <p>代码:6gdfg</p>

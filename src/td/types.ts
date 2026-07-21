@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye';
 
 export interface Enemy {
   id: string;
@@ -38,9 +38,13 @@ export interface Enemy {
   speedBoostUntil?: number;
   newspaperStunUntil?: number;
   newspaperEnraged?: boolean;
+  windPressure?: {
+    pos: Position;
+    radius: number;
+  };
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -155,6 +159,10 @@ export interface Projectile {
   damageDecayFactor?: number;
   bounceCount?: number;
   maxBounces?: number;
+  returnToSource?: boolean;
+  returning?: boolean;
+  origin?: Position;
+  returnRange?: number;
 }
 
 export interface ElementCast {

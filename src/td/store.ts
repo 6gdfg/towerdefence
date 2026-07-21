@@ -36,6 +36,11 @@ const AUTO_COLLECT_DELAY = 0.5;
 const SUN_COLLECT_ANIMATION = 0.55;
 const PHANTOM_NORMAL_MAX_PROGRESS = 0.6;
 const PHANTOM_BOSS_MAX_PROGRESS = 0.4;
+const WIND_EYE_FIRST_PRESSURE_DELAY = 3;
+const WIND_EYE_PRESSURE_INTERVAL = 10;
+const WIND_EYE_PRESSURE_RADIUS = 2.8;
+const WIND_EYE_ENEMY_SPEED_MULTIPLIER = 1.1;
+const WIND_EYE_TOWER_FIRE_RATE_MULTIPLIER = 0.9;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -154,6 +159,46 @@ function getSunflowerSpeedBoost(tower: Tower, towers: Tower[], gameTime: number,
   return bestBoost;
 }
 
+function getFireRateAuraBonus(tower: Tower, towers: Tower[], gameTime: number, labOverrides?: LabOverrides | null) {
+  let bestBonus = 0;
+  towers.forEach(source => {
+    if (isTowerFrozen(source, gameTime)) return;
+    const aura = getPlantRuntimeConfig(source.type, labOverrides)?.fireRateAura;
+    if (!aura) return;
+    if (Math.abs(source.pos.x - tower.pos.x) > aura.radiusCells) return;
+    if (Math.abs(source.pos.y - tower.pos.y) > aura.radiusCells) return;
+    const level = Math.max(1, source.level ?? 1);
+    const bonus = Math.min(aura.maxBonus, aura.baseBonus + aura.bonusPerLevel * (level - 1));
+    bestBonus = Math.max(bestBonus, bonus);
+  });
+  return bestBonus;
+}
+
+function isCoveredByCycloneField(pos: Position, towers: Tower[], gameTime: number) {
+  return towers.some(tower => (
+    tower.type === 'cycloneShroom'
+    && !isTowerFrozen(tower, gameTime)
+    && getDistance(pos.x, pos.y, tower.pos.x, tower.pos.y) <= tower.range
+  ));
+}
+
+function getWindPressureEnemySpeedMultiplier(enemy: Enemy, enemies: Enemy[]) {
+  return enemies.some(source => (
+    source.hp > 0
+    && source.windPressure
+    && getDistance(enemy.pos.x, enemy.pos.y, source.windPressure.pos.x, source.windPressure.pos.y) <= source.windPressure.radius
+  )) ? WIND_EYE_ENEMY_SPEED_MULTIPLIER : 1;
+}
+
+function getWindPressureTowerFireRateMultiplier(tower: Tower, enemies: Enemy[], plantCovers: PlantCover[]) {
+  if (isTowerProtected(tower, plantCovers)) return 1;
+  return enemies.some(source => (
+    source.hp > 0
+    && source.windPressure
+    && getDistance(tower.pos.x, tower.pos.y, source.windPressure.pos.x, source.windPressure.pos.y) <= source.windPressure.radius
+  )) ? WIND_EYE_TOWER_FIRE_RATE_MULTIPLIER : 1;
+}
+
 function createProjectileForTower(tower: Tower, target: Pick<Enemy, 'id' | 'pos'>, labOverrides?: LabOverrides | null, launchOffset = 0): Projectile | null {
   if (tower.damage <= 0) return null;
   const baseConfig = getPlantRuntimeConfig(tower.type, labOverrides);
@@ -178,6 +223,12 @@ function createProjectileForTower(tower: Tower, target: Pick<Enemy, 'id' | 'pos'
     pierced: tower.penetration ? {} : undefined,
     pierceHitCount: 0,
   };
+
+  if (baseConfig?.returnToSource) {
+    projectile.returnToSource = true;
+    projectile.origin = { ...tower.pos };
+    projectile.returnRange = tower.range;
+  }
 
   if (baseConfig?.pierceLimit != null) {
     projectile.pierceLimit = baseConfig.pierceLimit;
@@ -323,6 +374,10 @@ function rewindEnemyAlongPath(enemy: Enemy, distance: number, path: Position[]) 
 
 function hasArmorProfile(enemy: Enemy) {
   return (enemy.maxArmorHp ?? 0) > 0;
+}
+
+function getKnockbackDistanceMultiplier(enemy: Enemy) {
+  return enemy.shape === 'windShield' && (enemy.armorHp ?? 0) > 0 ? 0.5 : 1;
 }
 
 function isSlowImmune(enemy: Enemy) {
@@ -1173,6 +1228,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
     triggerEnemyDeathEffects();
     towers.forEach(t => ensureTowerStats(t, state.labOverrides));
 
+    // A cyclone field immediately disperses any active wind pressure it reaches.
+    enemies.forEach(enemy => {
+      if (enemy.windPressure && isCoveredByCycloneField(enemy.windPressure.pos, towers, gameTime)) {
+        enemy.windPressure = undefined;
+      }
+    });
+
     const controlAuraSlowByEnemy = new Map<string, number>();
     towers.forEach(tower => {
       if (isTowerFrozen(tower, gameTime)) return;
@@ -1191,7 +1253,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         controlAuraSlowByEnemy.set(enemy.id, Math.max(controlAuraSlowByEnemy.get(enemy.id) ?? 0, slowPct));
         if (pulseDue && knockbackDistance > 0) {
           const path = state.paths[enemy.pathId];
-          rewindEnemyAlongPath(enemy, knockbackDistance, path);
+          rewindEnemyAlongPath(enemy, knockbackDistance * getKnockbackDistanceMultiplier(enemy), path);
         }
       });
 
@@ -1323,6 +1385,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
             enemy.specialTimer = gameTime + PURIFIER_CLEANSE_INTERVAL;
           } else if (enemy.shape === 'freezer') {
             enemy.specialTimer = gameTime + FREEZER_SPECIAL_INTERVAL;
+          } else if (enemy.shape === 'windEye') {
+            enemy.specialTimer = gameTime + WIND_EYE_FIRST_PRESSURE_DELAY;
           }
           enemies.push(enemy);
           nextCursor = {
@@ -1366,7 +1430,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
           : e.speed;
         const slowFactor = frozen ? 0 : slowed ? (1 - (e.slowPct || 0)) : 1;
         const boostMultiplier = e.speedBoostUntil && gameTime < e.speedBoostUntil ? (e.speedBoostMultiplier || 1) : 1;
-        const speed = newspaperStunned ? 0 : baseSpeed * slowFactor * boostMultiplier;
+        const pressureMultiplier = getWindPressureEnemySpeedMultiplier(e, enemies);
+        const speed = newspaperStunned ? 0 : baseSpeed * slowFactor * boostMultiplier * pressureMultiplier;
         let i = e.pathIndex;
         let t = e.t + (speed * dt) / Math.max(0.0001, segmentLength(path[i], path[i + 1]));
         let reached = false;
@@ -1487,7 +1552,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
             const path = state.paths[enemy.pathId];
-            rewindEnemyAlongPath(enemy, 1.6, path);
+            rewindEnemyAlongPath(enemy, 1.6 * getKnockbackDistanceMultiplier(enemy), path);
             dealDamage(enemy, damage, '#10b981');
           });
           addDamagePopup(cast.pos, damage, '#10b981');
@@ -1634,6 +1699,16 @@ export const useTDStore = create<TDStore>((set, get) => ({
           });
           enemy.specialTimer = gameTime + FREEZER_SPECIAL_INTERVAL;
         }
+      } else if (enemy.shape === 'windEye') {
+        if ((enemy.specialTimer ?? 0) <= gameTime) {
+          if (!isCoveredByCycloneField(enemy.pos, towers, gameTime)) {
+            enemy.windPressure = {
+              pos: { ...enemy.pos },
+              radius: WIND_EYE_PRESSURE_RADIUS,
+            };
+          }
+          enemy.specialTimer = gameTime + WIND_EYE_PRESSURE_INTERVAL;
+        }
       }
     });
     if (towersModified) {
@@ -1645,6 +1720,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (isTowerFrozen(tw, gameTime)) return;
       ensureTowerStats(tw, state.labOverrides);
       const baseConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
+      const fireRateMultiplier = (1 + getFireRateAuraBonus(tw, towers, gameTime, state.labOverrides))
+        * getWindPressureTowerFireRateMultiplier(tw, enemies, plantCovers);
       const forcedTarget = findTaunterForTower(tw, enemies, plantCovers);
       const channelAttack = baseConfig?.channelAttack;
       if (channelAttack) {
@@ -1679,7 +1756,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
         }
 
         if (!target) return;
-        applyChannelElementEffect(tw, target, gameTime, channelAttack.tickInterval);
+        const tickInterval = channelAttack.tickInterval / fireRateMultiplier;
+        applyChannelElementEffect(tw, target, gameTime, tickInterval);
         const nextTick = tw.channelNextTickTime ?? gameTime;
         if (gameTime + 0.0001 < nextTick) return;
 
@@ -1688,7 +1766,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         dealDamage(target, damage, channelAttack.color);
         tw.lastShotTime = gameTime;
         tw.channelDamagePct = Math.min(1, pct + channelAttack.rampPctPerTick);
-        tw.channelNextTickTime = gameTime + channelAttack.tickInterval;
+        tw.channelNextTickTime = gameTime + tickInterval;
         if (target.hp <= 0) {
           tw.lockedTargetId = undefined;
           tw.channelDamagePct = undefined;
@@ -1712,7 +1790,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         }
       }
       if (tw.fireRate <= 0 || tw.damage <= 0) return;
-      const cooldown = tw.fireRate > 0 ? 1 / tw.fireRate : Infinity;
+      const cooldown = tw.fireRate > 0 ? 1 / (tw.fireRate * fireRateMultiplier) : Infinity;
       if (gameTime - tw.lastShotTime < cooldown) return;
       if (baseConfig?.radialShotCount) {
         tw.lastShotTime = gameTime;
@@ -1783,7 +1861,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
       if (projectile.knockbackDistance && projectile.knockbackDistance > 0) {
         const path = state.paths[enemy.pathId];
-        rewindEnemyAlongPath(enemy, projectile.knockbackDistance, path);
+        rewindEnemyAlongPath(enemy, projectile.knockbackDistance * getKnockbackDistanceMultiplier(enemy), path);
       }
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
@@ -1851,6 +1929,22 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const crossedBoundary = nextPos.x < 0 || nextPos.x > state.mapWidth || nextPos.y < 0 || nextPos.y > state.mapHeight;
         if (updated.unguided && crossedBoundary && !(updated.bounceCount && updated.bounceCount > 0)) {
           return [];
+        }
+
+        if (updated.returnToSource && updated.origin && updated.returnRange != null) {
+          if (updated.returning) {
+            if (getDistance(nextPos.x, nextPos.y, updated.origin.x, updated.origin.y) <= updated.speed * dt) {
+              return [];
+            }
+          } else if (getDistance(nextPos.x, nextPos.y, updated.origin.x, updated.origin.y) >= updated.returnRange) {
+            const dx = updated.origin.x - nextPos.x;
+            const dy = updated.origin.y - nextPos.y;
+            const length = Math.hypot(dx, dy) || 1;
+            updated.direction = { x: dx / length, y: dy / length };
+            updated.returning = true;
+            updated.pierced = {};
+            updated.pierceHitCount = 0;
+          }
         }
 
         let bounced = false;
@@ -2041,6 +2135,8 @@ function rewardForShape(shape: Enemy['shape']): number {
       return 20;
     case 'bunker':
       return 30;
+    case 'windEye':
+      return 17;
     default:
       return 10;
   }

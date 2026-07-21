@@ -193,4 +193,17 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `UPDATE player_garden SET luck_level=1 WHERE luck_level IS NULL OR luck_level < 1`,
     ],
   },
+  {
+    id: '011_player_release_reads',
+    description: 'Record which deployment announcements each player has read',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS player_release_reads (
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        release_version TEXT NOT NULL,
+        read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, release_version)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_player_release_reads_player ON player_release_reads(player_id)`,
+    ],
+  },
 ];
