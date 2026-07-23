@@ -229,4 +229,20 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_level_submissions_time ON level_submissions(submitted_at DESC)`,
     ],
   },
+  {
+    id: '013_compact_player_release_reads',
+    description: 'Keep only each player latest acknowledged release announcement',
+    statements: [
+      `WITH ranked AS (
+        SELECT ctid, ROW_NUMBER() OVER (
+          PARTITION BY player_id
+          ORDER BY read_at DESC, release_version DESC
+        ) AS row_number
+        FROM player_release_reads
+      )
+      DELETE FROM player_release_reads reads
+      USING ranked
+      WHERE reads.ctid = ranked.ctid AND ranked.row_number > 1`,
+    ],
+  },
 ];

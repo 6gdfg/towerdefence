@@ -34,9 +34,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      await sql`INSERT INTO player_release_reads (player_id, release_version, read_at)
-        VALUES (${playerId}, ${version}, NOW())
-        ON CONFLICT (player_id, release_version) DO NOTHING`;
+      // Only the most recently acknowledged release matters. Keeping prior
+      // versions would make this table grow once per player on every deploy.
+      await sql.transaction(tx => [
+        tx`SELECT player_id FROM players WHERE player_id=${playerId} FOR UPDATE`,
+        tx`DELETE FROM player_release_reads WHERE player_id=${playerId}`,
+        tx`INSERT INTO player_release_reads (player_id, release_version, read_at)
+          VALUES (${playerId}, ${version}, NOW())
+          ON CONFLICT (player_id, release_version) DO UPDATE SET read_at=EXCLUDED.read_at`,
+      ]);
       return res.json({ ok: true });
     }
 
