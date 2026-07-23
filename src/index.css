@@ -988,6 +988,101 @@ input {
   border-color: rgba(220, 38, 38, 0.18);
 }
 
+.lab-mini-button.primary {
+  color: #ffffff;
+  background: #172033;
+  border-color: #172033;
+}
+
+.admin-page {
+  width: min(1120px, calc(100% - 40px));
+}
+
+.admin-login-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  margin: 16px auto 0;
+  padding: 20px;
+}
+
+.admin-login-card .action-button {
+  width: 100%;
+}
+
+.admin-submissions {
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.admin-submission-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-submission-card {
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  padding: 14px;
+}
+
+.admin-submission-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-submission-head strong,
+.admin-submission-head span {
+  display: block;
+}
+
+.admin-submission-head strong {
+  color: #172033;
+  font-size: 15px;
+}
+
+.admin-submission-head span,
+.admin-empty {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-code-details {
+  margin-top: 12px;
+}
+
+.admin-code-details summary {
+  cursor: pointer;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-code-details pre {
+  max-height: 420px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #dbeafe;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-error {
+  margin: 0;
+  color: #be123c;
+  font-size: 13px;
+}
+
 .lab-form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1788,6 +1883,23 @@ input {
   border: 1px solid rgba(203, 213, 225, 0.82);
   box-shadow: 0 18px 44px rgba(86, 94, 125, 0.16);
   z-index: 1;
+}
+
+.map-switch-layer {
+  animation: map-layout-enter 220ms ease-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes map-layout-enter {
+  from {
+    opacity: 0.24;
+    transform: scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @media (max-width: 980px) {

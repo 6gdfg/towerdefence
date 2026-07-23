@@ -7,6 +7,7 @@ import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
+import { MAPS, getPlantGrid, isPositionCoveredByRoad, type MapSpec } from './maps';
 
 const IGNITER_DEATH_RADIUS = 2.8;
 const IGNITER_DEATH_SPEED_MULTIPLIER = 1.6;
@@ -592,6 +593,66 @@ function createSpawnCursorsForWave(wave: WaveDef, startTime: number): SpawnCurso
   }].filter(cursor => cursor.remaining > 0);
 }
 
+type ActiveMapLayout = {
+  paths: Position[][];
+  mapWidth: number;
+  mapHeight: number;
+  roadWidthCells: number;
+  plantGrid: Position[];
+  activeMapId?: number;
+  activeMapName?: string;
+  towers: Tower[];
+  plantCovers: PlantCover[];
+};
+
+function resolveFlexibleMapForWave(
+  config: AtModeConfig | null | undefined,
+  waveIndex: number,
+  expectedSize: { w: number; h: number },
+): MapSpec | null {
+  if (getAtBaseModeType(config) !== 'flexible') return null;
+
+  const flexible = config?.flexible;
+  const compatibleMaps = (flexible?.mapIds ?? [])
+    .map(mapId => MAPS.find(map => map.id === mapId))
+    .filter((map): map is MapSpec => map !== undefined
+      && map.size.w === expectedSize.w
+      && map.size.h === expectedSize.h);
+
+  if (compatibleMaps.length === 0) return null;
+  if (flexible?.mode === 'random') {
+    return compatibleMaps[Math.floor(Math.random() * compatibleMaps.length)] ?? null;
+  }
+  return compatibleMaps[Math.min(waveIndex, compatibleMaps.length - 1)] ?? null;
+}
+
+function switchFlexibleMapForWave(
+  config: AtModeConfig | null | undefined,
+  waveIndex: number,
+  current: ActiveMapLayout,
+): ActiveMapLayout {
+  const nextMap = resolveFlexibleMapForWave(config, waveIndex, {
+    w: current.mapWidth,
+    h: current.mapHeight,
+  });
+  if (!nextMap) return current;
+
+  const towers = current.towers.filter(tower => !isPositionCoveredByRoad(nextMap, tower.pos));
+  const remainingTowerIds = new Set(towers.map(tower => tower.id));
+
+  return {
+    paths: normalizeMapPaths(nextMap.path),
+    mapWidth: nextMap.size.w,
+    mapHeight: nextMap.size.h,
+    roadWidthCells: nextMap.roadWidthCells,
+    plantGrid: getPlantGrid(nextMap),
+    activeMapId: nextMap.id,
+    activeMapName: nextMap.name,
+    towers,
+    plantCovers: current.plantCovers.filter(cover => remainingTowerIds.has(cover.towerId)),
+  };
+}
+
 function getConveyorPool(config: AtModeConfig | null | undefined, plants: PlantType[], elements: ElementType[]) {
   const configuredPool = getAtBaseModeType(config) === 'conveyor' ? (config?.conveyor?.pool ?? []) : [];
   if (configuredPool.length > 0) return configuredPool;
@@ -698,6 +759,8 @@ const INITIAL_TD_STATE: TDState = {
   roadWidthCells: 2,
   plantGrid: [], // 初始为空，loadLevel 时设置
   // 实体
+  activeMapId: undefined,
+  activeMapName: undefined,
   enemies: [],
   towers: [],
   plantCovers: [],
@@ -778,6 +841,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
   loadLevel: (level, map, opts) => {
     const previousAutoCollectSun = get().autoCollectSun ?? false;
     const paths = normalizeMapPaths(map.path);
+    const activeMap = MAPS.find(candidate => candidate.path === map.path);
     const atModeConfig = opts?.atModeConfig ?? null;
     const conveyorInterval = getConveyorInterval(atModeConfig);
 
@@ -792,6 +856,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       mapHeight: map.size.h,
       roadWidthCells: map.roadWidthCells,
       plantGrid: map.plantGrid, // 设置可种植格子点
+      activeMapId: activeMap?.id,
+      activeMapName: activeMap?.name,
       enemies: [],
       towers: [],
       plantCovers: [],
@@ -1067,8 +1133,20 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const state = get();
     if (state.isWaveActive) return;
     if (state.waveIndex >= state.waves.length) return;
+    const activeMap = switchFlexibleMapForWave(state.atModeConfig, state.waveIndex, {
+      paths: state.paths,
+      mapWidth: state.mapWidth,
+      mapHeight: state.mapHeight,
+      roadWidthCells: state.roadWidthCells,
+      plantGrid: state.plantGrid,
+      activeMapId: state.activeMapId,
+      activeMapName: state.activeMapName,
+      towers: state.towers,
+      plantCovers: state.plantCovers,
+    });
     const spawnCursors = createSpawnCursorsForWave(state.waves[state.waveIndex], state.gameTime);
     set({
+      ...activeMap,
       isWaveActive: true,
       spawnCursor: spawnCursors.length > 0 ? spawnCursors : null,
     });
@@ -1091,6 +1169,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
       pos: { ...pickup.pos },
       collectFrom: pickup.collectFrom ? { ...pickup.collectFrom } : undefined,
     }));
+    let paths = state.paths.map(path => path.map(position => ({ ...position })));
+    let mapWidth = state.mapWidth;
+    let mapHeight = state.mapHeight;
+    let roadWidthCells = state.roadWidthCells;
+    let plantGrid = state.plantGrid.map(position => ({ ...position }));
+    let activeMapId = state.activeMapId;
+    let activeMapName = state.activeMapName;
     let elementCooldowns: Partial<Record<ElementType, number>> = { ...state.elementCooldowns };
     let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
@@ -1167,14 +1252,14 @@ export const useTDStore = create<TDStore>((set, get) => ({
     }
 
     while (nextSkySunAt != null && gameTime >= nextSkySunAt) {
-      const x = 1 + Math.random() * Math.max(1, state.mapWidth - 2);
-      sunPickups.push(createSunPickup('sky', { x, y: 0.7 }, SKY_SUN_VALUE, gameTime, state.mapWidth, state.mapHeight));
+      const x = 1 + Math.random() * Math.max(1, mapWidth - 2);
+      sunPickups.push(createSunPickup('sky', { x, y: 0.7 }, SKY_SUN_VALUE, gameTime, mapWidth, mapHeight));
       nextSkySunAt += SKY_SUN_INTERVAL;
     }
 
     sunPickups = sunPickups.map(pickup => {
       if (pickup.collecting || pickup.source !== 'sky' || !pickup.falling) return pickup;
-      const bottomY = Math.max(0.8, state.mapHeight - 0.8);
+      const bottomY = Math.max(0.8, mapHeight - 0.8);
       const nextY = Math.min(bottomY, pickup.pos.y + SKY_SUN_FALL_SPEED * dt);
       if (nextY >= bottomY) {
         return {
@@ -1252,7 +1337,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) > tower.range) return;
         controlAuraSlowByEnemy.set(enemy.id, Math.max(controlAuraSlowByEnemy.get(enemy.id) ?? 0, slowPct));
         if (pulseDue && knockbackDistance > 0) {
-          const path = state.paths[enemy.pathId];
+          const path = paths[enemy.pathId];
           rewindEnemyAlongPath(enemy, knockbackDistance * getKnockbackDistanceMultiplier(enemy), path);
         }
       });
@@ -1299,8 +1384,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
           },
           perTick,
           gameTime,
-          state.mapWidth,
-          state.mapHeight,
+          mapWidth,
+          mapHeight,
         ));
       }
       tw.lastIncomeTime = lastIncomeTime + cycles * interval;
@@ -1324,6 +1409,26 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     // auto start scheduled next wave
     if (!isWaveActive && waveIndex < waves.length && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
+      const activeMap = switchFlexibleMapForWave(atModeConfig, waveIndex, {
+        paths,
+        mapWidth,
+        mapHeight,
+        roadWidthCells,
+        plantGrid,
+        activeMapId,
+        activeMapName,
+        towers,
+        plantCovers,
+      });
+      paths = activeMap.paths;
+      mapWidth = activeMap.mapWidth;
+      mapHeight = activeMap.mapHeight;
+      roadWidthCells = activeMap.roadWidthCells;
+      plantGrid = activeMap.plantGrid;
+      activeMapId = activeMap.activeMapId;
+      activeMapName = activeMap.activeMapName;
+      towers = activeMap.towers;
+      plantCovers = activeMap.plantCovers;
       const spawnCursors = createSpawnCursorsForWave(waves[waveIndex], gameTime);
       isWaveActive = true;
       spawnCursor = spawnCursors.length > 0 ? spawnCursors : null;
@@ -1347,10 +1452,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const hp = Math.round(baseStats.hp * mul);
           const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
           const phantomSpawn = isPhantomAtMode(atModeConfig);
+          const useAutomaticPath = getAtBaseModeType(atModeConfig) === 'flexible';
           const pathId = phantomSpawn
-            ? Math.floor(Math.random() * state.paths.length)
-            : resolveSpawnPathId(g.pathId, state.paths, enemies);
-          const path = state.paths[pathId];
+            ? Math.floor(Math.random() * paths.length)
+            : resolveSpawnPathId(useAutomaticPath ? undefined : g.pathId, paths, enemies);
+          const path = paths[pathId];
           const spawnLocation = getPathLocationAtProgress(
             path,
             phantomSpawn
@@ -1419,7 +1525,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     //  advance enemies along path
     enemies = enemies
       .map(e => {
-        const path = state.paths[e.pathId]; // 使用敌人自己的路径
+        const path = paths[e.pathId]; // 使用敌人自己的路径
         const totalLen = totalPathLength(path);
         // slow effect decay
         const frozen = !isSlowImmune(e) && !!e.freezeUntil && gameTime < e.freezeUntil;
@@ -1456,7 +1562,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       })
       .filter(e => {
         // reached end -> lose life
-        const path = state.paths[e.pathId]; // 使用敌人自己的路径
+        const path = paths[e.pathId]; // 使用敌人自己的路径
         const atEnd = e.pathIndex >= path.length - 2 && e.t >= 1;
         if (atEnd) lives -= e.leakDamage ?? 1;
         return !atEnd && e.hp > 0;
@@ -1551,7 +1657,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'wind': {
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
-            const path = state.paths[enemy.pathId];
+            const path = paths[enemy.pathId];
             rewindEnemyAlongPath(enemy, 1.6 * getKnockbackDistanceMultiplier(enemy), path);
             dealDamage(enemy, damage, '#10b981');
           });
@@ -1628,7 +1734,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const interval = SUMMONER_SPECIAL_INTERVAL;
         if ((enemy.specialTimer ?? 0) <= gameTime) {
           // 召唤一个与自己等级相同的circle怪，出现在召唤者前方0.5格
-          const path = state.paths[enemy.pathId];
+          const path = paths[enemy.pathId];
           const currentIndex = enemy.pathIndex;
           const currentT = enemy.t;
 
@@ -1860,7 +1966,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         applySlow(enemy, projectile.slowPct, until);
       }
       if (projectile.knockbackDistance && projectile.knockbackDistance > 0) {
-        const path = state.paths[enemy.pathId];
+        const path = paths[enemy.pathId];
         rewindEnemyAlongPath(enemy, projectile.knockbackDistance * getKnockbackDistanceMultiplier(enemy), path);
       }
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
@@ -1926,7 +2032,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
         }
         
-        const crossedBoundary = nextPos.x < 0 || nextPos.x > state.mapWidth || nextPos.y < 0 || nextPos.y > state.mapHeight;
+        const crossedBoundary = nextPos.x < 0 || nextPos.x > mapWidth || nextPos.y < 0 || nextPos.y > mapHeight;
         if (updated.unguided && crossedBoundary && !(updated.bounceCount && updated.bounceCount > 0)) {
           return [];
         }
@@ -1948,11 +2054,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
         }
 
         let bounced = false;
-        if (updated.direction && (nextPos.x < 0 || nextPos.x > state.mapWidth)) {
+        if (updated.direction && (nextPos.x < 0 || nextPos.x > mapWidth)) {
           updated.direction.x *= -1;
           bounced = true;
         }
-        if (updated.direction && (nextPos.y < 0 || nextPos.y > state.mapHeight)) {
+        if (updated.direction && (nextPos.y < 0 || nextPos.y > mapHeight)) {
           updated.direction.y *= -1;
           bounced = true;
         }
@@ -1964,7 +2070,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
         }
 
-        const outOfBounds = nextPos.x < -1 || nextPos.x > state.mapWidth + 1 || nextPos.y < -1 || nextPos.y > state.mapHeight + 1;
+        const outOfBounds = nextPos.x < -1 || nextPos.x > mapWidth + 1 || nextPos.y < -1 || nextPos.y > mapHeight + 1;
         if (outOfBounds) {
           return [];
         }
@@ -2071,6 +2177,13 @@ export const useTDStore = create<TDStore>((set, get) => ({
       enemies,
       towers,
       plantCovers,
+      paths,
+      mapWidth,
+      mapHeight,
+      roadWidthCells,
+      plantGrid,
+      activeMapId,
+      activeMapName,
       projectiles,
       singleUseCasts,
       damagePopups,

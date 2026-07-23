@@ -7,6 +7,9 @@ import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
 import { getAtBaseModeType } from './atMode';
+import { getToken } from './authProgress';
+import { readApiJson } from './apiClient';
+import { getErrorMessage } from './errors';
 import type { AtBaseModeType, AtModeConfig, AtModeType, ConveyorItem, ElementType, PlantType, ShapeType, SpecialEnemyConfig, TowerLevelMap, WaveDef, WaveGroup } from './types';
 
 export type BalanceLabConfig = {
@@ -69,6 +72,7 @@ const AT_MODE_OPTIONS: Array<{ type: AtModeType; label: string }> = [
   { type: 'conveyor', label: '传送带' },
   { type: 'lastStand', label: '孤注一掷' },
   { type: 'cardSelect', label: '选卡' },
+  { type: 'flexible', label: '灵活多变' },
   { type: 'phantom', label: '神出鬼没' },
 ];
 
@@ -122,6 +126,25 @@ function normalizeConveyorWeight(value: unknown) {
   return Math.max(1, Math.floor(finiteNumber(value, 100)));
 }
 
+function normalizeFlexibleMapIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const validIds = new Set(MAPS.map(map => map.id));
+  const seen = new Set<number>();
+  return value.reduce<number[]>((ids, entry) => {
+    const mapId = Math.floor(finiteNumber(entry, -1));
+    if (!validIds.has(mapId) || seen.has(mapId)) return ids;
+    seen.add(mapId);
+    ids.push(mapId);
+    return ids;
+  }, []);
+}
+
+function getCompatibleFlexibleMaps(mapId: number) {
+  const baseMap = MAPS.find(map => map.id === mapId);
+  if (!baseMap) return [];
+  return MAPS.filter(map => map.size.w === baseMap.size.w && map.size.h === baseMap.size.h);
+}
+
 function normalizeUnlockRewards(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const validIds = new Set(UNLOCK_ITEM_OPTIONS.map(option => option.id));
@@ -167,6 +190,15 @@ function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
         maxPlants: 5,
         maxElements: 2,
         monsterLevelMultiplier: 10,
+      },
+    };
+  }
+  if (type === 'flexible') {
+    return {
+      type,
+      flexible: {
+        mode: 'sequence',
+        mapIds: [1],
       },
     };
   }
@@ -232,6 +264,16 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
         maxPlants: Math.max(1, Math.floor(finiteNumber(cardSelect.maxPlants, defaults.cardSelect!.maxPlants))),
         maxElements: Math.max(0, Math.floor(finiteNumber(cardSelect.maxElements, defaults.cardSelect!.maxElements))),
         monsterLevelMultiplier: Math.max(1, finiteNumber(cardSelect.monsterLevelMultiplier, defaults.cardSelect!.monsterLevelMultiplier)),
+      },
+    };
+  }
+  if (baseType === 'flexible') {
+    const flexible = config?.flexible ?? defaults.flexible!;
+    return {
+      ...identity,
+      flexible: {
+        mode: flexible.mode === 'random' ? 'random' : 'sequence',
+        mapIds: normalizeFlexibleMapIds(flexible.mapIds),
       },
     };
   }
@@ -460,6 +502,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const [config, setConfig] = useState<BalanceLabConfig>(() => loadStoredConfig() ?? createConfigFromLevel(0));
   const [exportOpen, setExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const selectedLevelIndex = getLevelIndexById(config.sourceLevelId);
   const draftRating = getDraftRating(config);
   const selectedMap = MAPS.find(map => map.id === config.mapId);
@@ -470,6 +513,9 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const atModeType = atModeConfig.type;
   const atBaseModeType = getAtBaseModeType(atModeConfig);
   const cardSelectLocksMonsterLevel = isAtEditing && atBaseModeType === 'cardSelect';
+  const flexibleLocksPathSelection = isAtEditing && atBaseModeType === 'flexible';
+  const compatibleFlexibleMaps = getCompatibleFlexibleMaps(config.mapId);
+  const flexibleMode = atModeConfig.flexible?.mode ?? 'sequence';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -478,6 +524,30 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
 
   const updateConfig = (patch: Partial<BalanceLabConfig>) => {
     setConfig(current => ({ ...current, ...patch }));
+  };
+
+  const setMapId = (mapId: number) => {
+    setConfig(current => {
+      if (getAtBaseModeType(current.atModeConfig) !== 'flexible') {
+        return { ...current, mapId };
+      }
+
+      const currentMode = normalizeAtModeConfig(current.atModeConfig);
+      const compatibleMapIds = new Set(getCompatibleFlexibleMaps(mapId).map(map => map.id));
+      const mapIds = (currentMode.flexible?.mapIds ?? [])
+        .filter(candidateId => compatibleMapIds.has(candidateId));
+      return {
+        ...current,
+        mapId,
+        atModeConfig: {
+          ...currentMode,
+          flexible: {
+            ...(currentMode.flexible ?? { mode: 'sequence' as const }),
+            mapIds: mapIds.length > 0 ? mapIds : [mapId],
+          },
+        },
+      };
+    });
   };
 
   const updateRating = (value: number) => {
@@ -524,11 +594,19 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   };
 
   const setAtMode = (type: AtModeType) => {
-    setConfig(current => ({
-      ...current,
-      atModeConfig: createDefaultAtModeConfig(type),
-      autoStartFirstWave: type === 'lastStand' ? false : current.autoStartFirstWave,
-    }));
+    setConfig(current => {
+      const flexible = type === 'flexible'
+        ? { type: 'flexible' as const, flexible: { mode: 'sequence' as const, mapIds: [current.mapId] } }
+        : createDefaultAtModeConfig(type);
+      return {
+        ...current,
+        atModeConfig: flexible,
+        waves: type === 'flexible'
+          ? current.waves.map(wave => ({ groups: wave.groups.map(group => ({ ...group, pathId: undefined })) }))
+          : current.waves,
+        autoStartFirstWave: type === 'lastStand' ? false : current.autoStartFirstWave,
+      };
+    });
   };
 
   const updateAtModeConfig = (next: AtModeConfig) => {
@@ -539,11 +617,20 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   };
 
   const setPhantomSubMode = (subMode: AtBaseModeType) => {
+    const baseConfig = subMode === 'flexible'
+      ? { type: 'flexible' as const, flexible: { mode: 'sequence' as const, mapIds: [config.mapId] } }
+      : createDefaultAtModeConfig(subMode);
     updateAtModeConfig({
-      ...createDefaultAtModeConfig(subMode),
+      ...baseConfig,
       type: 'phantom',
       phantom: { subMode },
     });
+    if (subMode === 'flexible') {
+      setConfig(current => ({
+        ...current,
+        waves: current.waves.map(wave => ({ groups: wave.groups.map(group => ({ ...group, pathId: undefined })) })),
+      }));
+    }
     if (subMode === 'lastStand') updateConfig({ autoStartFirstWave: false });
   };
 
@@ -604,6 +691,40 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         ...patch,
       },
     });
+  };
+
+  const updateFlexibleConfig = (patch: Partial<NonNullable<AtModeConfig['flexible']>>) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.flexible ?? { mode: 'sequence' as const, mapIds: [config.mapId] };
+    const compatibleMapIds = new Set(getCompatibleFlexibleMaps(config.mapId).map(map => map.id));
+    const mapIds = (patch.mapIds ?? base.mapIds).filter(mapId => compatibleMapIds.has(mapId));
+    updateAtModeConfig({
+      ...currentMode,
+      flexible: {
+        ...base,
+        ...patch,
+        mode: patch.mode === 'random' ? 'random' : patch.mode === 'sequence' ? 'sequence' : base.mode,
+        mapIds: mapIds.length > 0 ? mapIds : [config.mapId],
+      },
+    });
+  };
+
+  const setFlexibleSequenceMap = (waveIndex: number, mapId: number) => {
+    const currentIds = atModeConfig.flexible?.mapIds ?? [config.mapId];
+    const mapIds = Array.from({ length: Math.max(config.waves.length, waveIndex + 1) }, (_, index) => (
+      index === waveIndex ? mapId : currentIds[Math.min(index, currentIds.length - 1)] ?? config.mapId
+    ));
+    updateFlexibleConfig({ mapIds });
+  };
+
+  const toggleFlexiblePoolMap = (mapId: number) => {
+    const currentIds = atModeConfig.flexible?.mapIds ?? [config.mapId];
+    const exists = currentIds.includes(mapId);
+    const mapIds = exists
+      ? currentIds.filter(id => id !== mapId)
+      : [...currentIds, mapId];
+    if (mapIds.length === 0) return;
+    updateFlexibleConfig({ mapIds });
   };
 
   const updateSpecialEnemyConfig = (patch: Partial<SpecialEnemyConfig>) => {
@@ -729,6 +850,39 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
     }
   };
 
+  const submitCurrentLevel = async () => {
+    const token = getToken();
+    if (!token) {
+      setSaveStatus('提交关卡需要先登录账号');
+      return;
+    }
+
+    setSubmitting(true);
+    setSaveStatus('正在提交关卡...');
+    try {
+      const response = await fetch('/api/level-submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'submit',
+          levelName: config.levelName,
+          difficulty: config.targetDifficulty,
+          submissionCode: exportSource,
+        }),
+      });
+      const data = await readApiJson<{ remainingToday?: number }>(response, '提交关卡失败');
+      const remaining = typeof data.remainingToday === 'number' ? `，今日还可提交 ${data.remainingToday} 关` : '';
+      setSaveStatus(`关卡已提交${remaining}`);
+    } catch (error: unknown) {
+      setSaveStatus(`提交失败：${getErrorMessage(error, '网络或服务器错误')}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const saveToLocalDraftFile = async () => {
     setSaveStatus('保存中...');
     try {
@@ -796,7 +950,10 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.03s' }}>
           <div className="lab-panel-title">
             <span>导出代码</span>
-            <button onClick={copyExport} className="lab-mini-button">复制</button>
+            <div className="button-row">
+              <button onClick={copyExport} className="lab-mini-button">复制</button>
+              <button onClick={submitCurrentLevel} disabled={submitting} className="lab-mini-button primary">提交关卡</button>
+            </div>
           </div>
           <textarea className="lab-export-textarea" readOnly value={exportSource} />
         </section>
@@ -974,6 +1131,66 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             </div>
           )}
 
+          {atBaseModeType === 'flexible' && (
+            <div className="lab-at-panel">
+              <div className="lab-form-grid">
+                <label className="lab-field">
+                  <span>切换方式</span>
+                  <select
+                    className="lab-input"
+                    value={flexibleMode}
+                    onChange={event => updateFlexibleConfig({ mode: event.target.value === 'random' ? 'random' : 'sequence' })}
+                  >
+                    <option value="sequence">指定地图</option>
+                    <option value="random">随机地图池</option>
+                  </select>
+                </label>
+              </div>
+
+              {flexibleMode === 'sequence' ? (
+                <>
+                  <div className="lab-pool-title">每波地图</div>
+                  <div className="lab-form-grid">
+                    {config.waves.map((_, waveIndex) => {
+                      const configuredMapIds = atModeConfig.flexible?.mapIds ?? [config.mapId];
+                      const selectedMapId = configuredMapIds[Math.min(waveIndex, configuredMapIds.length - 1)] ?? config.mapId;
+                      return (
+                        <label key={`flexible-wave-${waveIndex}`} className="lab-field">
+                          <span>{`Wave ${waveIndex + 1}`}</span>
+                          <select
+                            className="lab-input"
+                            value={selectedMapId}
+                            onChange={event => setFlexibleSequenceMap(waveIndex, readNumber(event.target.value, selectedMapId))}
+                          >
+                            {compatibleFlexibleMaps.map(map => (
+                              <option key={map.id} value={map.id}>{`${map.id}. ${map.name}`}</option>
+                            ))}
+                          </select>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="lab-pool-title">随机地图池</div>
+                  <div className="lab-pool-grid">
+                    {compatibleFlexibleMaps.map(map => {
+                      const checked = (atModeConfig.flexible?.mapIds ?? [config.mapId]).includes(map.id);
+                      return (
+                        <label key={`flexible-map-${map.id}`} className={`lab-pool-chip ${checked ? 'is-active' : ''}`}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleFlexiblePoolMap(map.id)} />
+                          <span>{`${map.id}. ${map.name}`}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <div className="lab-draft-summary">每波开始前切换地图；只有被新道路直接覆盖的植物会消失，覆盖它的南瓜头会一并移除，场上子弹会保留。仅显示与本关同尺寸的地图。</div>
+            </div>
+          )}
+
           {atBaseModeType === 'lastStand' && (
             <div className="lab-at-panel">
               <div className="lab-form-grid">
@@ -1080,7 +1297,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
           <div className="lab-form-grid">
             <label className="lab-field">
               <span>地图</span>
-              <select className="lab-input" value={config.mapId} onChange={event => updateConfig({ mapId: readNumber(event.target.value, config.mapId) })}>
+              <select className="lab-input" value={config.mapId} onChange={event => setMapId(readNumber(event.target.value, config.mapId))}>
                 {MAPS.map(map => (
                   <option key={map.id} value={map.id}>{`${map.id}. ${map.name}`}</option>
                 ))}
@@ -1212,7 +1429,9 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     <label>
                       <span>路径</span>
                       <select
-                        value={group.pathId == null ? 'auto' : String(group.pathId)}
+                        value={flexibleLocksPathSelection || group.pathId == null ? 'auto' : String(group.pathId)}
+                        disabled={flexibleLocksPathSelection}
+                        title={flexibleLocksPathSelection ? '灵活多变模式会根据当前地图自动分流' : undefined}
                         onChange={event => updateWaveGroup(
                           waveIndex,
                           groupIndex,
@@ -1221,8 +1440,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                             : { pathId: Math.max(0, Math.floor(readNumber(event.target.value, group.pathId ?? 0))) },
                         )}
                       >
-                        <option value="auto">自动分流</option>
-                        {Array.from({ length: selectedMapPathCount }, (_, pathIndex) => (
+                        <option value="auto">{flexibleLocksPathSelection ? '自动分流（固定）' : '自动分流'}</option>
+                        {!flexibleLocksPathSelection && Array.from({ length: selectedMapPathCount }, (_, pathIndex) => (
                           <option key={pathIndex} value={pathIndex}>{`路径 ${pathIndex + 1}`}</option>
                         ))}
                       </select>

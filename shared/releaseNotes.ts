@@ -1,11 +1,9 @@
 export const CURRENT_RELEASE = {
-  version: '0.5.4',
-  title: 'Tower Defence version 0.5.4',
+  version: '0.5.5',
+  title: 'Tower Defence version 0.5.5',
   notes: [
-    '新增植物：回旋叶、风帆草。',
-    '新增怪物：风盾怪、风眼首领。',
-    '新增风压机制：气旋菇可阻止和驱散风眼首领的风压。',
-    '调整：气旋菇费用提升至 70 阳光。',
-    '新增关卡：2-1'
+    '新增 AT 模式：灵活多变，在每波前切换地图。被新道路直接覆盖的植物会被移除。',
+    '平衡实验室新增关卡投稿，已登录玩家每日最多提交 10 关。',
+    '追加2-1 AT。'
   ],
 } as const;

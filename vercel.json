@@ -3,7 +3,8 @@
   "rewrites": [
     { "source": "/study", "destination": "/index.html" },
     { "source": "/tasks", "destination": "/index.html" },
-    { "source": "/garden", "destination": "/index.html" }
+    { "source": "/garden", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" }
   ]
 }
 

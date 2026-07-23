@@ -41,6 +41,7 @@ import { getPlayableDifficulty } from './td/levelUnlockLogic';
 import StudyPage from './study/StudyPage';
 import TasksPage from './tasks/TasksPage';
 import GardenPage from './garden/GardenPage';
+import AdminPage from './td/AdminPage';
 type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'cardSelect' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
 type PageTransitionState = 'idle' | 'leaving' | 'entering';
@@ -1217,6 +1218,17 @@ function RootApp() {
     return (
       <GardenPage
         onBack={() => {
+          window.history.pushState({}, '', '/');
+          setPathname('/');
+        }}
+      />
+    );
+  }
+
+  if (pathname === '/admin') {
+    return (
+      <AdminPage
+        onExit={() => {
           window.history.pushState({}, '', '/');
           setPathname('/');
         }}

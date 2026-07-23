@@ -7,6 +7,7 @@ import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { ElementIcon, PlantIcon, ShovelIcon } from './TowerIcons';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
+import { CURRENT_RELEASE } from '../../shared/releaseNotes';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
@@ -42,7 +43,7 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
@@ -76,7 +77,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const atModeVariantLabel = atModeConfig
-    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡' } as const)[atBaseModeType]}`
+    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变' } as const)[atBaseModeType]}`
     : null;
   const modeLabel = mode === 'endless'
     ? '无尽模式'
@@ -318,6 +319,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           <div className="game-stat">生命: {lives}</div>
           <div className="game-stat">波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
           {difficultyLabel && <div className="game-stat difficulty-stat">{difficultyLabel}</div>}
+          {atBaseModeType === 'flexible' && activeMapName && <div className="game-stat">{`地图: ${activeMapName}`}</div>}
           {mode && mode !== 'campaign' && modeLabel && (
             <div className="game-stat" style={{ color:'#f97316' }}>
               模式：{modeLabel}
@@ -699,10 +701,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               <path d={`M ${CELL_SIZE} 0 L 0 0 0 ${CELL_SIZE}`} fill="none" stroke="#e5e7eb" strokeWidth="1" />
             </pattern>
           </defs>
-          <rect x="0" y="0" width={mapWidth * CELL_SIZE} height={mapHeight * CELL_SIZE} fill="url(#grid)" />
+          <g key={`map-layout-${activeMapId ?? 'current'}`} className="map-switch-layer">
+            <rect x="0" y="0" width={mapWidth * CELL_SIZE} height={mapHeight * CELL_SIZE} fill="url(#grid)" />
 
-          {paths.map((path, pathIdx) => (
-            <g key={pathIdx}>
+            {paths.map((path, pathIdx) => (
+              <g key={pathIdx}>
               <polyline
                 points={path.map(p => `${p.x * CELL_SIZE},${p.y * CELL_SIZE}`).join(' ')}
                 fill="none"
@@ -721,20 +724,21 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                 strokeLinejoin="round"
                 opacity={1}
               />
-            </g>
-          ))}
-
-          <g>
-            {plantGrid.map((p, i) => (
-              <circle
-                key={i}
-                cx={p.x * CELL_SIZE}
-                cy={p.y * CELL_SIZE}
-                r={3}
-                fill="#d1d5db"
-                opacity={0.4}
-              />
+              </g>
             ))}
+
+            <g>
+              {plantGrid.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={p.x * CELL_SIZE}
+                  cy={p.y * CELL_SIZE}
+                  r={3}
+                  fill="#d1d5db"
+                  opacity={0.4}
+                />
+              ))}
+            </g>
           </g>
 
           {(() => {
@@ -1276,7 +1280,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         <div className="modal-backdrop" style={{ zIndex: 100 }}>
           <div className="glass-panel modal-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <h2>关于</h2>
-            <p>Tower Defence Version 0.0.5</p>
+            <p>{CURRENT_RELEASE.title}</p>
             <h2>鸣谢</h2>
             <p>总策划:hebscyf</p>
             <p>代码:6gdfg</p>

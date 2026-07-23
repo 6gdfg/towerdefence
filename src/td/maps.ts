@@ -138,6 +138,27 @@ export function getPlantGrid(map: MapSpec): Position[] {
   return map.plantGrid ?? generatePlantGrid(map);
 }
 
+function distancePointToSegment(point: Position, start: Position, end: Position): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 0) return Math.hypot(point.x - start.x, point.y - start.y);
+
+  const projection = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  const closestX = start.x + dx * projection;
+  const closestY = start.y + dy * projection;
+  return Math.hypot(point.x - closestX, point.y - closestY);
+}
+
+export function isPositionCoveredByRoad(map: MapSpec, position: Position): boolean {
+  const halfRoadWidth = map.roadWidthCells / 2;
+  return normalizeMapPaths(map.path).some(path => (
+    path.slice(0, -1).some((point, index) => (
+      distancePointToSegment(position, point, path[index + 1]) <= halfRoadWidth + 1e-6
+    ))
+  ));
+}
+
 function createMap(def: GridMapDef): MapSpec {
   const map: MapSpec = {
     id: def.id,

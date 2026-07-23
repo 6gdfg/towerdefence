@@ -49,7 +49,7 @@ export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 
-export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect';
+export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect' | 'flexible';
 export type AtModeType = AtBaseModeType | 'phantom';
 export type ConveyorItem =
   | { kind: 'plant'; id: PlantType; weight?: number }
@@ -76,6 +76,10 @@ export type AtModeConfig = {
     maxPlants: number;
     maxElements: number;
     monsterLevelMultiplier: number;
+  };
+  flexible?: {
+    mode: 'sequence' | 'random';
+    mapIds: number[];
   };
 };
 
@@ -237,6 +241,8 @@ export interface TDState {
   roadWidthCells: number; // 路宽（用于放置限制 & 渲染）
   plantGrid: Position[]; // 可种植的格子点
   // 实体
+  activeMapId?: number;
+  activeMapName?: string;
   enemies: Enemy[];
   towers: Tower[];
   plantCovers: PlantCover[];

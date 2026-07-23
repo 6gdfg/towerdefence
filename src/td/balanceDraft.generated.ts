@@ -3492,6 +3492,159 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1200,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 8,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 5
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.4,
+            "level": 17,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 30,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 16
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 3
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 70,
+            "startDelay": 4,
+            "isBoss": true,
+            "bossSpeed": 0.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 200,
+            "interval": 0.2,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "startDelay": 5,
+            "isBoss": true,
+            "bossSpeed": 0.6
+          },
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 7,
+            "bossSpeed": 0.5
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "flexible",
+      "flexible": {
+        "mode": "random",
+        "mapIds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          10,
+          7,
+          6,
+          11,
+          8,
+          9,
+          16,
+          17
+        ]
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 
@@ -6981,6 +7134,159 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L9:AT": {
+    "sourceLevelId": "L9",
+    "levelNumber": 9,
+    "levelName": "2-1",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1200,
+    "lives": 15,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 8,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 5
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.4,
+            "level": 17,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 30,
+            "startDelay": 15
+          },
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 16
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 5,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 3
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 70,
+            "startDelay": 4,
+            "isBoss": true,
+            "bossSpeed": 0.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 200,
+            "interval": 0.2,
+            "level": 10,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 100,
+            "startDelay": 5,
+            "isBoss": true,
+            "bossSpeed": 0.6
+          },
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 7,
+            "bossSpeed": 0.5
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "flexible",
+      "flexible": {
+        "mode": "random",
+        "mapIds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          10,
+          7,
+          6,
+          11,
+          8,
+          9,
+          16,
+          17
+        ]
+      }
+    },
     "specialEnemyConfig": {
       "enabled": true,
       "type": "charityAmbassador",

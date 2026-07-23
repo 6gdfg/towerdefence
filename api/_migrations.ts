@@ -206,4 +206,27 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_player_release_reads_player ON player_release_reads(player_id)`,
     ],
   },
+  {
+    id: '012_level_submissions',
+    description: 'Store player-authored balance lab level submissions for review',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS level_submissions (
+        submission_id TEXT PRIMARY KEY,
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        submitter_username TEXT NOT NULL,
+        level_name TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        submission_code TEXT NOT NULL,
+        submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS player_daily_level_submission_limits (
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        submission_day DATE NOT NULL,
+        submitted_count SMALLINT NOT NULL DEFAULT 0 CHECK (submitted_count BETWEEN 0 AND 10),
+        PRIMARY KEY (player_id, submission_day)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_level_submissions_player_time ON level_submissions(player_id, submitted_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_level_submissions_time ON level_submissions(submitted_at DESC)`,
+    ],
+  },
 ];
