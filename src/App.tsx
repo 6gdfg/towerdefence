@@ -22,7 +22,7 @@ import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, hasLevelDifficultyDraft, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
-import { getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, refreshCache, initCache, getUnlockedItems } from './td/progress';
+import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, hydrateCloudProgressCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { getAtBaseModeType } from './td/atMode';
@@ -213,6 +213,7 @@ function App() {
   }, [stage]);
 
   const [hub, setHub] = useState<HubData | null>(null);
+  const [hubLoadError, setHubLoadError] = useState<string | null>(null);
   const [showUpdateAnnouncement, setShowUpdateAnnouncement] = useState(false);
   const [confirmingUpdateAnnouncement, setConfirmingUpdateAnnouncement] = useState(false);
   const [updateAnnouncementError, setUpdateAnnouncementError] = useState<string | null>(null);
@@ -243,6 +244,7 @@ function App() {
         return;
       }
       const d = await fetchCloudProgress();
+      hydrateCloudProgressCache(d);
       const unlockedItems = Array.isArray(d.unlockedItems) && d.unlockedItems.length > 0 ? d.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS];
       setHub({
         coins: d.coins ?? 0,
@@ -256,9 +258,7 @@ function App() {
         chests: d.chests ?? [],
         unlockedItems,
       });
-      // 刷新缓存
-      await refreshCache();
-      setHub(prev => prev ? { ...prev, unlockedItems: getUnlockedItems() } : prev);
+      setHubLoadError(null);
       // 同步云端的 unlocked 状态
       if (typeof d.unlocked === 'number' && d.unlocked >= 1) {
         setUnlockedState(d.unlocked);
@@ -268,6 +268,7 @@ function App() {
       }
     } catch (e) {
       console.error('Failed to load hub data', e);
+      setHubLoadError(getErrorMessage(e, '云端存档加载失败，请检查网络后重试。'));
     } finally {
       setDataFinished(true);
     }
@@ -282,7 +283,6 @@ function App() {
 
   useEffect(() => {
     const init = async () => {
-      await initCache();
       await loadHub();
     };
     init();
@@ -920,6 +920,8 @@ function App() {
     setIsLoading(true);
     setAnimationFinished(false);
     setDataFinished(false);
+    setHub(null);
+    setHubLoadError(null);
     loadHub().then(() => {
       navigateWithTransition(shouldShowTutorial() ? 'tutorial' : 'hub');
     });
@@ -983,9 +985,16 @@ function App() {
             {stage === 'hub' && (
               <HubPage
                 hub={hub}
+                loadError={hubLoadError}
                 nowTick={nowTick}
                 openingChestId={openingChestId}
-                onLogout={() => { clearAuth(); navigateWithTransition('auth'); }}
+                onLogout={() => {
+                  clearAuth();
+                  clearCloudProgressCache();
+                  setHub(null);
+                  setHubLoadError(null);
+                  navigateWithTransition('auth');
+                }}
                 onRefresh={loadHub}
                 onUpgradeTower={upgradeTower}
                 onStartUnlock={startUnlock}

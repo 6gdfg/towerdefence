@@ -9,6 +9,7 @@ type SkipCurrency = 'diamonds' | 'coins';
 
 type HubPageProps = {
   hub: HubData | null;
+  loadError?: string | null;
   nowTick: number;
   openingChestId: string | null;
   onLogout: () => void;
@@ -31,6 +32,7 @@ const statusLabel: Record<string, string> = {
 
 export default function HubPage({
   hub,
+  loadError,
   nowTick,
   openingChestId,
   onLogout,
@@ -43,6 +45,23 @@ export default function HubPage({
   onStartGame,
   onOpenFunMode,
 }: HubPageProps) {
+  if (!hub) {
+    return (
+      <main className="page-wrap">
+        <section className="glass-panel hero-panel">
+          <div className="eyebrow">云端存档</div>
+          <h1>存档暂时无法加载</h1>
+          <p>{loadError || '正在读取云端存档，请稍后重试。'}</p>
+          <p className="muted">请尝试重新连接。</p>
+          <div className="button-row" style={{ marginTop: 22 }}>
+            <button onClick={onRefresh} className="action-button primary">重新连接</button>
+            <button onClick={onLogout} className="action-button danger">退出账号</button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const unlockedSet = new Set(hub?.unlockedItems ?? DEFAULT_UNLOCKED_ITEMS);
   const disableOpen = openingChestId !== null;
   const chests = hub?.chests ?? [];

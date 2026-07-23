@@ -1,4 +1,5 @@
 import { fetchCloudProgress, getToken } from './authProgress';
+import type { CloudProgress } from './appTypes';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
 import { readApiJson } from './apiClient';
 import type { DifficultyCode } from './levelRatings';
@@ -29,55 +30,98 @@ export type SetStarResult = {
 };
 
 let cloudDataCache: CloudDataCache | null = null;
+let cacheToken: string | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 5000;
 
+function getActiveCache(): CloudDataCache | null {
+  const token = getToken();
+  return token && cacheToken === token ? cloudDataCache : null;
+}
+
+function toCloudDataCache(data: CloudProgress): CloudDataCache {
+  return {
+    stars: data.stars ?? {},
+    fullHealthClears: data.fullHealthClears ?? {},
+    unlocked: typeof data.unlocked === 'number' && data.unlocked >= 1 ? data.unlocked : 1,
+    unlockedItems: Array.isArray(data.unlockedItems) && data.unlockedItems.length > 0 ? data.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS],
+  };
+}
+
+/** Sync the progress helpers with a successful /api/progress response. */
+export function hydrateCloudProgressCache(data: CloudProgress): CloudDataCache | null {
+  const token = getToken();
+  if (!token) {
+    cloudDataCache = null;
+    cacheToken = null;
+    cacheTimestamp = 0;
+    return null;
+  }
+
+  const cache = toCloudDataCache(data);
+  cloudDataCache = cache;
+  cacheToken = token;
+  cacheTimestamp = Date.now();
+  return cache;
+}
+
 async function fetchCloudData() {
   const now = Date.now();
-  if (cloudDataCache && now - cacheTimestamp < CACHE_DURATION) {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No token');
+  }
+
+  if (cloudDataCache && cacheToken === token && now - cacheTimestamp < CACHE_DURATION) {
     return cloudDataCache;
   }
 
   try {
     const d = await fetchCloudProgress();
-    cloudDataCache = {
-      stars: d.stars ?? {},
-      fullHealthClears: d.fullHealthClears ?? {},
-      unlocked: typeof d.unlocked === 'number' && d.unlocked >= 1 ? d.unlocked : 1,
-      unlockedItems: Array.isArray(d.unlockedItems) && d.unlockedItems.length > 0 ? d.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS],
-    };
-    cacheTimestamp = now;
-    return cloudDataCache;
-  } catch {
-    return { stars: {}, fullHealthClears: {}, unlocked: 1, unlockedItems: [...DEFAULT_UNLOCKED_ITEMS] };
+    const cache = hydrateCloudProgressCache(d);
+    if (!cache) throw new Error('Authentication expired');
+    return cache;
+  } catch (error) {
+    // A failed request is not an empty account. Keep this user's last known
+    // cloud state so a transient API failure cannot make progress disappear.
+    if (cloudDataCache && cacheToken === token) {
+      return cloudDataCache;
+    }
+    throw error;
   }
 }
 
 export function getUnlocked(): number {
-  const cache = cloudDataCache;
+  const cache = getActiveCache();
   return cache ? cache.unlocked : 1;
 }
 
 export function setUnlocked(n: number) {
-  if (cloudDataCache) {
-    cloudDataCache.unlocked = Math.max(1, n);
+  const cache = getActiveCache();
+  if (cache) {
+    cache.unlocked = Math.max(1, n);
   }
 }
 
 export function getUnlockedItems(): string[] {
-  const cache = cloudDataCache;
+  const cache = getActiveCache();
   return cache ? [...cache.unlockedItems] : [...DEFAULT_UNLOCKED_ITEMS];
 }
 
 export function updateUnlockedItems(newItems: string[]) {
   if (!newItems || newItems.length === 0) return;
-  if (!cloudDataCache) {
+  const token = getToken();
+  if (!token) return;
+  const cache = getActiveCache();
+  if (!cache) {
     cloudDataCache = { stars: {}, fullHealthClears: {}, unlocked: 1, unlockedItems: [...DEFAULT_UNLOCKED_ITEMS, ...newItems] };
+    cacheToken = token;
+    cacheTimestamp = Date.now();
     return;
   }
-  const set = new Set(cloudDataCache.unlockedItems);
+  const set = new Set(cache.unlockedItems);
   newItems.forEach(item => set.add(item));
-  cloudDataCache.unlockedItems = Array.from(set);
+  cache.unlockedItems = Array.from(set);
 }
 
 export async function getMaxStar(levelId: string): Promise<0 | 1 | 2 | 3> {
@@ -87,14 +131,14 @@ export async function getMaxStar(levelId: string): Promise<0 | 1 | 2 | 3> {
 }
 
 export function getMaxStarSync(levelId: string): 0 | 1 | 2 | 3 {
-  const cache = cloudDataCache;
+  const cache = getActiveCache();
   if (!cache) return 0;
   const v = cache.stars[levelId] ?? 0;
   return (v === 1 || v === 2 || v === 3) ? v : 0;
 }
 
 export function getInFullHealthClearSync(levelId: string): boolean {
-  const cache = cloudDataCache;
+  const cache = getActiveCache();
   return Boolean(cache?.fullHealthClears[levelId]);
 }
 
@@ -120,13 +164,14 @@ export async function setStarCleared(
     if (resp.ok) {
       const data = await readApiJson<SetStarResult>(resp, 'Failed to save progress');
 
-      if (cloudDataCache) {
-        const currentStar = cloudDataCache.stars[levelId] ?? 0;
+      const cache = getActiveCache();
+      if (cache) {
+        const currentStar = cache.stars[levelId] ?? 0;
         if (data.star > currentStar) {
-          cloudDataCache.stars[levelId] = data.star;
+          cache.stars[levelId] = data.star;
         }
         if (data.fullHealthClear) {
-          cloudDataCache.fullHealthClears[levelId] = true;
+          cache.fullHealthClears[levelId] = true;
         }
       }
       if (Array.isArray(data.newUnlocks) && data.newUnlocks.length > 0) {
@@ -142,12 +187,17 @@ export async function setStarCleared(
 }
 
 export function getAllStars(): Record<string, number> {
-  const cache = cloudDataCache;
+  const cache = getActiveCache();
   return cache ? cache.stars : {};
 }
 
-export async function refreshCache(): Promise<void> {
+export function clearCloudProgressCache(): void {
   cloudDataCache = null;
+  cacheToken = null;
+  cacheTimestamp = 0;
+}
+
+export async function refreshCache(): Promise<void> {
   cacheTimestamp = 0;
   await fetchCloudData();
 }
