@@ -20,11 +20,23 @@ function readDbBoolean(value: unknown) {
   return value === true || value === 'true' || value === 1;
 }
 
+function readNotificationPayload(value: unknown) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
 type ProgressRow = { level_id: string; max_star: number | string; in_full_health_clear?: boolean | string | number | null; at_cleared?: boolean | string | number | null };
 type WalletRow = { coins?: number | string; magic_keys?: number | string; diamonds?: number | string; experience?: number | string };
 type ShardRow = { tower_type: string; shards: number | string };
 type TowerLevelRow = { tower_type: string; level: number | string };
 type UnlockedItemRow = { item_id: string };
+type NotificationRow = { notification_id: string; notification_type: string; payload: unknown };
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
   const playerId = getAuthPlayerId(req);
@@ -92,6 +104,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await ensurePlayer(pid);
 
       const { action } = req.body || {};
+
+      if (action === 'deleteAccount') {
+        if (req.body?.confirm !== true) return res.status(400).json({ error: 'confirmation required' });
+        const existing = await sql`SELECT player_id FROM players WHERE player_id=${pid}`;
+        if (existing.length === 0) return res.status(404).json({ error: 'account not found' });
+
+        await sql.transaction(tx => [
+          tx`DELETE FROM level_submissions WHERE player_id=${pid}`,
+          tx`DELETE FROM player_daily_level_submission_limits WHERE player_id=${pid}`,
+          tx`DELETE FROM player_release_reads WHERE player_id=${pid}`,
+          tx`DELETE FROM player_notifications WHERE player_id=${pid}`,
+          tx`DELETE FROM garden_plots WHERE player_id=${pid}`,
+          tx`DELETE FROM player_garden WHERE player_id=${pid}`,
+          tx`DELETE FROM player_study_progress WHERE player_id=${pid}`,
+          tx`DELETE FROM player_task_progress WHERE player_id=${pid}`,
+          tx`DELETE FROM chests WHERE player_id=${pid}`,
+          tx`DELETE FROM unlocked_items WHERE player_id=${pid}`,
+          tx`DELETE FROM tower_levels WHERE player_id=${pid}`,
+          tx`DELETE FROM inventory_shards WHERE player_id=${pid}`,
+          tx`DELETE FROM player_progress WHERE player_id=${pid}`,
+          tx`DELETE FROM player_wallet WHERE player_id=${pid}`,
+          tx`DELETE FROM user_accounts WHERE player_id=${pid}`,
+          tx`DELETE FROM players WHERE player_id=${pid}`,
+        ]);
+        return res.json({ ok: true });
+      }
+
+      if (action === 'getNextNotification') {
+        const rows = await sql`
+          SELECT notification_id, notification_type, payload
+          FROM player_notifications
+          WHERE player_id=${pid} AND read_at IS NULL
+          ORDER BY created_at ASC
+          LIMIT 1
+        `;
+        const notification = rows[0] as NotificationRow | undefined;
+        if (!notification) return res.json({ notification: null });
+        return res.json({
+          notification: {
+            id: String(notification.notification_id),
+            type: String(notification.notification_type),
+            payload: readNotificationPayload(notification.payload),
+          },
+        });
+      }
+
+      if (action === 'markNotificationRead') {
+        const notificationId = typeof req.body?.notificationId === 'string' ? req.body.notificationId.trim() : '';
+        if (!notificationId || notificationId.length > 120) return res.status(400).json({ error: 'invalid notification id' });
+        const updated = await sql`
+          UPDATE player_notifications
+          SET read_at=NOW()
+          WHERE notification_id=${notificationId} AND player_id=${pid} AND read_at IS NULL
+          RETURNING notification_id
+        `;
+        return res.json({ ok: true, marked: updated.length > 0 });
+      }
 
       if (action === 'unlockWithKey') {
         const { levelId } = req.body as { levelId?: string };

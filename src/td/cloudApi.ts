@@ -50,7 +50,7 @@ export function upgradeCloudTower(towerType: string) {
 }
 
 export async function deleteCloudAccount() {
-  const result = await postCloudAction<{ ok: boolean }>('/api/account', { confirm: true });
+  const result = await postCloudAction<{ ok: boolean }>('/api/progress', { action: 'deleteAccount', confirm: true });
   return result?.ok === true;
 }
 
@@ -61,18 +61,13 @@ export type PlayerNotification = {
 };
 
 export async function getNextUnreadNotification(): Promise<PlayerNotification | null> {
-  const token = getToken();
-  if (!token) return null;
-  const response = await fetch('/api/notifications', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await readApiJson<{ notification?: PlayerNotification | null }>(response, 'Failed to load notifications');
-  return data.notification ?? null;
+  const data = await postCloudAction<{ notification?: PlayerNotification | null }>('/api/progress', { action: 'getNextNotification' });
+  return data?.notification ?? null;
 }
 
 export async function markNotificationRead(notificationId: string) {
-  const result = await postCloudAction<{ ok: boolean; marked?: boolean }>('/api/notifications', {
-    action: 'markRead',
+  const result = await postCloudAction<{ ok: boolean; marked?: boolean }>('/api/progress', {
+    action: 'markNotificationRead',
     notificationId,
   });
   return result?.ok === true;
