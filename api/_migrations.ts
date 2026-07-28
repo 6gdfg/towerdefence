@@ -245,4 +245,20 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       WHERE reads.ctid = ranked.ctid AND ranked.row_number > 1`,
     ],
   },
+  {
+    id: '014_player_notifications',
+    description: 'Store unread player notifications such as approved level rewards',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS player_notifications (
+        notification_id TEXT PRIMARY KEY,
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        notification_type TEXT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        read_at TIMESTAMPTZ
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_player_notifications_unread
+        ON player_notifications(player_id, created_at ASC) WHERE read_at IS NULL`,
+    ],
+  },
 ];

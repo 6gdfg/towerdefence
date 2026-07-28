@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
+import { createId, createPlayer, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { hashPassword, issueToken, verifyPassword } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (exist.length > 0) return res.status(400).json({ error: 'USERNAME_TAKEN' });
 
       const playerId = createId('p');
-      await ensurePlayer(playerId);
+      await createPlayer(playerId);
 
       const passwordHash = await hashPassword(password);
       await sql`INSERT INTO user_accounts (username, password_hash, player_id)

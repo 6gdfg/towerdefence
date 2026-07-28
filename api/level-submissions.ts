@@ -9,6 +9,8 @@ const DAILY_SUBMISSION_LIMIT = 10;
 const MAX_LEVEL_NAME_LENGTH = 120;
 const MAX_DIFFICULTY_LENGTH = 12;
 const MAX_CODE_LENGTH = 60_000;
+const APPROVED_SUBMISSION_COINS = 5000;
+const APPROVED_SUBMISSION_EXPERIENCE = 50;
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
   const playerId = getAuthPlayerId(req);
@@ -113,12 +115,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ submissions });
     }
 
-    if (action === 'complete') {
+    if (action === 'review') {
       if (!requireAdmin(req, res)) return;
       const submissionId = readText(req.body?.submissionId, 120);
       if (!submissionId) return res.status(400).json({ error: 'invalid submission id' });
-      const deleted = await sql`DELETE FROM level_submissions WHERE submission_id=${submissionId} RETURNING submission_id`;
-      return res.json({ ok: true, removed: deleted.length > 0 });
+      const decision = req.body?.decision;
+      if (decision !== 'approved' && decision !== 'rejected') {
+        return res.status(400).json({ error: 'invalid review decision' });
+      }
+
+      if (decision === 'rejected') {
+        const deleted = await sql`DELETE FROM level_submissions WHERE submission_id=${submissionId} RETURNING submission_id`;
+        return res.json({ ok: true, removed: deleted.length > 0, decision });
+      }
+
+      const notificationId = createId('level_approved');
+      const reviewed = await sql`
+        WITH submitted AS (
+          DELETE FROM level_submissions
+          WHERE submission_id=${submissionId}
+          RETURNING player_id, level_name, difficulty
+        ),
+        rewarded AS (
+          UPDATE player_wallet wallet
+          SET coins=wallet.coins + ${APPROVED_SUBMISSION_COINS},
+              experience=COALESCE(wallet.experience, 0) + ${APPROVED_SUBMISSION_EXPERIENCE},
+              updated_at=NOW()
+          FROM submitted
+          WHERE wallet.player_id=submitted.player_id
+          RETURNING wallet.player_id
+        ),
+        notified AS (
+          INSERT INTO player_notifications (notification_id, player_id, notification_type, payload)
+          SELECT
+            ${notificationId},
+            player_id,
+            'level_submission_approved',
+            jsonb_build_object(
+              'levelName', level_name,
+              'difficulty', difficulty,
+              'coins', ${APPROVED_SUBMISSION_COINS},
+              'experience', ${APPROVED_SUBMISSION_EXPERIENCE}
+            )
+          FROM submitted
+          RETURNING notification_id
+        )
+        SELECT
+          (SELECT COUNT(*)::int FROM submitted) AS removed,
+          (SELECT COUNT(*)::int FROM rewarded) AS rewarded,
+          (SELECT notification_id FROM notified LIMIT 1) AS notification_id
+      `;
+      const row = reviewed[0];
+      return res.json({
+        ok: true,
+        removed: Number(row?.removed ?? 0) > 0,
+        rewarded: Number(row?.rewarded ?? 0) > 0,
+        decision,
+      });
     }
 
     return res.status(400).json({ error: 'bad action' });

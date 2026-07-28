@@ -13,6 +13,7 @@ type HubPageProps = {
   nowTick: number;
   openingChestId: string | null;
   onLogout: () => void;
+  onDeleteAccount: () => void;
   onRefresh: () => void;
   onUpgradeTower: (towerType: string) => void;
   onStartUnlock: (chestId: string) => void;
@@ -36,6 +37,7 @@ export default function HubPage({
   nowTick,
   openingChestId,
   onLogout,
+  onDeleteAccount,
   onRefresh,
   onUpgradeTower,
   onStartUnlock,
@@ -86,6 +88,7 @@ export default function HubPage({
           <div className="button-row">
             <button onClick={onRefresh} className="action-button">刷新云端</button>
             <button onClick={onLogout} className="action-button danger">退出账号</button>
+            <button onClick={onDeleteAccount} className="action-button danger">注销账号</button>
           </div>
         </div>
 

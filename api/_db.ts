@@ -98,13 +98,27 @@ export async function ensureDefaultUnlocks(playerId: string) {
   }
 }
 
-export async function ensurePlayer(playerId: string) {
+async function ensurePlayerState(playerId: string) {
   const sql = getSql();
-  await ensureTables();
-  await sql`INSERT INTO players (player_id) VALUES (${playerId}) ON CONFLICT (player_id) DO NOTHING`;
   await sql`INSERT INTO player_wallet (player_id, coins, magic_keys, diamonds) VALUES (${playerId}, ${INITIAL_PLAYER_COINS}, 0, ${INITIAL_PLAYER_DIAMONDS})
     ON CONFLICT (player_id) DO NOTHING`;
   await ensureDefaultUnlocks(playerId);
+}
+
+/** Create a new player record. This must only be called during registration. */
+export async function createPlayer(playerId: string) {
+  const sql = getSql();
+  await ensureTables();
+  await sql`INSERT INTO players (player_id) VALUES (${playerId})`;
+  await ensurePlayerState(playerId);
+}
+
+/** Initialize missing data for an existing authenticated player. */
+export async function ensurePlayer(playerId: string) {
+  await ensureTables();
+  // Do not recreate the parent player row here. A deleted account's old token
+  // must never be able to bring its account back by calling another endpoint.
+  await ensurePlayerState(playerId);
 }
 
 export function createId(prefix: string) {

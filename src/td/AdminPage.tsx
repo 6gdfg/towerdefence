@@ -35,7 +35,7 @@ export default function AdminPage({ onExit }: AdminPageProps) {
   const [submissions, setSubmissions] = useState<LevelSubmission[]>([]);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadSubmissions = async () => {
@@ -58,22 +58,23 @@ export default function AdminPage({ onExit }: AdminPageProps) {
     }
   };
 
-  const completeSubmission = async (submission: LevelSubmission) => {
-    if (!window.confirm(`确认已处理 ${submission.levelName} ${submission.difficulty} 的投稿？`)) return;
-    setRemovingId(submission.id);
+  const reviewSubmission = async (submission: LevelSubmission, decision: 'approved' | 'rejected') => {
+    const actionLabel = decision === 'approved' ? '通过并发放 5000 金币 + 50 经验' : '不通过并删除';
+    if (!window.confirm(`确认${actionLabel} ${submission.levelName} ${submission.difficulty} 的投稿？`)) return;
+    setReviewingId(submission.id);
     setError(null);
     try {
       const response = await fetch('/api/level-submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete', password, submissionId: submission.id }),
+        body: JSON.stringify({ action: 'review', password, submissionId: submission.id, decision }),
       });
       await readApiJson(response, '处理投稿失败');
       setSubmissions(current => current.filter(item => item.id !== submission.id));
     } catch (requestError: unknown) {
       setError(getErrorMessage(requestError, '处理投稿失败'));
     } finally {
-      setRemovingId(null);
+      setReviewingId(null);
     }
   };
 
@@ -128,13 +129,22 @@ export default function AdminPage({ onExit }: AdminPageProps) {
                         <strong>{`${submission.levelName} ${submission.difficulty}`}</strong>
                         <span>{`${submission.submitter} · ${formatSubmittedAt(submission.submittedAt)}`}</span>
                       </div>
-                      <button
-                        onClick={() => void completeSubmission(submission)}
-                        disabled={removingId === submission.id}
-                        className="action-button primary"
-                      >
-                        {removingId === submission.id ? '处理中...' : '处理完成'}
-                      </button>
+                      <div className="button-row">
+                        <button
+                          onClick={() => void reviewSubmission(submission, 'approved')}
+                          disabled={reviewingId === submission.id}
+                          className="action-button primary"
+                        >
+                          {reviewingId === submission.id ? '处理中...' : '通过'}
+                        </button>
+                        <button
+                          onClick={() => void reviewSubmission(submission, 'rejected')}
+                          disabled={reviewingId === submission.id}
+                          className="action-button danger"
+                        >
+                          不通过
+                        </button>
+                      </div>
                     </div>
                     <details className="admin-code-details">
                       <summary>查看关卡代码</summary>

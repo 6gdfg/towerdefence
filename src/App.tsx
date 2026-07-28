@@ -18,6 +18,7 @@ import ResultModal from './td/ResultModal';
 import LevelStartModal from './td/LevelStartModal';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
 import UpdateAnnouncementModal from './td/UpdateAnnouncementModal';
+import SubmissionRewardModal from './td/SubmissionRewardModal';
 import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, hasLevelDifficultyDraft, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
@@ -26,7 +27,7 @@ import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { getAtBaseModeType } from './td/atMode';
-import { acknowledgeReleaseAnnouncement, craftLegendaryChest, hasReadReleaseAnnouncement, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
+import { acknowledgeReleaseAnnouncement, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
@@ -72,6 +73,12 @@ type AtUnlockNotice = {
 type ActiveChallengeRun = {
   selected: ChallengeId[];
   startLives: number;
+};
+
+type SubmissionApprovalNotice = {
+  id: string;
+  levelName: string;
+  difficulty: string;
 };
 
 function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] {
@@ -217,6 +224,9 @@ function App() {
   const [showUpdateAnnouncement, setShowUpdateAnnouncement] = useState(false);
   const [confirmingUpdateAnnouncement, setConfirmingUpdateAnnouncement] = useState(false);
   const [updateAnnouncementError, setUpdateAnnouncementError] = useState<string | null>(null);
+  const [submissionApprovalNotice, setSubmissionApprovalNotice] = useState<SubmissionApprovalNotice | null>(null);
+  const [confirmingSubmissionApproval, setConfirmingSubmissionApproval] = useState(false);
+  const [submissionApprovalError, setSubmissionApprovalError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
   const [winReward, setWinReward] = useState<WinReward | null>(null);
   const unlockedItemsSet = useMemo(() => {
@@ -310,6 +320,30 @@ function App() {
     return () => { cancelled = true; };
   }, [dataFinished]);
 
+  const loadSubmissionApprovalNotice = useCallback(async () => {
+    try {
+      const notification = await getNextUnreadNotification();
+      if (!notification || notification.type !== 'level_submission_approved') {
+        setSubmissionApprovalNotice(null);
+        return;
+      }
+      const levelName = typeof notification.payload.levelName === 'string' ? notification.payload.levelName : '未命名关卡';
+      const difficulty = typeof notification.payload.difficulty === 'string' ? notification.payload.difficulty : '';
+      setSubmissionApprovalError(null);
+      setSubmissionApprovalNotice({ id: notification.id, levelName, difficulty });
+    } catch (error) {
+      console.error('Failed to load submission approval notification', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!dataFinished || !getToken()) {
+      setSubmissionApprovalNotice(null);
+      return;
+    }
+    void loadSubmissionApprovalNotice();
+  }, [dataFinished, loadSubmissionApprovalNotice]);
+
   const confirmUpdateAnnouncement = useCallback(async () => {
     setConfirmingUpdateAnnouncement(true);
     setUpdateAnnouncementError(null);
@@ -323,6 +357,22 @@ function App() {
       setConfirmingUpdateAnnouncement(false);
     }
   }, []);
+
+  const confirmSubmissionApproval = useCallback(async () => {
+    if (!submissionApprovalNotice) return;
+    setConfirmingSubmissionApproval(true);
+    setSubmissionApprovalError(null);
+    try {
+      const marked = await markNotificationRead(submissionApprovalNotice.id);
+      if (!marked) throw new Error('奖励通知确认失败，请稍后重试。');
+      setSubmissionApprovalNotice(null);
+      await loadSubmissionApprovalNotice();
+    } catch (error) {
+      setSubmissionApprovalError(getErrorMessage(error, '奖励通知确认失败，请稍后重试。'));
+    } finally {
+      setConfirmingSubmissionApproval(false);
+    }
+  }, [loadSubmissionApprovalNotice, submissionApprovalNotice]);
 
   const [chestReward, setChestReward] = useState<ChestReward | null>(null);
   const [openingChestId, setOpeningChestId] = useState<string | null>(null);
@@ -376,6 +426,26 @@ function App() {
     await upgradeCloudTower(towerType);
     await loadHub();
   }
+
+  const deleteAccount = useCallback(async () => {
+    if (!window.confirm('注销后，关卡、植物、资产、宝箱、花园、学习和任务数据都会永久删除。确定继续吗？')) return;
+    if (!window.confirm('最后确认：此操作无法撤销，确定永久注销账号吗？')) return;
+
+    try {
+      const deleted = await deleteCloudAccount();
+      if (!deleted) throw new Error('账号注销失败，请稍后重试。');
+      clearAuth();
+      clearCloudProgressCache();
+      setHub(null);
+      setHubLoadError(null);
+      setSubmissionApprovalNotice(null);
+      setSubmissionApprovalError(null);
+      navigateWithTransition('auth');
+      alert('账号已注销，全部数据已删除。');
+    } catch (error) {
+      alert(getErrorMessage(error, '账号注销失败，请稍后重试。'));
+    }
+  }, [navigateWithTransition]);
 
   const startIntroductionLevel = useCallback(() => {
     const M = MAPS.find(m => m.id === INTRODUCTION_LEVEL.mapId);
@@ -922,6 +992,8 @@ function App() {
     setDataFinished(false);
     setHub(null);
     setHubLoadError(null);
+    setSubmissionApprovalNotice(null);
+    setSubmissionApprovalError(null);
     loadHub().then(() => {
       navigateWithTransition(shouldShowTutorial() ? 'tutorial' : 'hub');
     });
@@ -993,8 +1065,11 @@ function App() {
                   clearCloudProgressCache();
                   setHub(null);
                   setHubLoadError(null);
+                  setSubmissionApprovalNotice(null);
+                  setSubmissionApprovalError(null);
                   navigateWithTransition('auth');
                 }}
+                onDeleteAccount={deleteAccount}
                 onRefresh={loadHub}
                 onUpgradeTower={upgradeTower}
                 onStartUnlock={startUnlock}
@@ -1185,6 +1260,15 @@ function App() {
           confirming={confirmingUpdateAnnouncement}
           error={updateAnnouncementError}
           onConfirm={confirmUpdateAnnouncement}
+        />
+      )}
+      {submissionApprovalNotice && !showUpdateAnnouncement && stage !== 'auth' && (
+        <SubmissionRewardModal
+          levelName={submissionApprovalNotice.levelName}
+          difficulty={submissionApprovalNotice.difficulty}
+          confirming={confirmingSubmissionApproval}
+          error={submissionApprovalError}
+          onConfirm={confirmSubmissionApproval}
         />
       )}
     </div>
