@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getErrorMessage } from './_errors.js';
 
 function getDbUrlFromEnv() {
-  const env = process.env;
   const direct = envValue('POSTGRES_URL')
     || envValue('DATABASE_URL')
     || envValue('DATABASE_URL_UNPOOLED')
