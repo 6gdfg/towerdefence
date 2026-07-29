@@ -154,8 +154,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             jsonb_build_object(
               'levelName', level_name,
               'difficulty', difficulty,
-              'coins', ${APPROVED_SUBMISSION_COINS},
-              'experience', ${APPROVED_SUBMISSION_EXPERIENCE}
+              'coins', ${APPROVED_SUBMISSION_COINS}::integer,
+              'experience', ${APPROVED_SUBMISSION_EXPERIENCE}::integer
             )
           FROM submitted
           RETURNING notification_id
