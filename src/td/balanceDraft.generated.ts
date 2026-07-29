@@ -3650,6 +3650,7 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "sourceLevelId": "L10",
     "levelNumber": 10,
     "levelName": "2-2",
+    "contributor": "驱蚊花露水",
     "difficulty": "EZ",
     "rating": 7,
     "mapId": 1,
