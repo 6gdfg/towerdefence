@@ -3645,6 +3645,50 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "difficulty": "EZ",
+    "rating": 7,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 12
+          },
+          {
+            "type": "windShield",
+            "count": 40,
+            "interval": 0.1,
+            "level": 20
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 
