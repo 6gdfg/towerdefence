@@ -122,6 +122,7 @@ type ChestDurationRow = {
 };
 
 type ChestStatusRow = {
+  chest_id: string;
   status: string;
   unlock_ready_at?: string | number | Date | null;
   chest_type?: string | null;
@@ -165,6 +166,100 @@ function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
     return null;
   }
   return playerId;
+}
+
+async function grantChestRewards(playerId: string, chests: ChestStatusRow[]) {
+  const sql = getSql();
+  const shards: Record<string, number> = {};
+  const chestTypes: Record<ChestType, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  let coins = 0;
+  let magicKeys = 0;
+  let plantSeeds = 0;
+  let chestSeeds = 0;
+
+  const hasLegendary = chests.some(chest => chest.chest_type === 'legendary');
+  const unlockedRows = hasLegendary
+    ? await sql`SELECT item_id FROM unlocked_items WHERE player_id=${playerId} AND unlocked=true`
+    : [];
+  const unlockedSet = new Set((unlockedRows as UnlockedItemRow[]).map(row => row.item_id));
+  const newUnlocks: string[] = [];
+
+  for (const chest of chests) {
+    const chestType: ChestType = isChestType(chest.chest_type) ? chest.chest_type : 'common';
+    const config = getChestRewardConfig(chestType);
+    const storedCoins = Number(chest.coin_reward || 0);
+    coins += storedCoins > 0 ? storedCoins : randInt(config.coins.min, config.coins.max);
+    magicKeys += Math.random() < config.magicKeyChance ? 1 : 0;
+    plantSeeds += Math.random() < SEED_DROP_CHANCE[chestType]
+      ? (chestType === 'legendary' ? randInt(3, 5) : 1)
+      : 0;
+    chestSeeds += Math.random() < SEED_DROP_CHANCE[chestType]
+      ? (chestType === 'legendary' ? randInt(3, 5) : 1)
+      : 0;
+    chestTypes[chestType] += 1;
+
+    const shardCount = randInt(config.shardRolls.min, config.shardRolls.max);
+    for (let i = 0; i < shardCount; i++) {
+      const rewardId = pickRewardId(chestType);
+      shards[rewardId] = (shards[rewardId] || 0) + 1;
+    }
+
+    if (chestType === 'legendary') {
+      const plantUnlock = Math.random() < 0.2 ? pickLockedItem(PLANT_ITEM_IDS, unlockedSet) : null;
+      if (plantUnlock) {
+        unlockedSet.add(plantUnlock);
+        newUnlocks.push(plantUnlock);
+      }
+      const elementUnlock = Math.random() < 0.1 ? pickLockedItem(ELEMENT_ITEM_IDS, unlockedSet) : null;
+      if (elementUnlock) {
+        unlockedSet.add(elementUnlock);
+        newUnlocks.push(elementUnlock);
+      }
+    }
+  }
+
+  await sql.transaction(tx => [
+    ...Object.entries(shards).map(([tower, amount]) => tx`
+      INSERT INTO inventory_shards (player_id, tower_type, shards) VALUES (${playerId}, ${tower}, ${amount})
+      ON CONFLICT (player_id, tower_type) DO UPDATE SET shards=inventory_shards.shards + EXCLUDED.shards`),
+    ...newUnlocks.map(itemId => tx`
+      INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
+      VALUES (${playerId}, ${itemId}, TRUE, NOW())
+      ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`),
+    tx`UPDATE player_wallet
+      SET coins=coins + ${coins}, magic_keys=magic_keys + ${magicKeys}, updated_at=NOW()
+      WHERE player_id=${playerId}`,
+    ...(plantSeeds > 0 || chestSeeds > 0 ? [tx`
+      INSERT INTO player_garden (player_id, plant_seeds, chest_seeds, unlocked_plots)
+      VALUES (${playerId}, ${plantSeeds}, ${chestSeeds}, 8)
+      ON CONFLICT (player_id) DO UPDATE SET
+        plant_seeds=player_garden.plant_seeds + EXCLUDED.plant_seeds,
+        chest_seeds=player_garden.chest_seeds + EXCLUDED.chest_seeds,
+        updated_at=NOW()`] : []),
+    ...chests.map(chest => tx`DELETE FROM chests WHERE chest_id=${chest.chest_id} AND player_id=${playerId}`),
+  ]);
+
+  try {
+    await recordPlayerTaskEvent(playerId, 'chestOpen');
+  } catch (taskError) {
+    console.error('Failed to record chest open task', taskError);
+  }
+
+  return {
+    ok: true,
+    shards,
+    ...splitShardInventory(shards),
+    coins,
+    magicKeys,
+    plantSeeds,
+    chestSeeds,
+    chestType: chests.length === 1
+      ? (isChestType(chests[0].chest_type) ? chests[0].chest_type : 'common')
+      : 'multiple',
+    chestTypes,
+    openedCount: chests.length,
+    newUnlocks,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -224,6 +319,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
 
       return res.json({ ok: true, chestId: legendaryChestId, chestType: 'legendary', counts, required: LEGENDARY_CRAFT_COST });
+    }
+
+    if (action === 'openAll') {
+      const rows = await sql`SELECT chest_id, status, unlock_ready_at, chest_type, coin_reward
+        FROM chests
+        WHERE player_id=${playerId}
+          AND (status='ready' OR (status='unlocking' AND unlock_ready_at <= NOW()))
+        ORDER BY awarded_at ASC`;
+      if (rows.length === 0) return res.status(400).json({ error: 'NO_READY_CHESTS' });
+      return res.json(await grantChestRewards(playerId, rows as ChestStatusRow[]));
     }
 
     if (!chestId || typeof chestId !== 'string') return res.status(400).json({ error: 'chestId required' });
@@ -299,80 +404,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!canOpen) {
         return res.status(400).json({ error: 'not ready' });
       }
-
-      const chestType: ChestType = isChestType(c.chest_type) ? c.chest_type : 'common';
-      const chestConfig = getChestRewardConfig(chestType);
-      const storedCoinReward = Number(c.coin_reward || 0);
-      const coinReward = storedCoinReward > 0
-        ? storedCoinReward
-        : randInt(chestConfig.coins.min, chestConfig.coins.max);
-      const shardCount = randInt(chestConfig.shardRolls.min, chestConfig.shardRolls.max);
-      const magicKeyReward = Math.random() < chestConfig.magicKeyChance ? 1 : 0;
-      const plantSeeds = Math.random() < SEED_DROP_CHANCE[chestType]
-        ? (chestType === 'legendary' ? randInt(3, 5) : 1)
-        : 0;
-      const chestSeeds = Math.random() < SEED_DROP_CHANCE[chestType]
-        ? (chestType === 'legendary' ? randInt(3, 5) : 1)
-        : 0;
-
-      const sum: Record<string, number> = {};
-      for (let i = 0; i < shardCount; i++) {
-        const rewardId = pickRewardId(chestType);
-        sum[rewardId] = (sum[rewardId] || 0) + 1;
-      }
-      const splitShards = splitShardInventory(sum);
-
-      for (const [tower, amt] of Object.entries(sum)) {
-        await sql`INSERT INTO inventory_shards (player_id, tower_type, shards) VALUES (${playerId}, ${tower}, ${amt})
-          ON CONFLICT (player_id, tower_type) DO UPDATE SET shards = inventory_shards.shards + EXCLUDED.shards`;
-      }
-
-      const newUnlocks: string[] = [];
-      if (chestType === 'legendary') {
-        const unlockedRows = await sql`SELECT item_id FROM unlocked_items WHERE player_id=${playerId} AND unlocked=true`;
-        const unlockedSet = new Set((unlockedRows as UnlockedItemRow[]).map(row => row.item_id));
-        const plantUnlock = Math.random() < 0.2 ? pickLockedItem(PLANT_ITEM_IDS, unlockedSet) : null;
-        if (plantUnlock) {
-          await sql`INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
-            VALUES (${playerId}, ${plantUnlock}, TRUE, NOW())
-            ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`;
-          unlockedSet.add(plantUnlock);
-          newUnlocks.push(plantUnlock);
-        }
-
-        const elementUnlock = Math.random() < 0.1 ? pickLockedItem(ELEMENT_ITEM_IDS, unlockedSet) : null;
-        if (elementUnlock) {
-          await sql`INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
-            VALUES (${playerId}, ${elementUnlock}, TRUE, NOW())
-            ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`;
-          newUnlocks.push(elementUnlock);
-        }
-      }
-
-      if (coinReward > 0 || magicKeyReward > 0) {
-        await sql`UPDATE player_wallet
-          SET coins = coins + ${coinReward}, magic_keys = magic_keys + ${magicKeyReward}, updated_at=NOW()
-          WHERE player_id=${playerId}`;
-      }
-
-      if (plantSeeds > 0 || chestSeeds > 0) {
-        await sql`INSERT INTO player_garden (player_id, plant_seeds, chest_seeds, unlocked_plots)
-          VALUES (${playerId}, ${plantSeeds}, ${chestSeeds}, 8)
-          ON CONFLICT (player_id) DO UPDATE SET
-            plant_seeds=player_garden.plant_seeds + EXCLUDED.plant_seeds,
-            chest_seeds=player_garden.chest_seeds + EXCLUDED.chest_seeds,
-            updated_at=NOW()`;
-      }
-
-      await sql`DELETE FROM chests WHERE chest_id=${chestId} AND player_id=${playerId}`;
-
-      try {
-        await recordPlayerTaskEvent(playerId, 'chestOpen');
-      } catch (taskError) {
-        console.error('Failed to record chest open task', taskError);
-      }
-
-      return res.json({ ok: true, shards: sum, ...splitShards, coins: coinReward, magicKeys: magicKeyReward, plantSeeds, chestSeeds, chestType, newUnlocks });
+      return res.json(await grantChestRewards(playerId, [c]));
     }
 
     return res.status(400).json({ error: 'bad action' });

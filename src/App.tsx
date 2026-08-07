@@ -27,7 +27,7 @@ import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { getAtBaseModeType } from './td/atMode';
-import { acknowledgeReleaseAnnouncement, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
+import { acknowledgeReleaseAnnouncement, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openAllReadyChests, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
@@ -396,11 +396,40 @@ function App() {
           plantSeeds: data.plantSeeds || 0,
           chestSeeds: data.chestSeeds || 0,
           chestType: data.chestType || 'common',
+          chestTypes: data.chestTypes,
+          openedCount: data.openedCount,
           newUnlocks: data.newUnlocks || [],
         });
       }
     } catch (err) {
       console.error('openChest failed', err);
+    } finally {
+      await loadHub();
+      setOpeningChestId(null);
+    }
+  }
+  async function openAllChests() {
+    if (openingChestId) return;
+    setOpeningChestId('all');
+    try {
+      const data = await openAllReadyChests();
+      if (data) {
+        setChestReward({
+          shards: data.shards || {},
+          plantShards: data.plantShards || {},
+          elementShards: data.elementShards || {},
+          coins: data.coins || 0,
+          magicKeys: data.magicKeys || 0,
+          plantSeeds: data.plantSeeds || 0,
+          chestSeeds: data.chestSeeds || 0,
+          chestType: data.chestType || 'multiple',
+          chestTypes: data.chestTypes,
+          openedCount: data.openedCount,
+          newUnlocks: data.newUnlocks || [],
+        });
+      }
+    } catch (err) {
+      console.error('openAllChests failed', err);
     } finally {
       await loadHub();
       setOpeningChestId(null);
@@ -1074,6 +1103,7 @@ function App() {
                 onUpgradeTower={upgradeTower}
                 onStartUnlock={startUnlock}
                 onOpenChest={openChest}
+                onOpenAllChests={openAllChests}
                 onSkipChest={skipChest}
                 onCraftLegendary={craftLegendary}
                 onStartGame={() => { setActiveFunMode(null); navigateWithTransition('chapters'); }}

@@ -159,6 +159,26 @@ function elementTags(entry: ElementBookEntry) {
   return tags;
 }
 
+function singleUseElementNote(entry: ElementBookEntry) {
+  const level = entry.level;
+  switch (entry.id) {
+    case 'gold':
+      return `单独放置：2秒后全场破甲 ${5 + 0.2 * level}s，无护甲目标伤害 x${(1.5 + 0.1 * Math.max(0, level - 1)).toFixed(1)}；冷却20秒。`;
+    case 'fire':
+      return `单独放置：2秒后对半径4.4内敌人造成 ${800 + 50 * level} 伤害；冷却30秒。`;
+    case 'electric':
+      return `单独放置：2秒后对全场敌人造成 ${200 + 20 * level} 伤害；冷却30秒。`;
+    case 'ice':
+      return `单独放置：2秒后对全场敌人造成 ${20 + 4 * level} 伤害并冻结4秒；冷却20秒。`;
+    case 'wind':
+      return `单独放置：2秒后将全场敌人击退1.6格，并造成 ${20 + 4 * level} 伤害；冷却20秒。`;
+    case 'light':
+      return '单独放置：2秒后获得400阳光；冷却30秒。';
+    default:
+      return '';
+  }
+}
+
 function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
   const tags: string[] = [];
   if (stats.armorHp) tags.push(`护甲 ${stats.armorHp}`);
@@ -314,6 +334,7 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
                 </div>
                 <FeatureTags tags={elementTags(entry)} />
                 <div className="book-note">{entry.cfg.description}</div>
+                <div className="book-note">{singleUseElementNote(entry)}</div>
               </article>
             ))}
           </div>

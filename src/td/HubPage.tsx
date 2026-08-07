@@ -18,6 +18,7 @@ type HubPageProps = {
   onUpgradeTower: (towerType: string) => void;
   onStartUnlock: (chestId: string) => void;
   onOpenChest: (chestId: string) => void;
+  onOpenAllChests: () => void;
   onSkipChest: (chestId: string, currency: SkipCurrency) => void;
   onCraftLegendary: () => void;
   onStartGame: () => void;
@@ -42,6 +43,7 @@ export default function HubPage({
   onUpgradeTower,
   onStartUnlock,
   onOpenChest,
+  onOpenAllChests,
   onSkipChest,
   onCraftLegendary,
   onStartGame,
@@ -75,6 +77,11 @@ export default function HubPage({
   const canCraftLegendary = (chestCounts.epic ?? 0) >= 2
     && (chestCounts.rare ?? 0) >= 5
     && (chestCounts.common ?? 0) >= 10;
+  const readyChestCount = chests.filter(chest => {
+    if (chest.status === 'ready') return true;
+    if (chest.status !== 'unlocking' || !chest.unlock_ready_at) return false;
+    return new Date(chest.unlock_ready_at).getTime() <= nowTick;
+  }).length;
 
   return (
     <main className="page-wrap">
@@ -192,6 +199,14 @@ export default function HubPage({
         <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.14s', padding: 16 }}>
           <div className="section-title">宝箱仓库</div>
           <div className="button-row" style={{ marginBottom: 12 }}>
+            <button
+              onClick={onOpenAllChests}
+              disabled={readyChestCount === 0 || disableOpen}
+              className="action-button primary"
+              style={{ opacity: readyChestCount > 0 && !disableOpen ? 1 : 0.52 }}
+            >
+              {openingChestId === 'all' ? '开启中...' : `一键开启（${readyChestCount}）`}
+            </button>
             <button
               onClick={onCraftLegendary}
               disabled={!canCraftLegendary || disableOpen}

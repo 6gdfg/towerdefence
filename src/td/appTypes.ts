@@ -50,6 +50,8 @@ export type ChestReward = {
   plantSeeds?: number;
   chestSeeds?: number;
   chestType: string;
+  chestTypes?: Record<string, number>;
+  openedCount?: number;
   newUnlocks?: string[];
 };
 

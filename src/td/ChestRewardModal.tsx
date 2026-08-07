@@ -10,15 +10,20 @@ export default function ChestRewardModal({ reward, onClose }: ChestRewardModalPr
   const plantEntries = Object.entries(reward.plantShards);
   const elementEntries = Object.entries(reward.elementShards).map(([element, count]) => [`element:${element}`, count] as const);
   const unlockEntries = reward.newUnlocks ?? [];
+  const openedCount = reward.openedCount ?? 1;
+  const chestTypeSummary = Object.entries(reward.chestTypes ?? {})
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => `${resolveChestTypeLabel(type)} x${count}`)
+    .join('、');
 
   return (
     <div className="modal-backdrop">
       <div className="glass-panel modal-panel">
         <div style={{ fontWeight:700, fontSize:20, marginBottom:12, textAlign:'center' }}>🎁 宝箱开启成功！</div>
         <div style={{ fontSize:14, color:'#6b7280', marginBottom:16, textAlign:'center' }}>
-          <span className={reward.chestType === 'legendary' ? 'legendary-text' : undefined}>
-            {resolveChestTypeLabel(reward.chestType)}
-          </span>
+          {openedCount > 1
+            ? `共开启 ${openedCount} 个宝箱${chestTypeSummary ? `：${chestTypeSummary}` : ''}`
+            : <span className={reward.chestType === 'legendary' ? 'legendary-text' : undefined}>{resolveChestTypeLabel(reward.chestType)}</span>}
         </div>
         <div className="reward-panel">
           {plantEntries.length > 0 && (

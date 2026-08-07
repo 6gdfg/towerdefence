@@ -20,6 +20,16 @@ export type GardenHarvest = {
   chestId?: string;
 };
 
+export type GardenHarvestSummary = {
+  harvestedCount: number;
+  plantCount: number;
+  chestCount: number;
+  shards: Record<string, number>;
+  recycledSeeds: number;
+  chestTypes: Record<string, number>;
+  skippedChestCount: number;
+};
+
 export type GardenPayload = {
   plantSeeds: number;
   chestSeeds: number;
@@ -38,6 +48,7 @@ export type GardenPayload = {
   plots: GardenPlot[];
   wallet: { coins: number; diamonds: number; experience: number };
   harvest?: GardenHarvest;
+  harvestSummary?: GardenHarvestSummary;
 };
 
 const DEV_GARDEN_KEY = 'td-garden-dev-preview-v1';
@@ -73,7 +84,7 @@ function readDevGarden() {
     const raw = window.localStorage.getItem(DEV_GARDEN_KEY);
     if (!raw) return createDevGarden();
     const parsed = JSON.parse(raw) as GardenPayload;
-    const merged = { ...createDevGarden(), ...parsed, harvest: undefined };
+    const merged = { ...createDevGarden(), ...parsed, harvest: undefined, harvestSummary: undefined };
     if (typeof parsed.efficiencyLevel !== 'number') {
       merged.wallet = { ...merged.wallet, experience: 1000 };
     }
@@ -84,7 +95,7 @@ function readDevGarden() {
 }
 
 function saveDevGarden(garden: GardenPayload) {
-  const { harvest: _harvest, ...stored } = garden;
+  const { harvest: _harvest, harvestSummary: _harvestSummary, ...stored } = garden;
   window.localStorage.setItem(DEV_GARDEN_KEY, JSON.stringify(stored));
 }
 
@@ -155,6 +166,43 @@ function devGardenRequest(body?: Record<string, unknown>): GardenPayload {
       garden.chestCount += 1;
       garden.harvest = { seedType: 'chest', chestType: randomDevChestType(), chestId: `dev-${Date.now()}` };
     }
+  } else if (action === 'harvestAll') {
+    const readyPlots = garden.plots.filter(plot => new Date(plot.readyAt).getTime() <= Date.now());
+    const plantPlots = readyPlots.filter(plot => plot.seedType === 'plant');
+    const chestPlots = readyPlots.filter(plot => plot.seedType === 'chest');
+    const harvestableChestPlots = chestPlots.slice(0, Math.max(0, garden.maxChests - garden.chestCount));
+    const selectedIndexes = new Set([...plantPlots, ...harvestableChestPlots].map(plot => plot.index));
+    if (selectedIndexes.size === 0) throw new Error(chestPlots.length > 0 ? 'CHEST_INVENTORY_FULL' : 'NO_READY_PLOTS');
+
+    const shards: Record<string, number> = {};
+    let recycledSeeds = 0;
+    for (const plot of plantPlots) {
+      const roll = Math.random() * 100;
+      const amount = roll < garden.shardChances.three
+        ? 3
+        : roll < garden.shardChances.three + garden.shardChances.two ? 2 : 1;
+      const targetItem = plot.targetItem ?? 'sunflower';
+      shards[targetItem] = (shards[targetItem] ?? 0) + amount;
+      recycledSeeds += Math.random() < garden.seedRecyclePct / 100 ? 1 : 0;
+    }
+    garden.plantSeeds += recycledSeeds;
+
+    const chestTypes: Record<string, number> = {};
+    for (const _plot of harvestableChestPlots) {
+      const chestType = randomDevChestType();
+      chestTypes[chestType] = (chestTypes[chestType] ?? 0) + 1;
+      garden.chestCount += 1;
+    }
+    garden.plots = garden.plots.filter(plot => !selectedIndexes.has(plot.index));
+    garden.harvestSummary = {
+      harvestedCount: selectedIndexes.size,
+      plantCount: plantPlots.length,
+      chestCount: harvestableChestPlots.length,
+      shards,
+      recycledSeeds,
+      chestTypes,
+      skippedChestCount: chestPlots.length - harvestableChestPlots.length,
+    };
   } else {
     throw new Error('未知花园操作');
   }
@@ -185,6 +233,10 @@ export function plantGardenSeed(plotIndex: number, seedType: GardenSeedType) {
 
 export function harvestGardenPlot(plotIndex: number) {
   return gardenRequest({ action: 'harvest', plotIndex });
+}
+
+export function harvestAllGardenPlots() {
+  return gardenRequest({ action: 'harvestAll' });
 }
 
 export function unlockGardenPlot() {

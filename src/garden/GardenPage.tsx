@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AuthBar from '../td/AuthBar';
 import { getToken } from '../td/authProgress';
 import { resolveChestTypeLabel, resolveUnlockItemLabel } from '../td/labels';
-import { fetchGarden, harvestGardenPlot, isGardenDevPreview, plantGardenSeed, unlockGardenPlot, upgradeGarden, type GardenPayload, type GardenSeedType } from './gardenApi';
+import { fetchGarden, harvestAllGardenPlots, harvestGardenPlot, isGardenDevPreview, plantGardenSeed, unlockGardenPlot, upgradeGarden, type GardenPayload, type GardenSeedType } from './gardenApi';
 
 type GardenPageProps = { onBack: () => void };
 
@@ -18,7 +18,7 @@ export default function GardenPage({ onBack }: GardenPageProps) {
   const [garden, setGarden] = useState<GardenPayload | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<GardenSeedType>('plant');
   const [now, setNow] = useState(Date.now());
-  const [busyPlot, setBusyPlot] = useState<number | 'unlock' | 'efficiency' | 'luck' | null>(null);
+  const [busyPlot, setBusyPlot] = useState<number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll' | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -33,8 +33,13 @@ export default function GardenPage({ onBack }: GardenPageProps) {
   }, []);
 
   const plotByIndex = useMemo(() => new Map(garden?.plots.map(plot => [plot.index, plot]) ?? []), [garden?.plots]);
+  const readyPlots = garden?.plots.filter(plot => new Date(plot.readyAt).getTime() <= now) ?? [];
+  const readyPlantCount = readyPlots.filter(plot => plot.seedType === 'plant').length;
+  const readyChestCount = readyPlots.length - readyPlantCount;
+  const availableChestSlots = garden ? Math.max(0, garden.maxChests - garden.chestCount) : 0;
+  const harvestableCount = readyPlantCount + Math.min(readyChestCount, availableChestSlots);
 
-  const runAction = async (key: number | 'unlock' | 'efficiency' | 'luck', action: () => Promise<GardenPayload>) => {
+  const runAction = async (key: number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll', action: () => Promise<GardenPayload>) => {
     if (busyPlot !== null) return;
     setBusyPlot(key);
     setError('');
@@ -42,7 +47,18 @@ export default function GardenPage({ onBack }: GardenPageProps) {
     try {
       const result = await action();
       setGarden(result);
-      if (result.harvest?.seedType === 'plant') {
+      if (result.harvestSummary) {
+        const totalShards = Object.values(result.harvestSummary.shards).reduce((sum, count) => sum + count, 0);
+        const parts = [
+          `收获 ${result.harvestSummary.harvestedCount} 块田地`,
+          result.harvestSummary.plantCount > 0 ? `植物 ${result.harvestSummary.plantCount}` : '',
+          result.harvestSummary.chestCount > 0 ? `宝箱 ${result.harvestSummary.chestCount}` : '',
+          totalShards > 0 ? `碎片 +${totalShards}` : '',
+          result.harvestSummary.recycledSeeds > 0 ? `回收种子 +${result.harvestSummary.recycledSeeds}` : '',
+        ].filter(Boolean);
+        if (result.harvestSummary.skippedChestCount > 0) parts.push(`另有 ${result.harvestSummary.skippedChestCount} 块因宝箱库存已满而保留`);
+        setMessage(parts.join('，'));
+      } else if (result.harvest?.seedType === 'plant') {
         const recycled = result.harvest.recycledSeed ? '，种子已回收' : '';
         setMessage(`收获 ${resolveUnlockItemLabel(result.harvest.targetItem ?? '')}碎片 x${result.harvest.shards ?? 1}${recycled}`);
       } else if (result.harvest?.seedType === 'chest') {
@@ -90,6 +106,13 @@ export default function GardenPage({ onBack }: GardenPageProps) {
               <span className="garden-seed-icon chest" aria-hidden="true" /><strong>宝箱种子</strong><em>{garden?.chestSeeds ?? 0}</em>
             </button>
           </div>
+          <button
+            className="action-button primary"
+            disabled={busyPlot !== null || harvestableCount === 0}
+            onClick={() => void runAction('harvestAll', harvestAllGardenPlots)}
+          >
+            {busyPlot === 'harvestAll' ? '收获中...' : `一键收获（${harvestableCount}）`}
+          </button>
           {garden && <div className="garden-inventory-count">宝箱库存 {garden.chestCount} / {garden.maxChests}</div>}
           {message && <div className="garden-message">{message}</div>}
           {error && <div className="garden-error">{error}</div>}

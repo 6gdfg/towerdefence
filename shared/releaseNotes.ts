@@ -1,8 +1,9 @@
 export const CURRENT_RELEASE = {
-  version: '0.5.6',
-  title: 'Tower Defence version 0.5.6',
+  version: '0.5.7',
+  title: 'Tower Defense version 0.5.7',
   notes: [
-    '新增账号注销，别乱点！只是为了删除测试账号缓解数据库压力',
-    '新增关卡：2-2 EZ，感谢贡献者：驱蚊花露水。',
+    '新增一键开启可用宝箱与一键收获成熟花园种子。',
+    '新增关卡：2-2 HD、IN、AT，感谢贡献者：驱蚊花露水。',
+    '加入元素单独放置说明。',
   ],
 } as const;

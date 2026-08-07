@@ -7,6 +7,8 @@ export type ChestOpenResult = {
   elementShards: Record<string, number>;
   coins: number;
   chestType: string;
+  chestTypes?: Record<string, number>;
+  openedCount?: number;
   magicKeys?: number;
   plantSeeds?: number;
   chestSeeds?: number;
@@ -35,6 +37,10 @@ export function startChestUnlock(chestId: string) {
 
 export function openChestReward(chestId: string) {
   return postCloudAction<ChestOpenResult>('/api/chest', { action: 'open', chestId });
+}
+
+export function openAllReadyChests() {
+  return postCloudAction<ChestOpenResult>('/api/chest', { action: 'openAll' });
 }
 
 export function skipChestUnlock(chestId: string, currency: 'diamonds' | 'coins' = 'diamonds') {

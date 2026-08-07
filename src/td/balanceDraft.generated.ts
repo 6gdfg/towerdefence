@@ -3690,6 +3690,89 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 2000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      { "groups": [{ "type": "circle", "count": 30, "interval": 0.4, "level": 1 }] },
+      { "groups": [
+        { "type": "circle", "count": 40, "interval": 0.1, "level": 1 },
+        { "type": "bunker", "count": 4, "interval": 0.4, "level": 50 }
+      ] }
+    ],
+    "specialEnemyConfig": { "enabled": false, "type": "charityAmbassador", "chance": 0.1 },
+    "unlockRewards": ["machineGun"]
+  },
+  {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 14,
+    "mapName": "四线并行",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      { "groups": [{ "type": "circle", "count": 19, "interval": 0.1, "level": 1000, "isBoss": true, "bossSpeed": 5 }] },
+      { "groups": [{ "type": "circle", "count": 10, "interval": 0.1, "level": 1000, "isBoss": true, "bossSpeed": 0.1 }] },
+      { "groups": [
+        { "type": "taunter", "count": 5, "interval": 1, "level": 10000, "isBoss": true, "bossSpeed": 3 },
+        { "type": "circle", "count": 100, "interval": 0.1, "level": 1 }
+      ] }
+    ],
+    "specialEnemyConfig": { "enabled": true, "type": "charityAmbassador", "chance": 1 },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      { "groups": [{ "type": "angryWriter", "count": 50, "interval": 0.1, "level": 10, "isBoss": true, "bossSpeed": 0.1 }] },
+      { "groups": [{ "type": "circle", "count": 60, "interval": 0.1, "level": 1, "isBoss": true, "bossSpeed": 5 }] },
+      { "groups": [{ "type": "bunker", "count": 60, "interval": 0.1, "level": 10, "isBoss": true, "bossSpeed": 2 }] }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 0.2,
+        "maxQueue": 25,
+        "pool": [
+          { "kind": "element", "id": "fire", "weight": 1 },
+          { "kind": "element", "id": "ice", "weight": 1 },
+          { "kind": "element", "id": "wind", "weight": 1 },
+          { "kind": "element", "id": "electric", "weight": 1 },
+          { "kind": "element", "id": "gold", "weight": 1 },
+          { "kind": "plant", "id": "hotPepper", "weight": 1 }
+        ]
+      }
+    },
+    "specialEnemyConfig": { "enabled": false, "type": "charityAmbassador", "chance": 0.1 },
+    "unlockRewards": []
   }
 ];
 
