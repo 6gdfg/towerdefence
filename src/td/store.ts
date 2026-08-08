@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem, SunPickup, PlantCover, SpecialEnemyConfig } from './types';
+import { TDState, WaveDef, Enemy, Tower, Projectile, PlantType, ElementType, ElementCast, GameMode, TowerLevelMap, LabOverrides, ShapeType, SpawnCursor, AtModeConfig, ConveyorItem, SunPickup, PlantCover, SpecialEnemyConfig, WindWall } from './types';
 import { Position } from '../types/game';
 import { getDistance, MAP_CONFIG } from '../config/mapConfig';
 import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
-import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats, getPlantRuntimeConfig } from './plants';
+import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats, getPlantRuntimeConfig, type BasePlantConfig } from './plants';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
@@ -108,12 +108,18 @@ function createTowerForPlacement(type: PlantType, pos: Position, level: number, 
     incomeBonusPerLevel: base.incomeBonusPerLevel,
     lastIncomeTime: gameTime,
     controlAuraLastPulseTime: base.controlAura ? gameTime : undefined,
-    expiresAt: base.instantEffect ? gameTime + base.instantEffect.delaySec : base.lifetimeSec ? gameTime + base.lifetimeSec : undefined,
-    color: base.instantEffect?.type === 'radiusFrostBlast' ? '#3b82f6' : base.instantEffect ? '#ef4444' : base.controlAura ? '#10b981' : DEFAULT_PLANT_COLOR,
+    expiresAt: base.instantEffect ? gameTime + base.instantEffect.delaySec : base.windWall ? gameTime + base.windWall.delaySec + getWindWallDuration(base, level) : base.lifetimeSec ? gameTime + base.lifetimeSec : undefined,
+    color: base.instantEffect?.type === 'radiusFrostBlast' ? '#3b82f6' : base.instantEffect ? '#ef4444' : base.windWall || base.controlAura ? '#10b981' : DEFAULT_PLANT_COLOR,
     bulletColor: DEFAULT_BULLET_COLOR,
   };
   ensureTowerStats(tower, labOverrides);
   return tower;
+}
+
+function getWindWallDuration(config: BasePlantConfig, level: number) {
+  const wall = config.windWall;
+  if (!wall) return 0;
+  return wall.durationBaseSec + wall.durationPerLevelSec * Math.max(0, level - 1);
 }
 
 function isTowerFrozen(tower: Tower, gameTime: number) {
@@ -139,7 +145,7 @@ function isTowerProtected(tower: Tower, plantCovers: PlantCover[]) {
 function findTaunterForTower(tower: Tower, enemies: Enemy[], plantCovers: PlantCover[]) {
   if (isTowerProtected(tower, plantCovers) || tower.type === 'pentagram' || tower.damage <= 0) return undefined;
   return enemies
-    .filter(enemy => enemy.shape === 'taunter' && enemy.hp > 0 && getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) <= TAUNTER_RADIUS)
+    .filter(enemy => enemy.shape === 'taunter' && canPlantAffectEnemy(enemy) && getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) <= TAUNTER_RADIUS)
     .sort((a, b) => b.progress - a.progress)[0];
 }
 
@@ -385,6 +391,14 @@ function isSlowImmune(enemy: Enemy) {
   return enemy.shape === 'iceShell' || enemy.shape === 'freezer';
 }
 
+function isAirborneEnemy(enemy: Enemy) {
+  return enemy.shape === 'balloonSoldier';
+}
+
+function canPlantAffectEnemy(enemy: Enemy) {
+  return enemy.hp > 0 && !isAirborneEnemy(enemy);
+}
+
 function isBurning(enemy: Enemy, gameTime: number) {
   return !!enemy.burnUntil && gameTime < enemy.burnUntil;
 }
@@ -508,6 +522,81 @@ function totalPathLength(path: Position[]): number {
   let s = 0;
   for (let i = 0; i < path.length - 1; i++) s += segmentLength(path[i], path[i + 1]);
   return s;
+}
+
+type PathAnchor = {
+  pathId: number;
+  pathIndex: number;
+  t: number;
+  progress: number;
+  pos: Position;
+  normal: Position;
+};
+
+function findNearestPathAnchor(paths: Position[][], pos: Position): PathAnchor | null {
+  let best: (PathAnchor & { distance: number }) | null = null;
+  paths.forEach((path, pathId) => {
+    const totalLength = totalPathLength(path);
+    if (path.length < 2 || totalLength <= 0) return;
+    let beforeLength = 0;
+    for (let pathIndex = 0; pathIndex < path.length - 1; pathIndex++) {
+      const start = path[pathIndex];
+      const end = path[pathIndex + 1];
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (length <= 0) continue;
+      const t = Math.max(0, Math.min(1, ((pos.x - start.x) * dx + (pos.y - start.y) * dy) / (length * length)));
+      const anchorPos = { x: start.x + dx * t, y: start.y + dy * t };
+      const distance = Math.hypot(pos.x - anchorPos.x, pos.y - anchorPos.y);
+      if (!best || distance < best.distance - 0.0001) {
+        best = {
+          pathId,
+          pathIndex,
+          t,
+          progress: (beforeLength + length * t) / totalLength,
+          pos: anchorPos,
+          normal: { x: -dy / length, y: dx / length },
+          distance,
+        };
+      }
+      beforeLength += length;
+    }
+  });
+  const result = best as (PathAnchor & { distance: number }) | null;
+  if (!result) return null;
+  return {
+    pathId: result.pathId,
+    pathIndex: result.pathIndex,
+    t: result.t,
+    progress: result.progress,
+    pos: result.pos,
+    normal: result.normal,
+  };
+}
+
+function createWindWallForPlacement(
+  sourceTowerId: string,
+  pos: Position,
+  level: number,
+  gameTime: number,
+  paths: Position[][],
+  config: BasePlantConfig,
+): WindWall | null {
+  const wallConfig = config.windWall;
+  if (!wallConfig) return null;
+  const anchor = findNearestPathAnchor(paths, pos);
+  if (!anchor) return null;
+  const activeAt = gameTime + wallConfig.delaySec;
+  return {
+    id: `wind-wall-${Date.now()}-${Math.random()}`,
+    sourceTowerId,
+    ...anchor,
+    width: wallConfig.width,
+    activeAt,
+    expiresAt: activeAt + getWindWallDuration(config, level),
+    affectedEnemyIds: [],
+  };
 }
 
 function getPathLocationAtProgress(path: Position[], progress: number) {
@@ -766,6 +855,7 @@ const INITIAL_TD_STATE: TDState = {
   plantCovers: [],
   projectiles: [],
   singleUseCasts: [],
+  windWalls: [],
   damagePopups: [],
   sunPickups: [],
   elementCooldowns: {},
@@ -819,6 +909,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     set({
       towers: state.towers.filter(tower => tower.id !== towerId),
       plantCovers: state.plantCovers.filter(item => item.towerId !== towerId),
+      windWalls: state.windWalls.filter(wall => wall.sourceTowerId !== towerId),
     });
   },
 
@@ -863,6 +954,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       plantCovers: [],
       projectiles: [],
       singleUseCasts: [],
+      windWalls: [],
       damagePopups: [],
       sunPickups: [],
       elementCooldowns: {},
@@ -924,9 +1016,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const level = state.towerLevelMap?.[type] || 1;
     const tower = createTowerForPlacement(type, pos, level, state.gameTime, state.labOverrides);
     if (!tower) return;
+    const windWall = createWindWallForPlacement(tower.id, pos, level, state.gameTime, state.paths, base);
+    if (base.windWall && !windWall) return;
 
     set({
       towers: [...state.towers, tower],
+      windWalls: windWall ? [...state.windWalls, windWall] : state.windWalls,
       gold: state.gold - cost,
       plantCooldowns: nextPlantCooldowns,
     });
@@ -960,9 +1055,12 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const level = Math.max(1, Math.floor(state.towerLevelMap?.[type] || 1));
     const tower = createTowerForPlacement(type, pos, level, state.gameTime, state.labOverrides);
     if (!tower) return;
+    const windWall = createWindWallForPlacement(tower.id, pos, level, state.gameTime, state.paths, base);
+    if (base.windWall && !windWall) return;
 
     set({
       towers: [...state.towers, tower],
+      windWalls: windWall ? [...state.windWalls, windWall] : state.windWalls,
       conveyorQueue: state.conveyorQueue.filter((_, index) => index !== queueIndex),
     });
   },
@@ -1111,7 +1209,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     const forcedTarget = findTaunterForTower(towerCopy, state.enemies, state.plantCovers);
     const inRange = state.enemies
-      .filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
+      .filter(e => canPlantAffectEnemy(e) && getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
       .sort((a, b) => b.progress - a.progress);
     const target = forcedTarget ?? inRange[0];
     if (!target) return;
@@ -1145,8 +1243,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
       plantCovers: state.plantCovers,
     });
     const spawnCursors = createSpawnCursorsForWave(state.waves[state.waveIndex], state.gameTime);
+    const mapChanged = activeMap.activeMapId !== state.activeMapId;
     set({
       ...activeMap,
+      windWalls: mapChanged ? [] : state.windWalls,
       isWaveActive: true,
       spawnCursor: spawnCursors.length > 0 ? spawnCursors : null,
     });
@@ -1163,6 +1263,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let plantCovers = state.plantCovers.map(cover => ({ ...cover }));
     let projectiles = [...state.projectiles];
     let singleUseCasts = state.singleUseCasts.slice();
+    let windWalls = state.windWalls.map(wall => ({ ...wall, affectedEnemyIds: [...wall.affectedEnemyIds] }));
     let damagePopups = state.damagePopups.filter(p => p.until > gameTime);
     let sunPickups: SunPickup[] = state.sunPickups.map(pickup => ({
       ...pickup,
@@ -1286,7 +1387,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const affected = effect.type === 'crossDamage'
             ? Math.abs(enemy.pos.x - tower.pos.x) <= effect.tolerance || Math.abs(enemy.pos.y - tower.pos.y) <= effect.tolerance
             : getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) <= effect.radius;
-          if (!affected || enemy.hp <= 0) return enemy;
+          if (!affected || !canPlantAffectEnemy(enemy)) return enemy;
 
           const nextEnemy: Enemy = { ...enemy };
           const inflicted = applyDamageWithArmor(nextEnemy, stats.damage, gameTime);
@@ -1333,7 +1434,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const pulseDue = (gameTime - (tower.controlAuraLastPulseTime ?? 0)) >= aura.pulseInterval;
 
       enemies.forEach(enemy => {
-        if (enemy.hp <= 0) return;
+        if (!canPlantAffectEnemy(enemy)) return;
         if (getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) > tower.range) return;
         controlAuraSlowByEnemy.set(enemy.id, Math.max(controlAuraSlowByEnemy.get(enemy.id) ?? 0, slowPct));
         if (pulseDue && knockbackDistance > 0) {
@@ -1420,6 +1521,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         towers,
         plantCovers,
       });
+      const mapChanged = activeMap.activeMapId !== activeMapId;
       paths = activeMap.paths;
       mapWidth = activeMap.mapWidth;
       mapHeight = activeMap.mapHeight;
@@ -1429,6 +1531,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       activeMapName = activeMap.activeMapName;
       towers = activeMap.towers;
       plantCovers = activeMap.plantCovers;
+      if (mapChanged) windWalls = [];
       const spawnCursors = createSpawnCursorsForWave(waves[waveIndex], gameTime);
       isWaveActive = true;
       spawnCursor = spawnCursors.length > 0 ? spawnCursors : null;
@@ -1522,6 +1625,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       spawnCursor = nextSpawnCursors.length > 0 ? nextSpawnCursors : null;
     }
 
+    const previousEnemyProgress = new Map(enemies.map(enemy => [enemy.id, enemy.progress]));
+
     //  advance enemies along path
     enemies = enemies
       .map(e => {
@@ -1567,6 +1672,28 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (atEnd) lives -= e.leakDamage ?? 1;
         return !atEnd && e.hp > 0;
       });
+
+    const wallConfig = BASE_PLANTS_CONFIG.windWallGrass.windWall;
+    windWalls = windWalls.filter(wall => wall.expiresAt > gameTime);
+    if (wallConfig) {
+      windWalls.forEach(wall => {
+        if (gameTime < wall.activeAt) return;
+        const affected = new Set(wall.affectedEnemyIds);
+        enemies.forEach(enemy => {
+          if (!canPlantAffectEnemy(enemy) || enemy.pathId !== wall.pathId || affected.has(enemy.id)) return;
+          const previousProgress = previousEnemyProgress.get(enemy.id) ?? enemy.progress;
+          if (previousProgress >= wall.progress || enemy.progress < wall.progress) return;
+          applySlow(enemy, wallConfig.slowPct, gameTime + wallConfig.slowDurationSec);
+          rewindEnemyAlongPath(
+            enemy,
+            wallConfig.knockbackDistance * getKnockbackDistanceMultiplier(enemy),
+            paths[enemy.pathId],
+          );
+          affected.add(enemy.id);
+        });
+        wall.affectedEnemyIds = [...affected];
+      });
+    }
 
     enemies.forEach(e => {
       if (e.slowUntil && gameTime >= e.slowUntil) {
@@ -1628,6 +1755,18 @@ export const useTDStore = create<TDStore>((set, get) => ({
       return inflicted;
     };
 
+    const destroyAirborneEnemy = (enemy: Enemy, color: string) => {
+      if (!isAirborneEnemy(enemy) || enemy.hp <= 0) return;
+      const displayedDamage = Math.max(1, Math.round(enemy.hp + (enemy.armorHp ?? 0)));
+      enemy.hp = 0;
+      enemy.armorHp = 0;
+      addDamagePopup(enemy.pos, displayedDamage, color);
+      if (!enemy.rewardGiven) {
+        enemy.rewardGiven = true;
+        gold += rewardForEnemy(enemy, disableKillRewards);
+      }
+    };
+
     const pendingCasts: ElementCast[] = [];
     singleUseCasts.forEach(cast => {
       if (gameTime < cast.triggerTime) {
@@ -1638,6 +1777,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'ice': {
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
+            if (isAirborneEnemy(enemy)) return;
             dealDamage(enemy, damage, '#1e3a8a');
             applyFreeze(enemy, gameTime + 4);
           });
@@ -1648,6 +1788,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const radius = 4.4;
           const damage = 800 + 50 * cast.level;
           enemies.forEach(enemy => {
+            if (isAirborneEnemy(enemy)) return;
             if (getDistance(enemy.pos.x, enemy.pos.y, cast.pos.x, cast.pos.y) <= radius) {
               dealDamage(enemy, damage, '#ef4444');
             }
@@ -1657,6 +1798,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'wind': {
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
+            if (isAirborneEnemy(enemy)) {
+              destroyAirborneEnemy(enemy, '#10b981');
+              return;
+            }
             const path = paths[enemy.pathId];
             rewindEnemyAlongPath(enemy, 1.6 * getKnockbackDistanceMultiplier(enemy), path);
             dealDamage(enemy, damage, '#10b981');
@@ -1668,6 +1813,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const duration = 5 + 0.2 * cast.level;
           const multiplier = 1.5 + 0.1 * Math.max(0, cast.level - 1);
           enemies.forEach(enemy => {
+            if (isAirborneEnemy(enemy)) return;
             applyArmorBreak(enemy, gameTime + duration, multiplier);
           });
           addDamagePopup(cast.pos, Math.round(duration * 10) / 10, '#f59e0b');
@@ -1676,6 +1822,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'electric': {
           const damage = 200 + 20 * cast.level;
           enemies.forEach(enemy => {
+            if (isAirborneEnemy(enemy)) return;
             dealDamage(enemy, damage, '#8b5cf6');
           });
           break;
@@ -1831,7 +1978,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const forcedTarget = findTaunterForTower(tw, enemies, plantCovers);
       const channelAttack = baseConfig?.channelAttack;
       if (channelAttack) {
-        const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId && e.hp > 0) : undefined;
+        const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId && canPlantAffectEnemy(e)) : undefined;
         const lockedValid = locked && !forcedTarget && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
         let target: Enemy | undefined = forcedTarget ?? (lockedValid ? locked : undefined);
 
@@ -1851,7 +1998,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           tw.channelNextTickTime = undefined;
 
           const inRange = enemies
-            .filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range)
+            .filter(e => canPlantAffectEnemy(e) && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range)
             .sort((a, b) => b.progress - a.progress);
           target = inRange[0];
           if (target) {
@@ -1882,11 +2029,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
       if (tw.type === 'sniper' && !forcedTarget) {
         const locked = tw.lockedTargetId ? enemies.find(e => e.id === tw.lockedTargetId) : undefined;
-        const lockedValid = locked && locked.hp > 0 && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
+        const lockedValid = locked && canPlantAffectEnemy(locked) && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range;
         if (!lockedValid) {
           let best: Enemy | null = null;
           for (const enemy of enemies) {
-            if (enemy.hp > 0 && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+            if (canPlantAffectEnemy(enemy) && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
               if (!best || enemy.hp > best.hp) {
                 best = enemy;
               }
@@ -1906,7 +2053,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       let target: Enemy | undefined = forcedTarget;
       if (!target && tw.type === 'sniper') {
         if (tw.lockedTargetId) {
-          const locked = enemies.find(e => e.id === tw.lockedTargetId && e.hp > 0);
+          const locked = enemies.find(e => e.id === tw.lockedTargetId && canPlantAffectEnemy(e));
           if (locked && getDistance(locked.pos.x, locked.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
             target = locked;
           }
@@ -1914,7 +2061,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (!target) {
           let best: Enemy | null = null;
           for (const enemy of enemies) {
-            if (enemy.hp > 0 && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+            if (canPlantAffectEnemy(enemy) && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
               if (!best || enemy.hp > best.hp) {
                 best = enemy;
               }
@@ -1929,7 +2076,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
         }
       } else if (!target) {
-        const inRange = enemies.filter(e => e.hp > 0 && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
+        const inRange = enemies.filter(e => canPlantAffectEnemy(e) && getDistance(e.pos.x, e.pos.y, tw.pos.x, tw.pos.y) <= tw.range);
         if (inRange.length === 0) return;
         const towerConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
         const priorityTargets = towerConfig?.targetPriority === 'armorFirst'
@@ -1949,7 +2096,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     });
 
     const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number, directHit = true) => {
-      if (damageAmount <= 0 || enemy.hp <= 0) return;
+      if (damageAmount <= 0 || !canPlantAffectEnemy(enemy)) return;
       if (projectile.breakArmorDuration) {
         applyArmorBreak(enemy, impactTime + projectile.breakArmorDuration, projectile.breakArmorDamageMultiplier);
       }
@@ -1985,7 +2132,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         };
         const updated: Projectile = { ...p, pos: nextPos };
         const hitRadius = 0.45;
-        const hits = enemies.filter(e => !(updated.pierced && updated.pierced[e.id]) && distancePointToSegment(e.pos.x, e.pos.y, prevPos.x, prevPos.y, nextPos.x, nextPos.y) <= hitRadius);
+        const hits = enemies.filter(e => canPlantAffectEnemy(e) && !(updated.pierced && updated.pierced[e.id]) && distancePointToSegment(e.pos.x, e.pos.y, prevPos.x, prevPos.y, nextPos.x, nextPos.y) <= hitRadius);
         if (hits.length > 0) {
           const ordered = hits.slice().sort((a, b) => b.progress - a.progress);
           let damageForHit = updated.damage;
@@ -1999,7 +2146,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             const currentDamage = damageForHit;
             applyProjectileDamage(enemy, currentDamage, updated, gameTime);
             if (updated.splashRadius && updated.splashPercent) {
-              const splashTargets = enemies.filter(e => e.id !== enemy.id && getDistance(e.pos.x, e.pos.y, enemy.pos.x, enemy.pos.y) <= updated.splashRadius!);
+              const splashTargets = enemies.filter(e => canPlantAffectEnemy(e) && e.id !== enemy.id && getDistance(e.pos.x, e.pos.y, enemy.pos.x, enemy.pos.y) <= updated.splashRadius!);
               splashTargets.forEach(target => applyProjectileDamage(target, currentDamage * (updated.splashPercent || 0), updated, gameTime, false));
             }
             if (updated.pierced) {
@@ -2091,7 +2238,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (dist <= step) {
           applyProjectileDamage(target, p.damage, p, gameTime);
           if (p.splashRadius && p.splashPercent) {
-            const splashTargets = enemies.filter(e => e.id !== target.id && getDistance(e.pos.x, e.pos.y, target.pos.x, target.pos.y) <= p.splashRadius!);
+            const splashTargets = enemies.filter(e => canPlantAffectEnemy(e) && e.id !== target.id && getDistance(e.pos.x, e.pos.y, target.pos.x, target.pos.y) <= p.splashRadius!);
             splashTargets.forEach(enemy => applyProjectileDamage(enemy, p.damage * (p.splashPercent || 0), p, gameTime, false));
           }
           return [];
@@ -2112,7 +2259,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       const dps = cfg.aura.damagePerSecond + cfg.aura.bonusPerLevel * (elementState.level - 1);
       if (dps <= 0) return;
       enemies.forEach(enemy => {
-        if (getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
+        if (canPlantAffectEnemy(enemy) && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
           applyDamageWithArmor(enemy, dps * dt, gameTime);
           if (enemy.hp <= 0 && !enemy.rewardGiven) {
             enemy.rewardGiven = true;
@@ -2153,6 +2300,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       spawnCursor = null;
       enemies = [];
       projectiles = [];
+      windWalls = [];
       sunPickups = [];
       nextWaveStartTime = null;
     }
@@ -2186,6 +2334,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       activeMapName,
       projectiles,
       singleUseCasts,
+      windWalls,
       damagePopups,
       sunPickups,
       elementCooldowns,
@@ -2250,6 +2399,8 @@ function rewardForShape(shape: Enemy['shape']): number {
       return 30;
     case 'windEye':
       return 17;
+    case 'balloonSoldier':
+      return 10;
     default:
       return 10;
   }

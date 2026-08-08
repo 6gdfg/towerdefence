@@ -96,6 +96,18 @@ function plantTags(entry: PlantBookEntry) {
     tags.push(`光环减速 ${slow}%`, `${config.controlAura.pulseInterval}s 击退 ${fmt(knockback)}`);
   }
 
+  if (config.windWall) {
+    const duration = config.windWall.durationBaseSec + config.windWall.durationPerLevelSec * Math.max(0, entry.level - 1);
+    tags.push(
+      '一次性',
+      '生成于最近道路',
+      `延迟 ${config.windWall.delaySec}s`,
+      `持续 ${fmt(duration)}s`,
+      `减速 ${Math.round(config.windWall.slowPct * 100)}% / ${config.windWall.slowDurationSec}s`,
+      `击退 ${fmt(config.windWall.knockbackDistance)}`,
+    );
+  }
+
   if (config.channelAttack) {
     tags.push(
       '持续锁定',
@@ -115,7 +127,7 @@ function plantTags(entry: PlantBookEntry) {
     tags.push('可附元素');
   }
 
-  if (stats.fireRate === 0 && !config.instantEffect && !config.activeAbilityCost && !config.controlAura) tags.push('不自动攻击');
+  if (stats.fireRate === 0 && !config.instantEffect && !config.activeAbilityCost && !config.controlAura && !config.windWall) tags.push('不自动攻击');
   return tags;
 }
 
@@ -231,6 +243,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'windEye':
       tags.push('首领', '3s 后释放风压', '以后每 10s 一次', '半径 2.8', '怪物加速/植物减攻速', '气旋菇可驱散');
       break;
+    case 'balloonSoldier':
+      tags.push('空中单位', '免疫植物攻击', '仅风元素单独放置可击破');
+      break;
     default:
       tags.push('标准怪');
   }
@@ -256,6 +271,7 @@ function plantRole(type: PlantType) {
     frostBlastShroom: '控制',
     cycloneShroom: '光环',
     windSailGrass: '攻速光环',
+    windWallGrass: '路径控制',
     magnetNeedle: '反甲',
     electricFlower: '持续单体',
   };

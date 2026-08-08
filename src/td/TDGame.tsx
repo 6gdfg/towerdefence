@@ -43,7 +43,7 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, windWalls, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
@@ -802,6 +802,43 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               );
             });
           })()}
+          {windWalls.map(wall => {
+            const active = gameTime >= wall.activeAt;
+            const halfWidth = wall.width * CELL_SIZE * 0.5;
+            const centerX = wall.pos.x * CELL_SIZE;
+            const centerY = wall.pos.y * CELL_SIZE;
+            const x1 = centerX - wall.normal.x * halfWidth;
+            const y1 = centerY - wall.normal.y * halfWidth;
+            const x2 = centerX + wall.normal.x * halfWidth;
+            const y2 = centerY + wall.normal.y * halfWidth;
+            return (
+              <g key={wall.id} style={{ pointerEvents: 'none' }}>
+                {active && (
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="#34d399"
+                    strokeWidth={10}
+                    strokeOpacity={0.16}
+                    strokeLinecap="round"
+                  />
+                )}
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={active ? '#059669' : '#6ee7b7'}
+                  strokeWidth={active ? 3.5 : 2.5}
+                  strokeOpacity={active ? 0.9 : 0.48}
+                  strokeLinecap="round"
+                  strokeDasharray={active ? '7 4' : '2 5'}
+                />
+              </g>
+            );
+          })}
           {towers.map(t => {
             if (t.type !== 'electricFlower' || !t.lockedTargetId) return null;
             const target = enemies.find(e => e.id === t.lockedTargetId && e.hp > 0);
@@ -1036,6 +1073,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <circle cx="12" cy="12" r="8.6" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} />
                       <circle cx="12" cy="12" r="2.4" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.75} />
                       <path d="M4.4 12 C7.2 8.5 16.8 8.5 19.6 12 C16.8 15.5 7.2 15.5 4.4 12 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.62} strokeLinejoin="round" />
+                    </svg>
+                  );
+                case 'balloonSoldier':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <ellipse cx="12" cy="8.8" rx="6.5" ry="6.7" fill="rgba(14,165,233,0.16)" stroke={enemyColor} strokeWidth={strokeWidth} />
+                      <path d="M7.7 13.6 L10.1 18.7 M16.3 13.6 L13.9 18.7 M10.1 18.7 H13.9" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.65} strokeLinecap="round" strokeLinejoin="round" />
+                      <rect x="9.5" y="18.5" width="5" height="2.6" rx="0.6" fill="rgba(71,85,105,0.14)" stroke={enemyColor} strokeWidth={strokeWidth * 0.7} />
                     </svg>
                   );
                 case 'evilSniper':

@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye' | 'balloonSoldier';
 
 export interface Enemy {
   id: string;
@@ -44,7 +44,7 @@ export interface Enemy {
   };
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'windWallGrass' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -185,6 +185,21 @@ export interface DamagePopup {
   until: number;
 }
 
+export interface WindWall {
+  id: string;
+  sourceTowerId: string;
+  pathId: number;
+  pathIndex: number;
+  t: number;
+  progress: number;
+  pos: Position;
+  normal: Position;
+  width: number;
+  activeAt: number;
+  expiresAt: number;
+  affectedEnemyIds: string[];
+}
+
 export interface PlantCover {
   id: string;
   type: 'pumpkinHead';
@@ -248,6 +263,7 @@ export interface TDState {
   plantCovers: PlantCover[];
   projectiles: Projectile[];
   singleUseCasts: ElementCast[];
+  windWalls: WindWall[];
   damagePopups: DamagePopup[];
   sunPickups: SunPickup[];
   elementCooldowns: Partial<Record<ElementType, number>>;

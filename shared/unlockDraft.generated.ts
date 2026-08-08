@@ -39,5 +39,17 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "difficulty": "EZ",
     "star": 1,
     "itemId": "element:wind"
+  },
+  {
+    "level": 10,
+    "difficulty": "HD",
+    "star": 2,
+    "itemId": "machineGun"
+  },
+  {
+    "level": 11,
+    "difficulty": "IN",
+    "star": 3,
+    "itemId": "boomerangLeaf"
   }
 ];

@@ -60,7 +60,7 @@ type BalanceLabDraftReadResponse = {
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
-const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye'];
+const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'balloonSoldier'];
 const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'EZ', label: 'EZ' },
   { code: 'HD', label: 'HD' },
@@ -393,7 +393,7 @@ function buildLevelDraft(config: BalanceLabConfig): BalanceLabLevelDraft {
     sourceLevelId: config.sourceLevelId,
     levelNumber: getLevelIndexById(config.sourceLevelId) + 1,
     levelName: config.levelName,
-    contributor: config.contributor.trim() || undefined,
+    contributor: config.contributor.trim(),
     difficulty: config.targetDifficulty,
     rating: getDraftRating(config),
     mapId: config.mapId,

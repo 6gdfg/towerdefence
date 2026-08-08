@@ -53,6 +53,15 @@ export interface BasePlantConfig {
     bonusPerLevel: number;
     maxBonus: number;
   };
+  windWall?: {
+    delaySec: number;
+    durationBaseSec: number;
+    durationPerLevelSec: number;
+    slowPct: number;
+    slowDurationSec: number;
+    knockbackDistance: number;
+    width: number;
+  };
   channelAttack?: {
     tickInterval: number;
     initialDamagePct: number;
@@ -380,6 +389,28 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
       maxBonus: 0.6,
     },
     description: '以自身为中心的 7x7 区域内植物获得攻速加成；加成随自身等级提升，多个风帆草不叠加。',
+  },
+  windWallGrass: {
+    id: 'windWallGrass',
+    name: '风墙草',
+    icon: 'W',
+    cost: 125,
+    placementCooldown: 35,
+    range: 0,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    elementAllowed: false,
+    windWall: {
+      delaySec: 0.8,
+      durationBaseSec: 5,
+      durationPerLevelSec: 0.2,
+      slowPct: 0.8,
+      slowDurationSec: 1.5,
+      knockbackDistance: 0.6,
+      width: 2.4,
+    },
+    description: '一次性风场植物：种植后在最近道路生成风墙。风墙延迟0.8秒出现，持续 `5 + 0.2 * (level - 1)` 秒；怪物穿过时减速80% 1.5秒并击退0.6格。',
   },
   magnetNeedle: {
     id: 'magnetNeedle',

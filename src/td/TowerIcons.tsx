@@ -152,6 +152,14 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <path d="M11.8 9.2 C7.1 10.5 5.3 13.4 5.5 17.8 C8.8 16.8 11.1 13.7 11.8 9.2 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinejoin="round" />
         </svg>
       );
+    case 'windWallGrass':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 3 V21" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <path d="M12 5 C17 5.8 19 8.5 19 12 C19 15.5 17 18.2 12 19" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.82} strokeLinecap="round" />
+          <path d="M12 8 C8 8.5 6 10 6 12 C6 14 8 15.5 12 16" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinecap="round" />
+        </svg>
+      );
     case 'magnetNeedle':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -253,6 +261,14 @@ export function MonsterIcon({ type, color = '#475569', size = 28, style }: Monst
           <circle cx="12" cy="12" r="8.6" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
           <circle cx="12" cy="12" r="2.4" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.75} />
           <path d="M4.4 12 C7.2 8.5 16.8 8.5 19.6 12 C16.8 15.5 7.2 15.5 4.4 12 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.62} strokeLinejoin="round" />
+        </svg>
+      );
+    case 'balloonSoldier':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <ellipse cx="12" cy="8.8" rx="6.5" ry="6.7" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M7.7 13.6 L10.1 18.7 M16.3 13.6 L13.9 18.7 M10.1 18.7 H13.9" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.65} strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="9.5" y="18.5" width="5" height="2.6" rx="0.6" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} />
         </svg>
       );
     case 'evilSniper':
