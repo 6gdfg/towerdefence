@@ -81,6 +81,10 @@ function plantTags(entry: PlantBookEntry) {
   if (config.damageDecayFactor) tags.push(`衰减 ${Math.round(config.damageDecayFactor * 100)}%`);
   if (config.breakArmorDuration) tags.push(`破甲 ${config.breakArmorDuration}s`);
   if (config.targetPriority === 'armorFirst') tags.push('优先护甲');
+  if (config.targetPriority === 'activeArmorFirst') tags.push('优先当前有甲目标');
+  if (config.armorDamageMultiplier) tags.push(`对护甲 x${config.armorDamageMultiplier}`);
+  if (config.healthDamageMultiplier != null && config.healthDamageMultiplier !== 1) tags.push(`对本体 x${config.healthDamageMultiplier}`);
+  if (config.armorBreakKnockback) tags.push(`破甲击退 ${fmt(config.armorBreakKnockback)}`);
   if (config.shotCount && config.shotCount > 1) tags.push(`每次 ${config.shotCount} 发`);
   if (config.randomElementShot) tags.push(`${Math.round(config.randomElementShot.chance * 100)}% 火元素子弹`);
 
@@ -246,6 +250,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'balloonSoldier':
       tags.push('空中单位', '免疫植物攻击', '仅风元素单独放置可击破');
       break;
+    case 'armorRepairer':
+      tags.push('5s 修复护甲', '半径 3', '恢复12%最大护甲', '不修复报纸护甲');
+      break;
     default:
       tags.push('标准怪');
   }
@@ -273,6 +280,7 @@ function plantRole(type: PlantType) {
     windSailGrass: '攻速光环',
     windWallGrass: '路径控制',
     magnetNeedle: '反甲',
+    siegeRamGrass: '拆甲',
     electricFlower: '持续单体',
   };
   return roles[type] ?? '植物';

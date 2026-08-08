@@ -42,6 +42,10 @@ const WIND_EYE_PRESSURE_INTERVAL = 10;
 const WIND_EYE_PRESSURE_RADIUS = 2.8;
 const WIND_EYE_ENEMY_SPEED_MULTIPLIER = 1.1;
 const WIND_EYE_TOWER_FIRE_RATE_MULTIPLIER = 0.9;
+const ARMOR_REPAIR_INTERVAL = 5;
+const ARMOR_REPAIR_RADIUS = 3;
+const ARMOR_REPAIR_MAX_RATIO = 0.12;
+const ARMOR_REPAIR_MIN_AMOUNT = 10;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -245,6 +249,15 @@ function createProjectileForTower(tower: Tower, target: Pick<Enemy, 'id' | 'pos'
   }
   if (baseConfig?.breakArmorDuration != null) {
     projectile.breakArmorDuration = baseConfig.breakArmorDuration;
+  }
+  if (baseConfig?.armorDamageMultiplier != null) {
+    projectile.armorDamageMultiplier = baseConfig.armorDamageMultiplier;
+  }
+  if (baseConfig?.healthDamageMultiplier != null) {
+    projectile.healthDamageMultiplier = baseConfig.healthDamageMultiplier;
+  }
+  if (baseConfig?.armorBreakKnockback != null) {
+    projectile.armorBreakKnockback = baseConfig.armorBreakKnockback;
   }
 
   projectile.direction = direction;
@@ -478,7 +491,12 @@ function triggerAngryWriterArmorBreak(enemy: Enemy, beforeArmor: number, afterAr
   enemy.newspaperStunUntil = gameTime + ANGRY_WRITER_STUN_DURATION;
 }
 
-function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
+function applyDamageWithArmor(
+  enemy: Enemy,
+  damage: number,
+  gameTime: number,
+  modifiers?: { armorMultiplier?: number; healthMultiplier?: number },
+) {
   let amount = Math.max(0, damage);
   if (amount <= 0) return 0;
   clearExpiredArmorBreak(enemy, gameTime);
@@ -488,20 +506,23 @@ function applyDamageWithArmor(enemy: Enemy, damage: number, gameTime: number) {
   }
   const beforeBody = Math.max(0, enemy.hp);
   const beforeArmor = Math.max(0, enemy.armorHp ?? 0);
+  const armorMultiplier = Math.max(0, modifiers?.armorMultiplier ?? 1);
+  const healthMultiplier = Math.max(0, modifiers?.healthMultiplier ?? 1);
   if (armorBreakActive && beforeArmor <= 0) {
     amount *= enemy.armorBreakDamageMultiplier || 1;
   }
   const shouldHitArmor = beforeArmor > 0 && !armorBreakActive;
 
   if (shouldHitArmor) {
-    const armorDamage = Math.min(beforeArmor, amount);
+    const armorDamage = Math.min(beforeArmor, amount * armorMultiplier);
     enemy.armorHp = beforeArmor - armorDamage;
-    const spillover = amount - armorDamage;
-    if (spillover > 0) {
-      enemy.hp = Math.max(0, beforeBody - spillover);
+    const consumedBaseDamage = armorMultiplier > 0 ? armorDamage / armorMultiplier : amount;
+    const spilloverBaseDamage = Math.max(0, amount - consumedBaseDamage);
+    if (spilloverBaseDamage > 0) {
+      enemy.hp = Math.max(0, beforeBody - spilloverBaseDamage * healthMultiplier);
     }
   } else {
-    enemy.hp = Math.max(0, beforeBody - amount);
+    enemy.hp = Math.max(0, beforeBody - amount * healthMultiplier);
   }
 
   const afterBody = Math.max(0, enemy.hp);
@@ -744,7 +765,11 @@ function switchFlexibleMapForWave(
 
 function getConveyorPool(config: AtModeConfig | null | undefined, plants: PlantType[], elements: ElementType[]) {
   const configuredPool = getAtBaseModeType(config) === 'conveyor' ? (config?.conveyor?.pool ?? []) : [];
-  if (configuredPool.length > 0) return configuredPool;
+  if (configuredPool.length > 0) {
+    return configuredPool.filter(item => item.kind === 'plant'
+      ? plants.includes(item.id)
+      : elements.includes(item.id));
+  }
   return [
     ...plants.map((id): ConveyorItem => ({ kind: 'plant', id, weight: 100 })),
     ...elements.map((id): ConveyorItem => ({ kind: 'element', id, weight: 100 })),
@@ -831,7 +856,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean; disableSkySun?: boolean }) => void;
   togglePause: () => void;
 }
 
@@ -965,7 +990,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       specialEnemyConfig: opts?.specialEnemyConfig ?? null,
       conveyorQueue: [],
       nextConveyorItemAt: getAtBaseModeType(atModeConfig) === 'conveyor' ? conveyorInterval : null,
-      nextSkySunAt: SKY_SUN_INTERVAL,
+      nextSkySunAt: opts?.disableSkySun ? null : SKY_SUN_INTERVAL,
       autoCollectSun: previousAutoCollectSun,
       disableKillRewards: opts?.disableKillRewards ?? false,
       waves: level.waves,
@@ -1293,7 +1318,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let wavesCleared = state.wavesCleared ?? 0;
     let conveyorQueue = state.conveyorQueue.slice();
     let nextConveyorItemAt = state.nextConveyorItemAt ?? null;
-    let nextSkySunAt = state.nextSkySunAt ?? SKY_SUN_INTERVAL;
+    let nextSkySunAt = state.nextSkySunAt === undefined ? SKY_SUN_INTERVAL : state.nextSkySunAt;
     const autoCollectSun = state.autoCollectSun ?? false;
     const atModeConfig = state.atModeConfig ?? null;
     const specialEnemyConfig = state.specialEnemyConfig ?? null;
@@ -1596,6 +1621,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
             enemy.specialTimer = gameTime + FREEZER_SPECIAL_INTERVAL;
           } else if (enemy.shape === 'windEye') {
             enemy.specialTimer = gameTime + WIND_EYE_FIRST_PRESSURE_DELAY;
+          } else if (enemy.shape === 'armorRepairer') {
+            enemy.specialTimer = gameTime + ARMOR_REPAIR_INTERVAL;
           }
           enemies.push(enemy);
           nextCursor = {
@@ -1962,6 +1989,23 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }
           enemy.specialTimer = gameTime + WIND_EYE_PRESSURE_INTERVAL;
         }
+      } else if (enemy.shape === 'armorRepairer') {
+        if ((enemy.specialTimer ?? 0) <= gameTime) {
+          enemies.forEach(target => {
+            if (target.hp <= 0 || target.shape === 'angryWriter') return;
+            const maxArmor = Math.max(0, target.maxArmorHp ?? 0);
+            const currentArmor = Math.max(0, target.armorHp ?? 0);
+            if (maxArmor <= 0 || currentArmor >= maxArmor) return;
+            if (getDistance(target.pos.x, target.pos.y, enemy.pos.x, enemy.pos.y) > ARMOR_REPAIR_RADIUS) return;
+            const repairAmount = Math.min(
+              maxArmor - currentArmor,
+              Math.max(ARMOR_REPAIR_MIN_AMOUNT, Math.ceil(maxArmor * ARMOR_REPAIR_MAX_RATIO)),
+            );
+            target.armorHp = currentArmor + repairAmount;
+            addDamagePopup(target.pos, repairAmount, '#d97706');
+          });
+          enemy.specialTimer = gameTime + ARMOR_REPAIR_INTERVAL;
+        }
       }
     });
     if (towersModified) {
@@ -2081,7 +2125,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const towerConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
         const priorityTargets = towerConfig?.targetPriority === 'armorFirst'
           ? inRange.filter(enemy => hasArmorProfile(enemy))
-          : inRange;
+          : towerConfig?.targetPriority === 'activeArmorFirst'
+            ? inRange.filter(enemy => (enemy.armorHp ?? 0) > 0 && !isArmorBreakActive(enemy, gameTime))
+            : inRange;
         const candidates = priorityTargets.length > 0 ? priorityTargets : inRange;
         candidates.sort((a, b) => b.progress - a.progress);
         target = candidates[0];
@@ -2107,7 +2153,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (directHit && projectile.elementType === 'electric') {
         resetElectricSensitiveSpecial(enemy, impactTime);
       }
-      applyDamageWithArmor(enemy, damageAmount, impactTime);
+      const armorBeforeHit = Math.max(0, enemy.armorHp ?? 0);
+      applyDamageWithArmor(enemy, damageAmount, impactTime, {
+        armorMultiplier: projectile.armorDamageMultiplier,
+        healthMultiplier: projectile.healthDamageMultiplier,
+      });
+      if (projectile.armorBreakKnockback && armorBeforeHit > 0 && (enemy.armorHp ?? 0) <= 0) {
+        const path = paths[enemy.pathId];
+        rewindEnemyAlongPath(enemy, projectile.armorBreakKnockback * getKnockbackDistanceMultiplier(enemy), path);
+      }
       if (projectile.slowPct && projectile.slowDuration) {
         const until = impactTime + projectile.slowDuration;
         applySlow(enemy, projectile.slowPct, until);
@@ -2401,6 +2455,8 @@ function rewardForShape(shape: Enemy['shape']): number {
       return 17;
     case 'balloonSoldier':
       return 10;
+    case 'armorRepairer':
+      return 14;
     default:
       return 10;
   }

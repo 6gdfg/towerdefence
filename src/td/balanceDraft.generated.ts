@@ -4376,6 +4376,39 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 450,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 40,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 
@@ -8745,6 +8778,39 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
             "interval": 0.8,
             "level": 14,
             "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L12:HD": {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 450,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 40,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
           }
         ]
       }

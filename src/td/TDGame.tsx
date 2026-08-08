@@ -1083,6 +1083,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                       <rect x="9.5" y="18.5" width="5" height="2.6" rx="0.6" fill="rgba(71,85,105,0.14)" stroke={enemyColor} strokeWidth={strokeWidth * 0.7} />
                     </svg>
                   );
+                case 'armorRepairer':
+                  return (
+                    <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">
+                      <path d="M12 3.5 L19.5 6.5 V11.8 C19.5 16.2 16.5 19.2 12 20.5 C7.5 19.2 4.5 16.2 4.5 11.8 V6.5 Z" fill="none" stroke={enemyColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
+                      <path d="M8 10 H16 M8 13 H16 M10 7.5 H14" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.68} strokeLinecap="round" />
+                      <path d="M15.5 14.5 L18.5 17.5" fill="none" stroke={enemyColor} strokeWidth={strokeWidth * 0.8} strokeLinecap="round" />
+                    </svg>
+                  );
                 case 'evilSniper':
                   return (
                     <svg width={shapeSize} height={shapeSize} viewBox="0 0 24 24">

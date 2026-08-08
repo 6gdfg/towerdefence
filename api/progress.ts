@@ -153,13 +153,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (action === 'markNotificationRead') {
         const notificationId = typeof req.body?.notificationId === 'string' ? req.body.notificationId.trim() : '';
         if (!notificationId || notificationId.length > 120) return res.status(400).json({ error: 'invalid notification id' });
-        const updated = await sql`
-          UPDATE player_notifications
-          SET read_at=NOW()
-          WHERE notification_id=${notificationId} AND player_id=${pid} AND read_at IS NULL
+        const deleted = await sql`
+          DELETE FROM player_notifications
+          WHERE notification_id=${notificationId} AND player_id=${pid}
           RETURNING notification_id
         `;
-        return res.json({ ok: true, marked: updated.length > 0 });
+        return res.json({ ok: true, marked: deleted.length > 0 });
       }
 
       if (action === 'unlockWithKey') {
@@ -191,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!levelId || ![1, 2, 3].includes(parsedStar)) return res.status(400).json({ error: 'params' });
         const isAtClear = difficulty === 'AT';
         const fullHealthClear = parsedStar === 3 && Boolean(fullHealth);
-        const challengeDiamondReward = Math.max(0, Math.min(2, Math.floor(Number(challengeDiamonds) || 0)));
+        const challengeDiamondReward = Math.round(Math.max(0, Math.min(3, Number(challengeDiamonds) || 0)) * 2) / 2;
 
         const cur = await sql`SELECT max_star, in_full_health_clear, at_cleared FROM player_progress WHERE player_id=${pid} AND level_id=${levelId}`;
         const prev = Number((cur as ProgressRow[])[0]?.max_star ?? 0);

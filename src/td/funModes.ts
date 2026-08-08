@@ -2,9 +2,9 @@ import type { MapSpec } from './maps';
 import { countMapPaths } from './mapPath';
 import { ElementType, PlantType, ShapeType, WaveDef, WaveGroup } from './types';
 
-const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye'] as const;
+const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'armorRepairer'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
-const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye'];
+const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'armorRepairer'];
 const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   square: 0.65,
   healer: 0.55,
@@ -19,6 +19,7 @@ const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   bunker: 0.28,
   windShield: 0.6,
   windEye: 0.38,
+  armorRepairer: 0.55,
 };
 
 export type FunModeType = 'test' | 'endless' | 'random';

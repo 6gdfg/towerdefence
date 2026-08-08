@@ -52,7 +52,7 @@ export type GardenPayload = {
 };
 
 const DEV_GARDEN_KEY = 'td-garden-dev-preview-v1';
-const DEV_PLANTS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'flameBottleGrass', 'puffShroom', 'fourLeafClover', 'boomerangLeaf', 'pentagram', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'windSailGrass', 'windWallGrass', 'magnetNeedle', 'electricFlower'];
+const DEV_PLANTS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'flameBottleGrass', 'puffShroom', 'fourLeafClover', 'boomerangLeaf', 'pentagram', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'windSailGrass', 'windWallGrass', 'magnetNeedle', 'siegeRamGrass', 'electricFlower'];
 
 export function isGardenDevPreview() {
   return import.meta.env.DEV && !getToken();

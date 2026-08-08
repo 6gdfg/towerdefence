@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye' | 'balloonSoldier';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye' | 'balloonSoldier' | 'armorRepairer';
 
 export interface Enemy {
   id: string;
@@ -44,7 +44,7 @@ export interface Enemy {
   };
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'windWallGrass' | 'magnetNeedle' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'windWallGrass' | 'magnetNeedle' | 'siegeRamGrass' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -154,6 +154,9 @@ export interface Projectile {
   elementType?: ElementType;
   breakArmorDuration?: number;
   breakArmorDamageMultiplier?: number;
+  armorDamageMultiplier?: number;
+  healthDamageMultiplier?: number;
+  armorBreakKnockback?: number;
   burnDamagePerSec?: number;
   burnDuration?: number;
   splashPercent?: number;

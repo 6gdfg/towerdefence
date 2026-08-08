@@ -261,4 +261,14 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         ON player_notifications(player_id, created_at ASC) WHERE read_at IS NULL`,
     ],
   },
+  {
+    id: '015_fractional_diamonds_and_notification_cleanup',
+    description: 'Support half-diamond rewards and remove acknowledged player notifications',
+    statements: [
+      `ALTER TABLE player_wallet
+        ALTER COLUMN diamonds TYPE NUMERIC(12,1) USING diamonds::NUMERIC(12,1)`,
+      `ALTER TABLE player_wallet ALTER COLUMN diamonds SET DEFAULT ${INITIAL_PLAYER_DIAMONDS}`,
+      `DELETE FROM player_notifications WHERE read_at IS NOT NULL`,
+    ],
+  },
 ];

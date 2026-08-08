@@ -26,7 +26,10 @@ export interface BasePlantConfig {
   damageDecayFactor?: number;
   returnToSource?: boolean;
   breakArmorDuration?: number;
-  targetPriority?: 'armorFirst';
+  armorDamageMultiplier?: number;
+  healthDamageMultiplier?: number;
+  armorBreakKnockback?: number;
+  targetPriority?: 'armorFirst' | 'activeArmorFirst';
   activeAbilityCost?: number;
   incomeInterval?: number;
   incomeIntervalReductionPerLevel?: number;
@@ -424,6 +427,22 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     breakArmorDuration: 1.5,
     targetPriority: 'armorFirst',
     description: '优先攻击拥有护甲的怪物，命中后施加 1.5 秒破甲，使后续伤害直接攻击本体。',
+  },
+  siegeRamGrass: {
+    id: 'siegeRamGrass',
+    name: '破城锤草',
+    icon: 'T',
+    cost: 180,
+    range: 3,
+    damage: 45,
+    fireRate: 0.6,
+    projectileSpeed: 7,
+    armorDamageMultiplier: 3,
+    healthDamageMultiplier: 0.5,
+    armorBreakKnockback: 0.5,
+    targetPriority: 'activeArmorFirst',
+    allowedElementTypes: ['fire', 'ice', 'wind'],
+    description: '优先攻击当前仍有护甲的怪物；对护甲造成3倍伤害，对本体造成0.5倍伤害，亲手击碎护甲时将目标击退0.5格；支持火、冰、风元素。',
   },
   electricFlower: {
     id: 'electricFlower',

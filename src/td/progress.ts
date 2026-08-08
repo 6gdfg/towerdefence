@@ -158,7 +158,7 @@ export async function setStarCleared(
         star,
         fullHealth: Boolean(opts?.fullHealth),
         difficulty: opts?.difficulty,
-        challengeDiamonds: Math.max(0, Math.floor(Number(opts?.challengeDiamonds) || 0)),
+        challengeDiamonds: Math.round(Math.max(0, Math.min(3, Number(opts?.challengeDiamonds) || 0)) * 2) / 2,
       }),
     });
     if (resp.ok) {

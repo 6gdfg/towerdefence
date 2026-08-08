@@ -12,14 +12,26 @@ const CHALLENGE_OPTIONS: Array<{ id: ChallengeId; name: string; reward: string; 
   {
     id: 'fullHealth',
     name: '完美防守',
-    reward: '+1 钻石',
+    reward: '+0.5 钻石',
     detail: '结束时生命值不低于本局开局生命值。',
   },
   {
     id: 'halfHealth',
     name: '半血开局',
-    reward: '+1 钻石',
+    reward: '+0.5 钻石',
     detail: '本局开局生命减半，通关即可完成。',
+  },
+  {
+    id: 'elementless',
+    name: '元素之殇',
+    reward: '+1 钻石',
+    detail: '本局禁用所有元素，通关即可完成。',
+  },
+  {
+    id: 'twilightForest',
+    name: '暮色森林',
+    reward: '+1 钻石',
+    detail: '本局天空不再掉落阳光，通关即可完成。',
   },
 ];
 

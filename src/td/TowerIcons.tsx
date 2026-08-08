@@ -170,6 +170,15 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <path d="M10 17 L12 21 L14 17" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} strokeLinejoin="round" strokeLinecap="round" />
         </svg>
       );
+    case 'siegeRamGrass':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="4" y="8" width="9" height="8" rx="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M13 12 H20 M17 8 V16" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+          <circle cx="7" cy="18.5" r="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} />
+          <circle cx="14" cy="18.5" r="1.5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.75} />
+        </svg>
+      );
     case 'electricFlower':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -269,6 +278,14 @@ export function MonsterIcon({ type, color = '#475569', size = 28, style }: Monst
           <ellipse cx="12" cy="8.8" rx="6.5" ry="6.7" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
           <path d="M7.7 13.6 L10.1 18.7 M16.3 13.6 L13.9 18.7 M10.1 18.7 H13.9" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.65} strokeLinecap="round" strokeLinejoin="round" />
           <rect x="9.5" y="18.5" width="5" height="2.6" rx="0.6" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} />
+        </svg>
+      );
+    case 'armorRepairer':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 3.5 L19.5 6.5 V11.8 C19.5 16.2 16.5 19.2 12 20.5 C7.5 19.2 4.5 16.2 4.5 11.8 V6.5 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
+          <path d="M8 10 H16 M8 13 H16 M10 7.5 H14" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.68} strokeLinecap="round" />
+          <path d="M15.5 14.5 L18.5 17.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} strokeLinecap="round" />
         </svg>
       );
     case 'evilSniper':

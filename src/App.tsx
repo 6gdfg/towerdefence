@@ -548,11 +548,14 @@ function App() {
     const towerLevels: TowerLevelMap = hub?.towerLevels ? { ...hub.towerLevels } : {};
     const atModeConfig: AtModeConfig | null = difficulty === 'AT' ? (selectedLevel.atModeConfig ?? { type: 'normal' }) : null;
     const atBaseModeType = getAtBaseModeType(atModeConfig);
+    const elementlessChallenge = hasChallenge(challenges, 'elementless');
+    const twilightForestChallenge = hasChallenge(challenges, 'twilightForest');
     const challengeStartLives = hasChallenge(challenges, 'halfHealth')
       ? Math.max(1, Math.ceil(selectedLevel.lives / 2))
       : selectedLevel.lives;
 
     const finalizeLevelStart = (plants: PlantType[], elements: ElementType[], finalWaves = waves, finalTowerLevels = towerLevels) => {
+      const challengeElements = elementlessChallenge ? [] : elements;
       loadLevel(
         { startGold, lives: challengeStartLives, waves: finalWaves },
         { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
@@ -561,12 +564,13 @@ function App() {
           firstWaveDelaySec,
           towerLevels: finalTowerLevels,
           allowedPlants: plants,
-          allowedElements: elements,
+          allowedElements: challengeElements,
           mode: atModeConfig ? 'at' : 'campaign',
           atModeConfig,
           specialEnemyConfig: selectedLevel.specialEnemyConfig,
           maxLives: selectedLevel.lives,
           disableKillRewards,
+          disableSkySun: twilightForestChallenge,
         }
       );
 
@@ -605,9 +609,9 @@ function App() {
       setPendingCardSelect({
         title: `${selectedLevel.name} / AT Lv.${getLevelDifficultyRatings(L.id, idx + 1).AT ?? '-'}`,
         plantOptions: allowedPlants,
-        elementOptions: allowedElements,
+        elementOptions: elementlessChallenge ? [] : allowedElements,
         maxPlants: Math.max(1, cardSelect.maxPlants),
-        maxElements: Math.max(0, cardSelect.maxElements),
+        maxElements: elementlessChallenge ? 0 : Math.max(0, cardSelect.maxElements),
         towerLevels,
         returnStage: 'select',
         onConfirm: (plants, elements) => {
@@ -939,8 +943,10 @@ function App() {
       const startLivesForRun = activeChallengeRun?.startLives ?? selectedLevel.lives;
       const fullHealthClear = currentDifficulty === 'IN' && endLives >= startLivesForRun;
       const challengeDiamondReward = activeChallengeRun
-        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= startLivesForRun ? 1 : 0)
-          + (hasChallenge(activeChallengeRun.selected, 'halfHealth') ? 1 : 0)
+        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= startLivesForRun ? 0.5 : 0)
+          + (hasChallenge(activeChallengeRun.selected, 'halfHealth') ? 0.5 : 0)
+          + (hasChallenge(activeChallengeRun.selected, 'elementless') ? 1 : 0)
+          + (hasChallenge(activeChallengeRun.selected, 'twilightForest') ? 1 : 0)
         : 0;
       const result = await setStarCleared(L.id, currentStar, {
         fullHealth: fullHealthClear,
