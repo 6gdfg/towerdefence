@@ -23,6 +23,13 @@ function asBalanceDraft(value: unknown): BalanceDraftRecord | null {
   if (typeof value.sourceLevelId !== 'string') return null;
   if (typeof value.difficulty !== 'string') return null;
   const draft = value as BalanceDraftRecord;
+  if (isRecord(draft.atModeConfig) && isRecord(draft.atModeConfig.lastStand)) {
+    const atModeConfig = { ...draft.atModeConfig };
+    const lastStand = { ...draft.atModeConfig.lastStand };
+    delete lastStand.disableKillRewards;
+    atModeConfig.lastStand = lastStand;
+    draft.atModeConfig = atModeConfig;
+  }
   if (Array.isArray(draft.waves)) {
     draft.waves = draft.waves.map(wave => {
       if (!isRecord(wave) || !Array.isArray(wave.groups)) return wave;

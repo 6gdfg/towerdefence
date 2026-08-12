@@ -26,6 +26,57 @@ function readText(value: unknown, maxLength: number) {
   return value.trim().slice(0, maxLength);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function extractSubmissionDraft(source: string) {
+  const declaration = /export\s+const\s+BALANCE_LAB_LEVEL_DRAFT\b/.exec(source);
+  if (!declaration) return null;
+  const equalsIndex = source.indexOf('=', declaration.index);
+  const rootIndex = equalsIndex >= 0 ? source.indexOf('{', equalsIndex + 1) : -1;
+  if (rootIndex < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = rootIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char !== '}') continue;
+    depth -= 1;
+    if (depth !== 0) continue;
+    try {
+      const parsed: unknown = JSON.parse(source.slice(rootIndex, index + 1));
+      return isRecord(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function buildSubmissionCode(draft: Record<string, unknown>, contributor: string) {
+  const attributedDraft = { ...draft, contributor };
+  return `import type { BalanceLabLevelDraft } from './BalanceLabPage';\n\nexport const BALANCE_LAB_LEVEL_DRAFT: BalanceLabLevelDraft = ${JSON.stringify(attributedDraft, null, 2)};\n`;
+}
+
+function attributeSubmissionCode(source: unknown, contributor: string) {
+  if (typeof source !== 'string') return '';
+  const draft = extractSubmissionDraft(source);
+  return draft ? buildSubmissionCode(draft, contributor) : source;
+}
+
 function hasAdminAccess(value: unknown) {
   if (typeof value !== 'string') return false;
   const expected = Buffer.from(ADMIN_PASSWORD);
@@ -51,18 +102,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!playerId) return;
       await ensurePlayer(playerId);
 
-      const levelName = readText(req.body?.levelName, MAX_LEVEL_NAME_LENGTH);
-      const difficulty = readText(req.body?.difficulty, MAX_DIFFICULTY_LENGTH);
-      const submissionCode = typeof req.body?.submissionCode === 'string' ? req.body.submissionCode.trim() : '';
-      if (!levelName || !['EZ', 'HD', 'IN', 'AT'].includes(difficulty) || !submissionCode) {
-        return res.status(400).json({ error: 'invalid level submission' });
-      }
-      if (submissionCode.length > MAX_CODE_LENGTH) {
+      const rawSubmissionCode = typeof req.body?.submissionCode === 'string' ? req.body.submissionCode.trim() : '';
+      if (rawSubmissionCode.length > MAX_CODE_LENGTH) {
         return res.status(400).json({ error: 'level submission is too large' });
+      }
+      const submittedDraft = extractSubmissionDraft(rawSubmissionCode);
+      const levelName = readText(submittedDraft?.levelName, MAX_LEVEL_NAME_LENGTH);
+      const difficulty = readText(submittedDraft?.difficulty, MAX_DIFFICULTY_LENGTH);
+      if (!levelName || !['EZ', 'HD', 'IN', 'AT'].includes(difficulty) || !submittedDraft) {
+        return res.status(400).json({ error: 'invalid level submission' });
       }
 
       const accountRows = await sql`SELECT username FROM user_accounts WHERE player_id=${playerId} LIMIT 1`;
       const submitterUsername = readText(accountRows[0]?.username, 64) || 'unknown';
+      const submissionCode = buildSubmissionCode(submittedDraft, submitterUsername);
       const submissionId = createId('level_submission');
       const dayRows = await sql`SELECT TO_CHAR(NOW() AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS submission_day`;
       const submissionDay = String(dayRows[0]?.submission_day ?? '');
@@ -104,14 +157,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ORDER BY submitted_at DESC
         LIMIT 200
       `;
-      const submissions = rows.map(row => ({
-        id: String(row.submission_id),
-        submitter: String(row.submitter_username),
-        levelName: String(row.level_name),
-        difficulty: String(row.difficulty),
-        code: String(row.submission_code),
-        submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
-      }));
+      const submissions = rows.map(row => {
+        const submitter = String(row.submitter_username);
+        return {
+          id: String(row.submission_id),
+          submitter,
+          levelName: String(row.level_name),
+          difficulty: String(row.difficulty),
+          code: attributeSubmissionCode(row.submission_code, submitter),
+          submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
+        };
+      });
       return res.json({ submissions });
     }
 

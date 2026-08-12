@@ -1,5 +1,6 @@
 import { MONSTER_BASE_STATS } from './levels';
 import { MONSTER_LABELS } from './appConfig';
+import { getMonsterThemeColor, MonsterIcon } from './TowerIcons';
 import type { ElementBookEntry, PlantBookEntry } from './appTypes';
 import type { ElementType, PlantType } from './types';
 
@@ -168,7 +169,10 @@ function elementTags(entry: ElementBookEntry) {
   if (entry.burn) tags.push(`灼烧 ${entry.burn.dps}/s`, `${entry.burn.duration}s`);
   if (entry.splash) tags.push(`溅射 ${entry.splash.percent}%`, `半径 ${entry.splash.radius}`);
   if (entry.slow) tags.push(`减速 ${entry.slow.pct}%`, `${entry.slow.duration}s`);
-  if (entry.knockback) tags.push(`击退 ${entry.knockback}`);
+  if (entry.knockback) {
+    const knockbackTag = `击退 ${entry.knockback}`;
+    tags.push(entry.id === 'wind' ? `${knockbackTag}（同一目标 1.5s 冷却）` : knockbackTag);
+  }
   if (entry.aura) tags.push(`光环 ${entry.aura.dps}/s`);
   if (entry.bounce) tags.push(`反弹 ${entry.bounce.maxBounces}`);
   if (entry.id === 'electric') tags.push('重置治疗/狙击倒计时');
@@ -236,7 +240,7 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
       tags.push('3s 净化', '半径 3', '清除负面状态');
       break;
     case 'angryWriter':
-      tags.push('报纸护甲', '破报暂停 1.5s', '狂暴速度 5');
+      tags.push('报纸护甲', '破报暂停 1.5s', '狂暴速度 x3.33');
       break;
     case 'bunker':
       tags.push('极高生命', '低速', '高漏怪伤害');
@@ -399,6 +403,7 @@ export default function BookPage({ onBack, plantBookData, elementBookData, monst
                   <div className="item-name">{MONSTER_LABELS[id]}</div>
                   <div className="book-subtitle">{id}</div>
                 </div>
+                <MonsterIcon type={id} color={stats.armorHp ? '#d97706' : getMonsterThemeColor(id)} size={34} />
               </div>
               <div className="book-metrics">
                 <BookMetric label="生命" value={stats.hp} />

@@ -544,7 +544,7 @@ function App() {
     let autoStartFirstWave = selectedLevel.autoStartFirstWave;
     let firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
     let waves = selectedLevel.waves;
-    let disableKillRewards = false;
+    let killRewardOverride: number | null = null;
     const towerLevels: TowerLevelMap = hub?.towerLevels ? { ...hub.towerLevels } : {};
     const atModeConfig: AtModeConfig | null = difficulty === 'AT' ? (selectedLevel.atModeConfig ?? { type: 'normal' }) : null;
     const atBaseModeType = getAtBaseModeType(atModeConfig);
@@ -569,7 +569,7 @@ function App() {
           atModeConfig,
           specialEnemyConfig: selectedLevel.specialEnemyConfig,
           maxLives: selectedLevel.lives,
-          disableKillRewards,
+          killRewardOverride,
           disableSkySun: twilightForestChallenge,
         }
       );
@@ -603,7 +603,7 @@ function App() {
       startGold = atModeConfig.lastStand?.startGold ?? startGold;
       autoStartFirstWave = false;
       firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
-      disableKillRewards = true;
+      killRewardOverride = Math.max(0, Math.floor(atModeConfig.lastStand?.killReward ?? 0));
     } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({
@@ -828,7 +828,7 @@ function App() {
     let startGold = config.startGold;
     let autoStartFirstWave = config.autoStartFirstWave;
     let firstWaveDelaySec = config.firstWaveDelaySec;
-    let disableKillRewards = false;
+    let killRewardOverride: number | null = null;
     const towerLevels: TowerLevelMap = { ...config.towerLevels };
 
     const finalizeLabStart = (plants: PlantType[], elements: ElementType[], waves: WaveDef[] = config.waves) => {
@@ -845,7 +845,7 @@ function App() {
           atModeConfig,
           specialEnemyConfig: config.specialEnemyConfig,
           maxLives: config.lives,
-          disableKillRewards,
+          killRewardOverride,
         },
       );
       navigateWithTransition('playing');
@@ -871,7 +871,7 @@ function App() {
       startGold = atModeConfig.lastStand?.startGold ?? startGold;
       autoStartFirstWave = false;
       firstWaveDelaySec = config.firstWaveDelaySec;
-      disableKillRewards = true;
+      killRewardOverride = Math.max(0, Math.floor(atModeConfig.lastStand?.killReward ?? 0));
     } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({

@@ -31,6 +31,7 @@ export interface Enemy {
   knockbackX?: number;
   knockbackY?: number;
   knockbackUntil?: number;
+  windProjectileKnockbackUntil?: number;
   rewardGiven?: boolean;
   deathEffectTriggered?: boolean;
   specialTimer?: number;
@@ -71,6 +72,7 @@ export type AtModeConfig = {
     startGold: number;
     bannedPlants?: PlantType[];
     disableKillRewards?: boolean;
+    killReward?: number;
   };
   cardSelect?: {
     maxPlants: number;
@@ -280,6 +282,7 @@ export interface TDState {
   nextSkySunAt?: number | null;
   autoCollectSun?: boolean;
   disableKillRewards?: boolean;
+  killRewardOverride?: number | null;
   // 波次
   waves: WaveDef[];
   waveIndex: number; // 当前波次（从0计）

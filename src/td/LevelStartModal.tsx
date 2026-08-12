@@ -25,7 +25,7 @@ export default function LevelStartModal({ levelName, difficultyLabel, monsters, 
           <div className="level-start-monster-grid">
             {monsters.map(monster => (
               <div key={monster} className="level-start-monster-chip">
-                <MonsterIcon type={monster} size={30} color="#334155" />
+                <MonsterIcon type={monster} size={30} />
                 <span>{MONSTER_LABELS[monster] ?? monster}</span>
               </div>
             ))}

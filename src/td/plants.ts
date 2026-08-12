@@ -218,7 +218,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     id: 'boomerangLeaf',
     name: '回旋叶',
     icon: '<',
-    cost: 150,
+    cost: 120,
     range: 4.5,
     damage: 26,
     fireRate: 1.2,
@@ -527,7 +527,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
   wind: {
     id: 'wind',
     name: '风元素',
-    description: '植物周围产生光环，持续对范围内敌人造成伤害，并附加击退效果。',
+    description: '植物周围产生光环，持续对范围内敌人造成伤害；子弹附带短击退，同一怪物短时间内不会重复触发。',
     cost: 150,
     color: '#10b981',
     bulletColor: '#059669',
@@ -536,7 +536,7 @@ export const ELEMENT_PLANT_CONFIG: Record<ElementType, ElementConfig> = {
       bonusPerLevel: 0.5,
     },
     knockback: {
-      distance: 0.7,
+      distance: 0.5,
     },
   },
   light: {

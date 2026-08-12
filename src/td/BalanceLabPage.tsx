@@ -179,7 +179,7 @@ function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
       lastStand: {
         startGold: 3000,
         bannedPlants: ['sunflower'],
-        disableKillRewards: true,
+        killReward: 0,
       },
     };
   }
@@ -252,7 +252,7 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
       lastStand: {
         startGold: Math.max(0, Math.floor(finiteNumber(lastStand.startGold, defaults.lastStand!.startGold))),
         bannedPlants,
-        disableKillRewards: lastStand.disableKillRewards ?? true,
+        killReward: Math.max(0, Math.floor(finiteNumber(lastStand.killReward, 0))),
       },
     };
   }
@@ -498,11 +498,78 @@ function normalizePastedWaves(value: unknown): WaveDef[] | null {
   return waves.length > 0 ? waves : null;
 }
 
+function extractDraftObjectFromSource(source: string): unknown {
+  const declaration = /export\s+const\s+BALANCE_LAB_LEVEL_DRAFT\b/.exec(source);
+  if (!declaration) throw new Error('没有找到 BALANCE_LAB_LEVEL_DRAFT');
+  const equalsIndex = source.indexOf('=', declaration.index);
+  const rootIndex = equalsIndex >= 0 ? source.indexOf('{', equalsIndex + 1) : -1;
+  if (rootIndex < 0) throw new Error('没有找到关卡对象');
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = rootIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char !== '}') continue;
+    depth -= 1;
+    if (depth === 0) return JSON.parse(source.slice(rootIndex, index + 1)) as unknown;
+  }
+  throw new Error('关卡对象没有正确结束');
+}
+
+function normalizeImportedDraft(value: unknown): BalanceLabLevelDraft | null {
+  if (!isRecord(value)) return null;
+  const sourceLevelId = typeof value.sourceLevelId === 'string' ? value.sourceLevelId.trim() : '';
+  const levelIndex = LEVELS.findIndex(level => level.id === sourceLevelId);
+  const difficulty = CORE_DIFFICULTIES.some(item => item.code === value.difficulty)
+    ? value.difficulty as DifficultyCode
+    : null;
+  const mapId = Math.floor(finiteNumber(value.mapId, -1));
+  const map = MAPS.find(item => item.id === mapId);
+  const waves = normalizePastedWaves(value.waves);
+  if (levelIndex < 0 || !difficulty || !map || !waves) return null;
+
+  return {
+    sourceLevelId,
+    levelNumber: levelIndex + 1,
+    levelName: typeof value.levelName === 'string' && value.levelName.trim()
+      ? value.levelName.trim()
+      : LEVELS[levelIndex].name,
+    contributor: typeof value.contributor === 'string' ? value.contributor.trim() : '',
+    difficulty,
+    rating: Math.max(1, finiteNumber(value.rating, 1)),
+    mapId,
+    mapName: map.name,
+    startGold: Math.max(0, Math.floor(finiteNumber(value.startGold, 0))),
+    lives: Math.max(1, Math.floor(finiteNumber(value.lives, 1))),
+    autoStartFirstWave: value.autoStartFirstWave === true,
+    firstWaveDelaySec: Math.max(0, finiteNumber(value.firstWaveDelaySec, 0.8)),
+    waves,
+    atModeConfig: difficulty === 'AT' ? normalizeAtModeConfig(value.atModeConfig as AtModeConfig | undefined) : undefined,
+    specialEnemyConfig: normalizeSpecialEnemyConfig(value.specialEnemyConfig as SpecialEnemyConfig | undefined),
+    unlockRewards: normalizeUnlockRewards(value.unlockRewards),
+  };
+}
+
 export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPageProps) {
   const [config, setConfig] = useState<BalanceLabConfig>(() => loadStoredConfig() ?? createConfigFromLevel(0));
   const [exportOpen, setExportOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSource, setImportSource] = useState('');
+  const [importing, setImporting] = useState(false);
   const selectedLevelIndex = getLevelIndexById(config.sourceLevelId);
   const draftRating = getDraftRating(config);
   const selectedMap = MAPS.find(map => map.id === config.mapId);
@@ -927,6 +994,34 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
     }
   };
 
+  const importSubmissionCode = async () => {
+    if (!importSource.trim()) {
+      setSaveStatus('请先粘贴关卡投稿代码');
+      return;
+    }
+    setImporting(true);
+    setSaveStatus('正在解析并写入草稿...');
+    try {
+      const draft = normalizeImportedDraft(extractDraftObjectFromSource(importSource));
+      if (!draft) throw new Error('关卡、难度、地图或波次配置无效');
+      const response = await fetch('/__td_lab_save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const data = await response.json() as { key?: string; count?: number };
+      setConfig(current => createConfigFromDraft(draft, current));
+      setImportSource('');
+      setImportOpen(false);
+      setSaveStatus(`已导入并应用 ${data.key ?? `${draft.sourceLevelId}:${draft.difficulty}`}，草稿共 ${data.count ?? '-'} 份`);
+    } catch (error: unknown) {
+      setSaveStatus(`导入失败：${getErrorMessage(error, '投稿代码格式不正确')}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <main className="page-wrap balance-lab-page">
       <section className="glass-panel hero-panel card-enter" style={{ opacity: 0, animationDelay: '0s' }}>
@@ -939,12 +1034,30 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             <button onClick={() => onStartTest(config)} className="action-button primary">测试当前配置</button>
             <button onClick={saveToLocalDraftFile} className="action-button">保存并应用</button>
             <button onClick={loadCurrentDraft} className="action-button">读取已保存配置</button>
+            {import.meta.env.DEV && <button onClick={() => setImportOpen(open => !open)} className="action-button">导入投稿代码</button>}
             <button onClick={() => setExportOpen(open => !open)} className="action-button">导出配置</button>
             <button onClick={onBack} className="action-button">返回</button>
           </div>
         </div>
         {saveStatus && <div className="muted lab-status">{saveStatus}</div>}
       </section>
+
+      {import.meta.env.DEV && importOpen && (
+        <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.02s' }}>
+          <div className="lab-panel-title">
+            <span>导入投稿代码</span>
+            <button onClick={() => void importSubmissionCode()} disabled={importing} className="lab-mini-button primary">
+              {importing ? '正在导入...' : '适配并写入草稿'}
+            </button>
+          </div>
+          <textarea
+            className="lab-export-textarea"
+            value={importSource}
+            onChange={event => setImportSource(event.target.value)}
+            placeholder="粘贴完整的 BALANCE_LAB_LEVEL_DRAFT 投稿代码"
+          />
+        </section>
+      )}
 
       {exportOpen && (
         <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.03s' }}>
@@ -1204,12 +1317,19 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     onChange={event => updateLastStandConfig({ startGold: Math.max(0, Math.floor(readNumber(event.target.value, 3000))) })}
                   />
                 </label>
+                <label className="lab-field">
+                  <span>怪物击杀阳光</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={atModeConfig.lastStand?.killReward ?? 0}
+                    onChange={event => updateLastStandConfig({ killReward: Math.max(0, Math.floor(readNumber(event.target.value, 0))) })}
+                  />
+                </label>
               </div>
-              <label className="lab-check">
-                <input type="checkbox" checked readOnly />
-                <span>击杀不掉阳光</span>
-              </label>
-              <div className="lab-draft-summary">向日葵在该模式中固定禁用；进入后不会自动出怪，点击开始后再刷怪。</div>
+              <div className="lab-draft-summary">所有怪物（包括 Boss）使用相同的击杀阳光；向日葵固定禁用，点击开始后才会出怪。</div>
             </div>
           )}
 
@@ -1462,7 +1582,7 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     </label>
                     {group.isBoss && (
                       <label>
-                        <span>Boss 速度</span>
+                        <span>Boss 基础速度</span>
                         <input
                           type="number"
                           min="0.1"

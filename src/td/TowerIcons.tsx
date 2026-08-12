@@ -25,6 +25,12 @@ type MonsterIconProps = {
 const DEFAULT_ICON_COLOR = '#9ca3af';
 const STROKE_WIDTH = 2.2;
 
+export function getMonsterThemeColor(type: ShapeType) {
+  if (type === 'iceShell' || type === 'freezer') return '#2563eb';
+  if (type === 'balloonSoldier') return '#16a34a';
+  return '#475569';
+}
+
 export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }: PlantIconProps) {
   const stroke = color;
 
@@ -218,8 +224,8 @@ export function ShovelIcon({ color = DEFAULT_ICON_COLOR, size = 28, style }: { c
   );
 }
 
-export function MonsterIcon({ type, color = '#475569', size = 28, style }: MonsterIconProps) {
-  const stroke = color;
+export function MonsterIcon({ type, color, size = 28, style }: MonsterIconProps) {
+  const stroke = color ?? getMonsterThemeColor(type);
   const strokeWidth = STROKE_WIDTH;
 
   switch (type) {

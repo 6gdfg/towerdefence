@@ -25,7 +25,7 @@ const TAUNTER_RADIUS = 4.5;
 const DEFAULT_WAVE_GAP_SECONDS = 2;
 const DEFAULT_GROUP_GAP_SECONDS = 2;
 const ANGRY_WRITER_STUN_DURATION = 1.5;
-const ANGRY_WRITER_ENRAGED_SPEED = 5;
+const ANGRY_WRITER_ENRAGED_SPEED_MULTIPLIER = 5 / 1.5;
 // Keep multi-shot projectiles visibly separate while they track the same target.
 const MULTI_SHOT_OFFSET = 0.38;
 const SKY_SUN_INTERVAL = 6;
@@ -46,6 +46,7 @@ const ARMOR_REPAIR_INTERVAL = 5;
 const ARMOR_REPAIR_RADIUS = 3;
 const ARMOR_REPAIR_MAX_RATIO = 0.12;
 const ARMOR_REPAIR_MIN_AMOUNT = 10;
+const WIND_PROJECTILE_KNOCKBACK_COOLDOWN = 1.5;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -856,7 +857,7 @@ export interface TDStore extends TDState {
   manualFireTower: (towerId: string) => void;
   update: (dt: number) => void;
   resetTD: () => void;
-  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean; disableSkySun?: boolean }) => void;
+  loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean; killRewardOverride?: number | null; disableSkySun?: boolean }) => void;
   togglePause: () => void;
 }
 
@@ -894,6 +895,7 @@ const INITIAL_TD_STATE: TDState = {
   nextSkySunAt: SKY_SUN_INTERVAL,
   autoCollectSun: false,
   disableKillRewards: false,
+  killRewardOverride: null,
   // 波次
   waves: DEFAULT_WAVES,
   waveIndex: 0,
@@ -993,6 +995,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       nextSkySunAt: opts?.disableSkySun ? null : SKY_SUN_INTERVAL,
       autoCollectSun: previousAutoCollectSun,
       disableKillRewards: opts?.disableKillRewards ?? false,
+      killRewardOverride: opts?.killRewardOverride == null ? null : Math.max(0, Math.floor(opts.killRewardOverride)),
       waves: level.waves,
       waveIndex: 0,
       isWaveActive: false,
@@ -1322,7 +1325,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const autoCollectSun = state.autoCollectSun ?? false;
     const atModeConfig = state.atModeConfig ?? null;
     const specialEnemyConfig = state.specialEnemyConfig ?? null;
-    const disableKillRewards = state.disableKillRewards ?? false;
+    const killRewardOverride = state.killRewardOverride
+      ?? ((state.disableKillRewards ?? false) ? 0 : null);
     const triggerEnemyDeathEffects = () => {
       enemies.forEach(enemy => {
         if (enemy.hp > 0 || enemy.deathEffectTriggered) return;
@@ -1429,7 +1433,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           }];
           if (nextEnemy.hp <= 0 && !nextEnemy.rewardGiven) {
             nextEnemy.rewardGiven = true;
-            gold += rewardForEnemy(nextEnemy, disableKillRewards);
+            gold += rewardForEnemy(nextEnemy, killRewardOverride);
           }
           return nextEnemy;
         });
@@ -1664,7 +1668,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const slowed = !isSlowImmune(e) && !!e.slowUntil && gameTime < e.slowUntil;
         const newspaperStunned = e.shape === 'angryWriter' && !!e.newspaperStunUntil && gameTime < e.newspaperStunUntil;
         const baseSpeed = e.shape === 'angryWriter' && e.newspaperEnraged && !newspaperStunned
-          ? ANGRY_WRITER_ENRAGED_SPEED
+          ? e.speed * ANGRY_WRITER_ENRAGED_SPEED_MULTIPLIER
           : e.speed;
         const slowFactor = frozen ? 0 : slowed ? (1 - (e.slowPct || 0)) : 1;
         const boostMultiplier = e.speedBoostUntil && gameTime < e.speedBoostUntil ? (e.speedBoostMultiplier || 1) : 1;
@@ -1750,7 +1754,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           applyDamageWithArmor(e, dmg, burnEnd);
           if (e.hp <= 0 && !e.rewardGiven) {
             e.rewardGiven = true;
-            gold += rewardForEnemy(e, disableKillRewards);
+            gold += rewardForEnemy(e, killRewardOverride);
           }
         }
         if (gameTime >= e.burnUntil) {
@@ -1777,7 +1781,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (color) addDamagePopup(enemy.pos, inflicted, color);
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy, disableKillRewards);
+        gold += rewardForEnemy(enemy, killRewardOverride);
       }
       return inflicted;
     };
@@ -1790,7 +1794,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       addDamagePopup(enemy.pos, displayedDamage, color);
       if (!enemy.rewardGiven) {
         enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy, disableKillRewards);
+        gold += rewardForEnemy(enemy, killRewardOverride);
       }
     };
 
@@ -2166,13 +2170,18 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const until = impactTime + projectile.slowDuration;
         applySlow(enemy, projectile.slowPct, until);
       }
-      if (projectile.knockbackDistance && projectile.knockbackDistance > 0) {
+      const canWindProjectileKnockback = projectile.elementType !== 'wind'
+        || (enemy.windProjectileKnockbackUntil ?? 0) <= impactTime;
+      if (projectile.knockbackDistance && projectile.knockbackDistance > 0 && canWindProjectileKnockback) {
         const path = paths[enemy.pathId];
         rewindEnemyAlongPath(enemy, projectile.knockbackDistance * getKnockbackDistanceMultiplier(enemy), path);
+        if (projectile.elementType === 'wind') {
+          enemy.windProjectileKnockbackUntil = impactTime + WIND_PROJECTILE_KNOCKBACK_COOLDOWN;
+        }
       }
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy, disableKillRewards);
+        gold += rewardForEnemy(enemy, killRewardOverride);
       }
     };
 
@@ -2317,7 +2326,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           applyDamageWithArmor(enemy, dps * dt, gameTime);
           if (enemy.hp <= 0 && !enemy.rewardGiven) {
             enemy.rewardGiven = true;
-            gold += rewardForEnemy(enemy, disableKillRewards);
+            gold += rewardForEnemy(enemy, killRewardOverride);
           }
         }
       });
@@ -2413,8 +2422,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
   },
 }));
 
-function rewardForEnemy(e: Enemy, disabled = false): number {
-  if (disabled) return 0;
+function rewardForEnemy(e: Enemy, override: number | null = null): number {
+  if (override != null) return Math.max(0, Math.floor(override));
   if (e.isBoss) return 500;
   return rewardForShape(e.shape);
 }

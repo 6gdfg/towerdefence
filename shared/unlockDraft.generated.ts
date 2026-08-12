@@ -51,5 +51,17 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "difficulty": "IN",
     "star": 3,
     "itemId": "boomerangLeaf"
+  },
+  {
+    "level": 12,
+    "difficulty": "AT",
+    "star": 3,
+    "itemId": "windWallGrass"
+  },
+  {
+    "level": 13,
+    "difficulty": "EZ",
+    "star": 1,
+    "itemId": "puffShroom"
   }
 ];

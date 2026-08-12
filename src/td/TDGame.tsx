@@ -5,7 +5,7 @@ import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
-import { ElementIcon, PlantIcon, ShovelIcon } from './TowerIcons';
+import { ElementIcon, getMonsterThemeColor, PlantIcon, ShovelIcon } from './TowerIcons';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
 import { CURRENT_RELEASE } from '../../shared/releaseNotes';
 
@@ -1021,11 +1021,18 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const armorPercent = maxArmorHp > 0 ? armorHp / maxArmorHp : 0;
             const alpha = Math.max(0.25, Math.min(1, 0.25 + hpPercent * 0.7));
             const grayValue = Math.round(31 + (1 - hpPercent) * 180);
-            let enemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
+            const defaultEnemyColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, ${alpha})`;
+            const themeColor = getMonsterThemeColor(e.shape);
+            const themedEnemyColor = themeColor === '#2563eb'
+              ? `rgba(37,99,235,${alpha})`
+              : themeColor === '#16a34a'
+                ? `rgba(22,163,74,${alpha})`
+                : defaultEnemyColor;
+            let enemyColor = armorHp > 0 ? `rgba(217,119,6,${alpha})` : themedEnemyColor;
             if (e.burnUntil && typeof e.burnUntil === 'number' && gameTime < e.burnUntil) {
               enemyColor = `rgba(220,38,38,${alpha})`; // 红色
             } else if (e.armorBreakUntil && typeof e.armorBreakUntil === 'number' && gameTime < e.armorBreakUntil) {
-              enemyColor = `rgba(217,119,6,${alpha})`; // 金色
+              enemyColor = `rgba(245,158,11,${alpha})`; // 破甲金色
             } else if (e.freezeUntil && typeof e.freezeUntil === 'number' && gameTime < e.freezeUntil) {
               enemyColor = `rgba(30,58,138,${alpha})`;
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
