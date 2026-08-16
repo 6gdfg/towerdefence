@@ -1786,6 +1786,18 @@ export const useTDStore = create<TDStore>((set, get) => ({
       return inflicted;
     };
 
+    const destroyAirborneEnemy = (enemy: Enemy, color: string) => {
+      if (!isAirborneEnemy(enemy) || enemy.hp <= 0) return;
+      const displayedDamage = Math.max(1, Math.round(enemy.hp + (enemy.armorHp ?? 0)));
+      enemy.hp = 0;
+      enemy.armorHp = 0;
+      addDamagePopup(enemy.pos, displayedDamage, color);
+      if (!enemy.rewardGiven) {
+        enemy.rewardGiven = true;
+        gold += rewardForEnemy(enemy, killRewardOverride);
+      }
+    };
+
     const pendingCasts: ElementCast[] = [];
     singleUseCasts.forEach(cast => {
       if (gameTime < cast.triggerTime) {
@@ -1816,7 +1828,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'wind': {
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
-            if (isAirborneEnemy(enemy)) return;
+            if (isAirborneEnemy(enemy)) {
+              destroyAirborneEnemy(enemy, '#10b981');
+              return;
+            }
             const path = paths[enemy.pathId];
             rewindEnemyAlongPath(enemy, 1.6 * getKnockbackDistanceMultiplier(enemy), path);
             dealDamage(enemy, damage, '#10b981');
