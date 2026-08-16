@@ -252,7 +252,7 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
       tags.push('首领', '3s 后释放风压', '以后每 10s 一次', '半径 2.8', '怪物加速/植物减攻速', '气旋菇可驱散');
       break;
     case 'balloonSoldier':
-      tags.push('空中单位', '免疫植物攻击', '仅风元素单独放置可击破');
+      tags.push('空中单位', '免疫普通植物攻击', '灰烬效果可命中', '霜爆控制生效', '火元素主动伤害可命中');
       break;
     case 'armorRepairer':
       tags.push('5s 修复护甲', '半径 3', '恢复12%最大护甲', '不修复报纸护甲');

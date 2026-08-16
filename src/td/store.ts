@@ -1416,7 +1416,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const affected = effect.type === 'crossDamage'
             ? Math.abs(enemy.pos.x - tower.pos.x) <= effect.tolerance || Math.abs(enemy.pos.y - tower.pos.y) <= effect.tolerance
             : getDistance(enemy.pos.x, enemy.pos.y, tower.pos.x, tower.pos.y) <= effect.radius;
-          if (!affected || !canPlantAffectEnemy(enemy)) return enemy;
+          if (!affected || enemy.hp <= 0) return enemy;
 
           const nextEnemy: Enemy = { ...enemy };
           const inflicted = applyDamageWithArmor(nextEnemy, stats.damage, gameTime);
@@ -1786,18 +1786,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
       return inflicted;
     };
 
-    const destroyAirborneEnemy = (enemy: Enemy, color: string) => {
-      if (!isAirborneEnemy(enemy) || enemy.hp <= 0) return;
-      const displayedDamage = Math.max(1, Math.round(enemy.hp + (enemy.armorHp ?? 0)));
-      enemy.hp = 0;
-      enemy.armorHp = 0;
-      addDamagePopup(enemy.pos, displayedDamage, color);
-      if (!enemy.rewardGiven) {
-        enemy.rewardGiven = true;
-        gold += rewardForEnemy(enemy, killRewardOverride);
-      }
-    };
-
     const pendingCasts: ElementCast[] = [];
     singleUseCasts.forEach(cast => {
       if (gameTime < cast.triggerTime) {
@@ -1819,7 +1807,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const radius = 4.4;
           const damage = 800 + 50 * cast.level;
           enemies.forEach(enemy => {
-            if (isAirborneEnemy(enemy)) return;
             if (getDistance(enemy.pos.x, enemy.pos.y, cast.pos.x, cast.pos.y) <= radius) {
               dealDamage(enemy, damage, '#ef4444');
             }
@@ -1829,10 +1816,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         case 'wind': {
           const damage = 20 + 4 * cast.level;
           enemies.forEach(enemy => {
-            if (isAirborneEnemy(enemy)) {
-              destroyAirborneEnemy(enemy, '#10b981');
-              return;
-            }
+            if (isAirborneEnemy(enemy)) return;
             const path = paths[enemy.pathId];
             rewindEnemyAlongPath(enemy, 1.6 * getKnockbackDistanceMultiplier(enemy), path);
             dealDamage(enemy, damage, '#10b981');

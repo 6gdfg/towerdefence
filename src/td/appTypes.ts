@@ -35,7 +35,6 @@ export type WinReward = {
   chestType?: string | null;
   chestTypes?: string[];
   chestAwarded?: boolean;
-  repeatChestChance?: number;
   newRecord?: boolean;
   diamonds?: number;
   message?: string;

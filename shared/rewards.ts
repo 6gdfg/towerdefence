@@ -18,9 +18,24 @@ export type ChestRewardConfig = {
   magicKeyChance: number;
 };
 
+export type RepeatClearChestRewardConfig = {
+  guaranteed: readonly ChestType[];
+  bonus: readonly {
+    chestType: ChestType;
+    chance: number;
+  }[];
+};
+
 export const MAX_CHEST_INVENTORY = 20;
 
 export const REPEAT_CLEAR_COIN_MULTIPLIER = 0.5;
+
+export const REPEAT_CLEAR_CHEST_REWARDS: Record<'EZ' | 'HD' | 'IN' | 'AT', RepeatClearChestRewardConfig> = {
+  EZ: { guaranteed: ['common'], bonus: [] },
+  HD: { guaranteed: ['common'], bonus: [{ chestType: 'rare', chance: 0.5 }] },
+  IN: { guaranteed: ['common', 'common'], bonus: [{ chestType: 'epic', chance: 0.2 }] },
+  AT: { guaranteed: ['rare', 'rare'], bonus: [{ chestType: 'epic', chance: 0.4 }] },
+};
 
 export const STAR_REWARD_CONFIG: Record<LevelStar, StarRewardConfig> = {
   1: { coins: { min: 500, max: 1000 }, chestType: 'common' },
@@ -67,7 +82,9 @@ export function getChestRewardConfig(chestType: string | null | undefined): Ches
   return CHEST_REWARD_CONFIG[isChestType(chestType) ? chestType : 'common'];
 }
 
-export function getRepeatClearChestChance(levelNumber: number | null | undefined): number {
-  const level = Math.max(1, Math.floor(Number(levelNumber) || 1));
-  return Math.min(1, (9 + level) / 100);
+export function getRepeatClearChestRewardConfig(difficulty: string | null | undefined, star: number): RepeatClearChestRewardConfig {
+  if (difficulty === 'EZ' || difficulty === 'HD' || difficulty === 'IN' || difficulty === 'AT') {
+    return REPEAT_CLEAR_CHEST_REWARDS[difficulty];
+  }
+  return REPEAT_CLEAR_CHEST_REWARDS[star === 1 ? 'EZ' : star === 2 ? 'HD' : 'IN'];
 }

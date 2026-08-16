@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { splitShardInventory } from '../shared/shards.js';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
-import { CHEST_REWARD_CONFIG, MAX_CHEST_INVENTORY, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestChance, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
+import { CHEST_REWARD_CONFIG, MAX_CHEST_INVENTORY, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestRewardConfig, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
@@ -235,13 +235,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const rewardCoins = (newRecord || repeatOneStar)
           ? baseRewardCoins
           : Math.max(1, Math.floor(baseRewardCoins * REPEAT_CLEAR_COIN_MULTIPLIER));
-        const repeatChestChance = repeatOneStar ? 1 : getRepeatClearChestChance(levelNum);
-        const chestRollSucceeded = atFirstClear || newRecord || repeatOneStar || Math.random() < repeatChestChance;
+        const repeatChestConfig = getRepeatClearChestRewardConfig(difficulty, parsedStar);
+        const repeatChestTypes: ChestType[] = [
+          ...repeatChestConfig.guaranteed,
+          ...repeatChestConfig.bonus
+            .filter(reward => Math.random() < reward.chance)
+            .map(reward => reward.chestType),
+        ];
         const requestedChestTypes: ChestType[] = atFirstClear
           ? ['epic', 'epic', 'legendary']
-          : chestRollSucceeded
+          : newRecord
             ? [rewardConfig.chestType]
-            : [];
+            : repeatChestTypes;
         const diamondReward = challengeDiamondReward + (atFirstClear ? 1 : 0);
 
         if (levelNum === 4 && parsedStar >= 1 && prev === 0) {
@@ -281,7 +286,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           chestTypes,
           chestAwarded: chestTypes.length > 0,
           chestInventoryFull: requestedChestTypes.length > chestTypes.length,
-          repeatChestChance,
           previousStar: prev,
           newRecord,
           atFirstClear,

@@ -20,7 +20,6 @@ export type SetStarResult = {
   chestTypes?: string[];
   chestAwarded?: boolean;
   chestInventoryFull?: boolean;
-  repeatChestChance?: number;
   newRecord?: boolean;
   newUnlocks?: string[];
   fullHealthClear?: boolean;

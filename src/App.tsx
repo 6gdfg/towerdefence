@@ -977,9 +977,6 @@ function App() {
         const chestTypeName = chestTypes.length > 0
           ? chestTypes.map(type => resolveChestTypeName(type)).join('、')
           : '';
-        const chanceText = typeof result.repeatChestChance === 'number'
-          ? `（掉率 ${Math.round(result.repeatChestChance * 100)}%）`
-          : '';
         const diamondText = result.diamondReward ? `，钻石 +${result.diamondReward}` : '';
         const chestText = chestTypeName ? `，${chestTypeName}宝箱` : '';
         const rewardMsg = result.atFirstClear
@@ -987,8 +984,8 @@ function App() {
           : result.newRecord
             ? `通关奖励：金币 +${result.rewardCoins}${chestText}${diamondText}`
             : chestTypeName
-              ? `重复通关：金币 +${result.rewardCoins}，掉落${chestTypeName}宝箱${chanceText}${diamondText}`
-              : `重复通关：金币 +${result.rewardCoins}，宝箱未掉落${chanceText}${diamondText}`;
+              ? `重复通关：金币 +${result.rewardCoins}，掉落${chestTypeName}宝箱${diamondText}`
+              : `重复通关：金币 +${result.rewardCoins}，宝箱未掉落${diamondText}`;
         const finalRewardMsg = result.chestInventoryFull
           ? `${rewardMsg}（宝箱库存已满，超出部分未发放）`
           : rewardMsg;
@@ -997,7 +994,6 @@ function App() {
           chestType: result.chestType ?? null,
           chestTypes,
           chestAwarded: Boolean(result.chestAwarded),
-          repeatChestChance: result.repeatChestChance,
           newRecord: Boolean(result.newRecord),
           diamonds: result.diamondReward ?? 0,
           message: finalRewardMsg,
