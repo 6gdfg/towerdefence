@@ -6,7 +6,7 @@ import { MONSTER_BASE_STATS, DIFFICULTY_CONFIG } from './levels';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, SUNFLOWER_ELEMENT_BLOCKLIST, computePlantStats, getPlantRuntimeConfig, type BasePlantConfig } from './plants';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
-import { getAtBaseModeType, isPhantomAtMode } from './atMode';
+import { DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE, getAtBaseModeType, isPhantomAtMode } from './atMode';
 import { MAPS, getPlantGrid, isPositionCoveredByRoad, type MapSpec } from './maps';
 
 const IGNITER_DEATH_RADIUS = 2.8;
@@ -36,6 +36,18 @@ const PLANT_SUN_LIFETIME = 14;
 const AUTO_COLLECT_DELAY = 0.5;
 const SUN_COLLECT_ANIMATION = 0.55;
 const PHANTOM_NORMAL_MAX_PROGRESS = 0.6;
+const WHACK_A_MOLE_MAX_PROGRESS = 0.8;
+const HAMMER_DAMAGE_PER_LEVEL = 20;
+const HAMMER_UPGRADE_BASE_COST = 200;
+const HAMMER_UPGRADE_COST_STEP = 100;
+
+export function getHammerDamage(baseDamage: number, level: number) {
+  return Math.max(1, Math.floor(baseDamage)) + HAMMER_DAMAGE_PER_LEVEL * (Math.max(1, Math.floor(level)) - 1);
+}
+
+export function getHammerUpgradeCost(level: number) {
+  return HAMMER_UPGRADE_BASE_COST + HAMMER_UPGRADE_COST_STEP * (Math.max(1, Math.floor(level)) - 1);
+}
 const PHANTOM_BOSS_MAX_PROGRESS = 0.4;
 const WIND_EYE_FIRST_PRESSURE_DELAY = 3;
 const WIND_EYE_PRESSURE_INTERVAL = 10;
@@ -855,6 +867,8 @@ export interface TDStore extends TDState {
   collectSun: (sunId: string) => void;
   setAutoCollectSun: (enabled: boolean) => void;
   manualFireTower: (towerId: string) => void;
+  hitEnemyWithHammer: (enemyId: string) => void;
+  upgradeHammer: () => void;
   update: (dt: number) => void;
   resetTD: () => void;
   loadLevel: (level: { startGold:number; lives:number; waves: WaveDef[] }, map: { path: Position[] | Position[][]; size:{w:number;h:number}; roadWidthCells:number; plantGrid: Position[] }, opts?: { autoStartFirstWave?: boolean; firstWaveDelaySec?: number; towerLevels?: TowerLevelMap; allowedPlants?: PlantType[]; allowedElements?: ElementType[]; mode?: GameMode; lifeBonusPerWave?: number; endlessWaveFactory?: (waveNumber: number) => WaveDef; labOverrides?: LabOverrides | null; atModeConfig?: AtModeConfig | null; specialEnemyConfig?: SpecialEnemyConfig | null; maxLives?: number; disableKillRewards?: boolean; killRewardOverride?: number | null; disableSkySun?: boolean }) => void;
@@ -896,6 +910,8 @@ const INITIAL_TD_STATE: TDState = {
   autoCollectSun: false,
   disableKillRewards: false,
   killRewardOverride: null,
+  hammerLevel: 1,
+  hammerBaseDamage: DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE,
   // 波次
   waves: DEFAULT_WAVES,
   waveIndex: 0,
@@ -956,6 +972,49 @@ export const useTDStore = create<TDStore>((set, get) => ({
     set({ autoCollectSun: enabled });
   },
 
+  hitEnemyWithHammer: (enemyId) => {
+    const state = get();
+    if (!state.running || getAtBaseModeType(state.atModeConfig) !== 'whackAMole') return;
+    const enemyIndex = state.enemies.findIndex(enemy => enemy.id === enemyId && enemy.hp > 0);
+    if (enemyIndex < 0) return;
+
+    const enemy = { ...state.enemies[enemyIndex] };
+    const inflicted = applyDamageWithArmor(
+      enemy,
+      getHammerDamage(state.hammerBaseDamage, state.hammerLevel),
+      state.gameTime,
+    );
+    if (inflicted <= 0) return;
+
+    let gold = state.gold;
+    if (enemy.hp <= 0 && !enemy.rewardGiven) {
+      enemy.rewardGiven = true;
+      const rewardOverride = state.killRewardOverride ?? (state.disableKillRewards ? 0 : null);
+      gold += rewardForEnemy(enemy, rewardOverride);
+    }
+    const enemies = state.enemies.slice();
+    enemies[enemyIndex] = enemy;
+    set({
+      enemies,
+      gold,
+      damagePopups: [...state.damagePopups, {
+        id: `hammer-${Date.now()}-${Math.random()}`,
+        pos: { ...enemy.pos },
+        damage: Math.round(inflicted),
+        color: '#f59e0b',
+        until: state.gameTime + 0.6,
+      }],
+    });
+  },
+
+  upgradeHammer: () => {
+    const state = get();
+    if (getAtBaseModeType(state.atModeConfig) !== 'whackAMole') return;
+    const cost = getHammerUpgradeCost(state.hammerLevel);
+    if (state.gold < cost) return;
+    set({ gold: state.gold - cost, hammerLevel: state.hammerLevel + 1 });
+  },
+
   loadLevel: (level, map, opts) => {
     const previousAutoCollectSun = get().autoCollectSun ?? false;
     const paths = normalizeMapPaths(map.path);
@@ -996,6 +1055,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
       autoCollectSun: previousAutoCollectSun,
       disableKillRewards: opts?.disableKillRewards ?? false,
       killRewardOverride: opts?.killRewardOverride == null ? null : Math.max(0, Math.floor(opts.killRewardOverride)),
+      hammerLevel: 1,
+      hammerBaseDamage: Math.max(1, Math.floor(atModeConfig?.whackAMole?.hammerBaseDamage ?? DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE)),
       waves: level.waves,
       waveIndex: 0,
       isWaveActive: false,
@@ -1584,15 +1645,19 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const hp = Math.round(baseStats.hp * mul);
           const armorHp = baseStats.armorHp != null ? Math.round(baseStats.armorHp * mul) : undefined;
           const phantomSpawn = isPhantomAtMode(atModeConfig);
+          const whackAMoleSpawn = getAtBaseModeType(atModeConfig) === 'whackAMole';
+          const randomPositionSpawn = phantomSpawn || whackAMoleSpawn;
           const useAutomaticPath = getAtBaseModeType(atModeConfig) === 'flexible';
-          const pathId = phantomSpawn
+          const pathId = randomPositionSpawn
             ? Math.floor(Math.random() * paths.length)
             : resolveSpawnPathId(useAutomaticPath ? undefined : g.pathId, paths, enemies);
           const path = paths[pathId];
           const spawnLocation = getPathLocationAtProgress(
             path,
-            phantomSpawn
-              ? Math.random() * (g.isBoss ? PHANTOM_BOSS_MAX_PROGRESS : PHANTOM_NORMAL_MAX_PROGRESS)
+            randomPositionSpawn
+              ? Math.random() * (whackAMoleSpawn
+                ? WHACK_A_MOLE_MAX_PROGRESS
+                : g.isBoss ? PHANTOM_BOSS_MAX_PROGRESS : PHANTOM_NORMAL_MAX_PROGRESS)
               : 0,
           );
           const enemy: Enemy = {

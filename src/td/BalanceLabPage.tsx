@@ -6,7 +6,7 @@ import { createLabDifficultyRatings, type DifficultyCode, type LevelDifficultyRa
 import { MAPS } from './maps';
 import { countMapPaths } from './mapPath';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './plants';
-import { getAtBaseModeType } from './atMode';
+import { DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE, DEFAULT_WHACK_A_MOLE_PLANTS, getAtBaseModeType } from './atMode';
 import { getToken } from './authProgress';
 import { readApiJson } from './apiClient';
 import { getErrorMessage } from './errors';
@@ -73,11 +73,17 @@ const AT_MODE_OPTIONS: Array<{ type: AtModeType; label: string }> = [
   { type: 'lastStand', label: '孤注一掷' },
   { type: 'cardSelect', label: '选卡' },
   { type: 'flexible', label: '灵活多变' },
+  { type: 'whackAMole', label: '打地鼠' },
   { type: 'phantom', label: '神出鬼没' },
 ];
 
-const PHANTOM_SUB_MODE_OPTIONS: Array<{ type: AtBaseModeType; label: string }> = AT_MODE_OPTIONS
-  .filter((option): option is { type: AtBaseModeType; label: string } => option.type !== 'phantom');
+const PHANTOM_SUB_MODE_OPTIONS: Array<{ type: AtBaseModeType; label: string }> = [
+  { type: 'normal', label: '普通' },
+  { type: 'conveyor', label: '传送带' },
+  { type: 'lastStand', label: '孤注一掷' },
+  { type: 'cardSelect', label: '选卡' },
+  { type: 'flexible', label: '灵活多变' },
+];
 
 const DEFAULT_CONVEYOR_POOL: ConveyorItem[] = [
   { kind: 'plant', id: 'sunflower', weight: 100 },
@@ -124,6 +130,12 @@ function getConveyorItemKey(item: ConveyorItem) {
 
 function normalizeConveyorWeight(value: unknown) {
   return Math.max(1, Math.floor(finiteNumber(value, 100)));
+}
+
+function normalizeWhackAMolePlants(value: unknown): PlantType[] {
+  if (!Array.isArray(value)) return [...DEFAULT_WHACK_A_MOLE_PLANTS];
+  const plants = Array.from(new Set(value.filter((entry): entry is PlantType => PLANT_TYPES.includes(entry as PlantType))));
+  return plants.length > 0 ? plants : [...DEFAULT_WHACK_A_MOLE_PLANTS];
 }
 
 function normalizeFlexibleMapIds(value: unknown): number[] {
@@ -202,6 +214,15 @@ function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
       },
     };
   }
+  if (type === 'whackAMole') {
+    return {
+      type,
+      whackAMole: {
+        plants: [...DEFAULT_WHACK_A_MOLE_PLANTS],
+        hammerBaseDamage: DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE,
+      },
+    };
+  }
   return { type: 'normal' };
 }
 
@@ -274,6 +295,16 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
       flexible: {
         mode: flexible.mode === 'random' ? 'random' : 'sequence',
         mapIds: normalizeFlexibleMapIds(flexible.mapIds),
+      },
+    };
+  }
+  if (baseType === 'whackAMole') {
+    const whackAMole = config?.whackAMole ?? defaults.whackAMole!;
+    return {
+      ...identity,
+      whackAMole: {
+        plants: normalizeWhackAMolePlants(whackAMole.plants),
+        hammerBaseDamage: Math.max(1, Math.floor(finiteNumber(whackAMole.hammerBaseDamage, DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE))),
       },
     };
   }
@@ -581,8 +612,10 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const atBaseModeType = getAtBaseModeType(atModeConfig);
   const cardSelectLocksMonsterLevel = isAtEditing && atBaseModeType === 'cardSelect';
   const flexibleLocksPathSelection = isAtEditing && atBaseModeType === 'flexible';
+  const wavePathSelectionLocked = flexibleLocksPathSelection || (isAtEditing && atBaseModeType === 'whackAMole');
   const compatibleFlexibleMaps = getCompatibleFlexibleMaps(config.mapId);
   const flexibleMode = atModeConfig.flexible?.mode ?? 'sequence';
+  const whackAMolePlants = atModeConfig.whackAMole?.plants ?? DEFAULT_WHACK_A_MOLE_PLANTS;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -774,6 +807,25 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
         mapIds: mapIds.length > 0 ? mapIds : [config.mapId],
       },
     });
+  };
+
+  const updateWhackAMoleConfig = (patch: Partial<NonNullable<AtModeConfig['whackAMole']>>) => {
+    const currentMode = normalizeAtModeConfig(config.atModeConfig);
+    const base = currentMode.whackAMole ? currentMode : createDefaultAtModeConfig('whackAMole');
+    updateAtModeConfig({
+      ...currentMode,
+      whackAMole: {
+        ...base.whackAMole!,
+        ...patch,
+      },
+    });
+  };
+
+  const toggleWhackAMolePlant = (plant: PlantType) => {
+    const plants = whackAMolePlants.includes(plant)
+      ? whackAMolePlants.filter(item => item !== plant)
+      : [...whackAMolePlants, plant];
+    if (plants.length > 0) updateWhackAMoleConfig({ plants });
   };
 
   const setFlexibleSequenceMap = (waveIndex: number, mapId: number) => {
@@ -1371,6 +1423,39 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
               <div className="lab-draft-summary">该模式运行时会按所选植物最高等级重新写入怪物等级。</div>
             </div>
           )}
+
+          {atBaseModeType === 'whackAMole' && (
+            <div className="lab-at-panel">
+              <div className="lab-form-grid">
+                <label className="lab-field">
+                  <span>1级锤子伤害</span>
+                  <input
+                    className="lab-input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={atModeConfig.whackAMole?.hammerBaseDamage ?? DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE}
+                    onChange={event => updateWhackAMoleConfig({
+                      hammerBaseDamage: Math.max(1, Math.floor(readNumber(event.target.value, DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE))),
+                    })}
+                  />
+                </label>
+              </div>
+              <div className="lab-pool-title">本关强制植物</div>
+              <div className="lab-pool-grid">
+                {PLANT_TYPES.map(plant => {
+                  const checked = whackAMolePlants.includes(plant);
+                  return (
+                    <label key={`whack-plant-${plant}`} className={`lab-pool-chip ${checked ? 'is-active' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleWhackAMolePlant(plant)} />
+                      <span>{BASE_PLANTS_CONFIG[plant].name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="lab-draft-summary">怪物随机出现在任意路径前80%；点击怪物使用锤子攻击，锤子可在对局中消耗阳光升级。</div>
+            </div>
+          )}
         </section>
       )}
 
@@ -1549,9 +1634,9 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                     <label>
                       <span>路径</span>
                       <select
-                        value={flexibleLocksPathSelection || group.pathId == null ? 'auto' : String(group.pathId)}
-                        disabled={flexibleLocksPathSelection}
-                        title={flexibleLocksPathSelection ? '灵活多变模式会根据当前地图自动分流' : undefined}
+                        value={wavePathSelectionLocked || group.pathId == null ? 'auto' : String(group.pathId)}
+                        disabled={wavePathSelectionLocked}
+                        title={wavePathSelectionLocked ? '当前模式会自动选择怪物路径' : undefined}
                         onChange={event => updateWaveGroup(
                           waveIndex,
                           groupIndex,
@@ -1560,8 +1645,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                             : { pathId: Math.max(0, Math.floor(readNumber(event.target.value, group.pathId ?? 0))) },
                         )}
                       >
-                        <option value="auto">{flexibleLocksPathSelection ? '自动分流（固定）' : '自动分流'}</option>
-                        {!flexibleLocksPathSelection && Array.from({ length: selectedMapPathCount }, (_, pathIndex) => (
+                        <option value="auto">{wavePathSelectionLocked ? '自动路径（固定）' : '自动分流'}</option>
+                        {!wavePathSelectionLocked && Array.from({ length: selectedMapPathCount }, (_, pathIndex) => (
                           <option key={pathIndex} value={pathIndex}>{`路径 ${pathIndex + 1}`}</option>
                         ))}
                       </select>

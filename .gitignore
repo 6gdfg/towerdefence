@@ -34,5 +34,9 @@ artifacts/
 # Vercel
 .vercel
 
+# Local agent configuration
+.claude/
+CLAUDE.md
+
 
 .vercel

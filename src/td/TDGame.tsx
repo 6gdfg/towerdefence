@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useTDStore } from './store';
+import { getHammerDamage, getHammerUpgradeCost, useTDStore } from './store';
 import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
@@ -43,7 +43,7 @@ type TDGameProps = {
 };
 
 export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
-  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, windWalls, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue } = useTDStore();
+  const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, windWalls, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue, hammerLevel, hammerBaseDamage, hitEnemyWithHammer, upgradeHammer } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
@@ -61,6 +61,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const selectedElementInfo = selectedElement ? ELEMENT_PLANT_CONFIG[selectedElement] : null;
   const atBaseModeType = getAtBaseModeType(atModeConfig);
   const isConveyorMode = atBaseModeType === 'conveyor';
+  const isWhackAMoleMode = atBaseModeType === 'whackAMole';
+  const hammerDamage = getHammerDamage(hammerBaseDamage, hammerLevel);
+  const hammerUpgradeCost = getHammerUpgradeCost(hammerLevel);
   const selectedConveyorItem = selectedConveyorIndex == null ? null : conveyorQueue[selectedConveyorIndex] ?? null;
   const selectedConveyorPlantInfo = selectedConveyorItem?.kind === 'plant'
     ? getPlantRuntimeConfig(selectedConveyorItem.id, labOverrides)
@@ -77,7 +80,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const atModeVariantLabel = atModeConfig
-    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变' } as const)[atBaseModeType]}`
+    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变', whackAMole: '打地鼠' } as const)[atBaseModeType]}`
     : null;
   const modeLabel = mode === 'endless'
     ? '无尽模式'
@@ -291,6 +294,12 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     }
   };
 
+  const handleEnemyClick = (enemyId: string, event: React.MouseEvent<SVGGElement>) => {
+    if (!isWhackAMoleMode) return;
+    event.stopPropagation();
+    hitEnemyWithHammer(enemyId);
+  };
+
   const handleExit = () => {
     if (!window.confirm('退出当前对局？本局进度不会保存。')) return;
     onExit?.();
@@ -352,6 +361,23 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               />
               自动收集
             </label>
+            {isWhackAMoleMode && (
+              <>
+                <div className="game-stat" title="点击怪物造成锤子伤害">
+                  锤子 Lv.{hammerLevel} · 伤害 {hammerDamage}
+                </div>
+                <button
+                  type="button"
+                  onClick={upgradeHammer}
+                  disabled={gold < hammerUpgradeCost}
+                  className="action-button primary"
+                  title={`升级后伤害 +20，消耗 ${hammerUpgradeCost} 阳光`}
+                  style={{ opacity: gold < hammerUpgradeCost ? 0.55 : 1 }}
+                >
+                  升级锤子 · {hammerUpgradeCost}
+                </button>
+              </>
+            )}
             <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
           </div>
       </header>
@@ -690,7 +716,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           style={{
             width: fittedMapWidth > 0 ? fittedMapWidth : undefined,
             height: fittedMapHeight > 0 ? fittedMapHeight : undefined,
-            cursor: shovelActive ? 'crosshair' : selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
+            cursor: isWhackAMoleMode || shovelActive ? 'crosshair' : selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
           }}
           viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
           preserveAspectRatio="xMidYMid meet"
@@ -1196,7 +1222,15 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             })();
             const { left, top } = worldToPx(e.pos);
             return (
-              <g key={e.id} pointerEvents="none">
+              <g
+                key={e.id}
+                pointerEvents={isWhackAMoleMode ? 'all' : 'none'}
+                onClick={isWhackAMoleMode ? event => handleEnemyClick(e.id, event) : undefined}
+                style={{ cursor: isWhackAMoleMode ? 'crosshair' : 'default' }}
+              >
+                {isWhackAMoleMode && (
+                  <circle cx={left} cy={top} r={shapeSize * 0.7} fill="transparent" />
+                )}
                 {e.specialType === 'charityAmbassador' && (
                   <circle
                     className="charity-ambassador-aura"

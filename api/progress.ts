@@ -120,6 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tx`DELETE FROM player_study_progress WHERE player_id=${pid}`,
           tx`DELETE FROM player_task_progress WHERE player_id=${pid}`,
           tx`DELETE FROM chests WHERE player_id=${pid}`,
+          tx`DELETE FROM shop_purchases WHERE player_id=${pid}`,
           tx`DELETE FROM unlocked_items WHERE player_id=${pid}`,
           tx`DELETE FROM tower_levels WHERE player_id=${pid}`,
           tx`DELETE FROM inventory_shards WHERE player_id=${pid}`,

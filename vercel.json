@@ -1,9 +1,11 @@
 {
   "buildCommand": "npm run vercel-build",
   "rewrites": [
+    { "source": "/api/db-health", "destination": "/api/health?db=1" },
     { "source": "/study", "destination": "/index.html" },
     { "source": "/tasks", "destination": "/index.html" },
     { "source": "/garden", "destination": "/index.html" },
+    { "source": "/shop", "destination": "/index.html" },
     { "source": "/admin", "destination": "/index.html" }
   ]
 }

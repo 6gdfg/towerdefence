@@ -50,7 +50,7 @@ export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 
-export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect' | 'flexible';
+export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect' | 'flexible' | 'whackAMole';
 export type AtModeType = AtBaseModeType | 'phantom';
 export type ConveyorItem =
   | { kind: 'plant'; id: PlantType; weight?: number }
@@ -82,6 +82,10 @@ export type AtModeConfig = {
   flexible?: {
     mode: 'sequence' | 'random';
     mapIds: number[];
+  };
+  whackAMole?: {
+    plants: PlantType[];
+    hammerBaseDamage: number;
   };
 };
 
@@ -283,6 +287,8 @@ export interface TDState {
   autoCollectSun?: boolean;
   disableKillRewards?: boolean;
   killRewardOverride?: number | null;
+  hammerLevel: number;
+  hammerBaseDamage: number;
   // 波次
   waves: WaveDef[];
   waveIndex: number; // 当前波次（从0计）

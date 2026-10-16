@@ -26,7 +26,7 @@ import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTu
 import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, hydrateCloudProgressCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
-import { getAtBaseModeType } from './td/atMode';
+import { DEFAULT_WHACK_A_MOLE_PLANTS, getAtBaseModeType } from './td/atMode';
 import { acknowledgeReleaseAnnouncement, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openAllReadyChests, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
@@ -42,6 +42,7 @@ import { getPlayableDifficulty } from './td/levelUnlockLogic';
 import StudyPage from './study/StudyPage';
 import TasksPage from './tasks/TasksPage';
 import GardenPage from './garden/GardenPage';
+import ShopPage from './shop/ShopPage';
 import AdminPage from './td/AdminPage';
 type Stage = 'auth' | 'tutorial' | 'hub' | 'chapters' | 'select' | 'cardSelect' | 'playing' | 'won' | 'lost' | 'book' | 'ranking' | 'fun' | 'lab';
 type NonBookStage = Exclude<Stage, 'book' | 'ranking'>;
@@ -86,6 +87,12 @@ function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] 
   return waves.map(wave => ({
     groups: wave.groups.map(group => ({ ...group, level: fixedLevel })),
   }));
+}
+
+function getWhackAMolePlants(config: AtModeConfig): PlantType[] {
+  const configured = config.whackAMole?.plants ?? DEFAULT_WHACK_A_MOLE_PLANTS;
+  const plants = Array.from(new Set(configured.filter(plant => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, plant))));
+  return plants.length > 0 ? plants : [...DEFAULT_WHACK_A_MOLE_PLANTS];
 }
 
 function getHighestPlantLevel(plants: PlantType[], towerLevels?: TowerLevelMap) {
@@ -604,6 +611,15 @@ function App() {
       autoStartFirstWave = false;
       firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
       killRewardOverride = Math.max(0, Math.floor(atModeConfig.lastStand?.killReward ?? 0));
+    } else if (atModeConfig && atBaseModeType === 'whackAMole') {
+      const unlockedPlants = new Set(allowedPlantsRaw);
+      allowedPlants = getWhackAMolePlants(atModeConfig);
+      allowedPlants.forEach(plant => {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
+        towerLevels[plant] = unlockedPlants.has(plant)
+          ? Math.max(1, Math.floor(towerLevels[plant] || 1))
+          : 1;
+      });
     } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({
@@ -872,6 +888,12 @@ function App() {
       autoStartFirstWave = false;
       firstWaveDelaySec = config.firstWaveDelaySec;
       killRewardOverride = Math.max(0, Math.floor(atModeConfig.lastStand?.killReward ?? 0));
+    } else if (atModeConfig && atBaseModeType === 'whackAMole') {
+      allowedPlants = getWhackAMolePlants(atModeConfig);
+      allowedPlants.forEach(plant => {
+        if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
+        towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
+      });
     } else if (atModeConfig && atBaseModeType === 'cardSelect') {
       const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
       setPendingCardSelect({
@@ -1068,6 +1090,10 @@ function App() {
                 } : undefined}
                 onNavigateGarden={stage === 'hub' ? () => {
                   window.history.pushState({}, '', '/garden');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } : undefined}
+                onNavigateShop={stage === 'hub' ? () => {
+                  window.history.pushState({}, '', '/shop');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 } : undefined}
                 onNavigateStudy={stage === 'hub' ? () => {
@@ -1342,6 +1368,17 @@ function RootApp() {
   if (pathname === '/garden') {
     return (
       <GardenPage
+        onBack={() => {
+          window.history.pushState({}, '', '/');
+          setPathname('/');
+        }}
+      />
+    );
+  }
+
+  if (pathname === '/shop') {
+    return (
+      <ShopPage
         onBack={() => {
           window.history.pushState({}, '', '/');
           setPathname('/');

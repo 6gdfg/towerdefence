@@ -1755,6 +1755,76 @@ input {
   width: 100%;
 }
 
+/* Shop */
+.shop-empty {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 240px;
+  margin-top: 20px;
+}
+
+.shop-error,
+.shop-message {
+  margin-top: 14px;
+  padding: 8px 11px;
+  border-left: 3px solid #fb7185;
+  color: #9f1239;
+  font-size: 13px;
+}
+
+.shop-message {
+  border-left-color: #22c55e;
+  color: #166534;
+}
+
+.shop-receipt-panel {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.shop-receipt-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.shop-receipt {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.shop-receipt-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.shop-receipt-row span {
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.shop-receipt-row strong {
+  color: #172033;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-all;
+}
+
+.shop-receipt-panel .button-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
 @media (max-width: 560px) {
   .level-start-actions {
     grid-template-columns: 1fr;

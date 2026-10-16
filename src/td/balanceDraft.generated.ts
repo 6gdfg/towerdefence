@@ -4982,6 +4982,196 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 16,
+    "mapName": "一横两弯",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 1,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 1000,
+    "mapName": "训练回环",
+    "startGold": 150,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 50,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 
@@ -9961,6 +10151,196 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
         ]
       }
     },
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:EZ": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 16,
+    "mapName": "一横两弯",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 1,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:HD": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:IN": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 1000,
+    "mapName": "训练回环",
+    "startGold": 150,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 50,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
     "specialEnemyConfig": {
       "enabled": false,
       "type": "charityAmbassador",

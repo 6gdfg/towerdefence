@@ -9,6 +9,7 @@ type AuthBarProps = {
   onShowAbout?: () => void;
   onNavigateBook?: () => void;
   onNavigateRanking?: () => void;
+  onNavigateShop?: () => void;
   onNavigateTasks?: () => void;
   onNavigateGarden?: () => void;
   onNavigateStudy?: () => void;
@@ -28,6 +29,7 @@ export default function AuthBar({
   onShowAbout,
   onNavigateBook,
   onNavigateRanking,
+  onNavigateShop,
   onNavigateTasks,
   onNavigateGarden,
   onNavigateStudy,
@@ -102,6 +104,7 @@ export default function AuthBar({
             <span>钻石：{wallet?.diamonds ?? me.diamonds ?? '-'}</span>
             <span>经验：{wallet?.experience ?? me.experience ?? '-'}</span>
             <button onClick={refresh} className="action-button">刷新</button>
+            {onNavigateShop && <button onClick={onNavigateShop} className="action-button">商店</button>}
             {onNavigateTasks && <button onClick={onNavigateTasks} className="action-button">任务</button>}
             {onNavigateGarden && <button onClick={onNavigateGarden} className="action-button">花园</button>}
             {onNavigateStudy && <button onClick={onNavigateStudy} className="action-button">学习</button>}

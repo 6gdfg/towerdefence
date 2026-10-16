@@ -1,4 +1,7 @@
-import type { AtBaseModeType, AtModeConfig } from './types';
+import type { AtBaseModeType, AtModeConfig, PlantType } from './types';
+
+export const DEFAULT_WHACK_A_MOLE_PLANTS: PlantType[] = ['sunflower', 'bottleGrass'];
+export const DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE = 30;
 
 export function getAtBaseModeType(config?: AtModeConfig | null): AtBaseModeType {
   if (!config) return 'normal';

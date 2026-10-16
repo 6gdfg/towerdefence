@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS unlocked_items (
   PRIMARY KEY (player_id, item_id)
 );
 
+CREATE TABLE IF NOT EXISTS shop_purchases (
+  purchase_id TEXT PRIMARY KEY,
+  player_id TEXT NOT NULL REFERENCES players(player_id),
+  product_id TEXT NOT NULL,
+  price_coins BIGINT NOT NULL DEFAULT 0,
+  purchase_channel TEXT NOT NULL DEFAULT 'direct',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Useful indexes
 CREATE INDEX IF NOT EXISTS idx_user_accounts_player ON user_accounts(player_id);
 CREATE INDEX IF NOT EXISTS idx_prog_player ON player_progress(player_id);
@@ -77,4 +86,5 @@ CREATE INDEX IF NOT EXISTS idx_levels_player ON tower_levels(player_id);
 CREATE INDEX IF NOT EXISTS idx_chests_player ON chests(player_id);
 CREATE INDEX IF NOT EXISTS idx_chests_player_status ON chests(player_id, status);
 CREATE INDEX IF NOT EXISTS idx_unlocked_items_player ON unlocked_items(player_id);
+CREATE INDEX IF NOT EXISTS idx_shop_purchases_player ON shop_purchases(player_id, created_at DESC);
 

@@ -271,4 +271,19 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `DELETE FROM player_notifications WHERE read_at IS NOT NULL`,
     ],
   },
+  {
+    id: '016_shop_purchases',
+    description: 'Store coin-funded shop redemptions and their credential records',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS shop_purchases (
+        purchase_id TEXT PRIMARY KEY,
+        player_id TEXT NOT NULL REFERENCES players(player_id),
+        product_id TEXT NOT NULL,
+        price_coins BIGINT NOT NULL DEFAULT 0,
+        purchase_channel TEXT NOT NULL DEFAULT 'direct',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_shop_purchases_player ON shop_purchases(player_id, created_at DESC)`,
+    ],
+  },
 ];
