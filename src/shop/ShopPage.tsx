@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import AuthBar from '../td/AuthBar';
 import { getToken } from '../td/authProgress';
 import { getErrorMessage } from '../td/errors';
+import { resolveShardLabel } from '../td/labels';
 import { fetchShopWallet, purchaseShopProduct, SHOP_PRODUCT_VIEWS, type ShopProductView, type ShopReceipt, type ShopWallet } from './shopApi';
 
 type ShopPageProps = { onBack: () => void };
@@ -42,6 +43,7 @@ function buildReceiptText(receipt: ShopReceipt) {
 export default function ShopPage({ onBack }: ShopPageProps) {
   const [wallet, setWallet] = useState<ShopWallet | null>(null);
   const [receipt, setReceipt] = useState<ShopReceipt | null>(null);
+  const [grantedShards, setGrantedShards] = useState<{ productName: string; shards: Record<string, number> } | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -64,18 +66,26 @@ export default function ShopPage({ onBack }: ShopPageProps) {
   const handlePurchase = async (product: ShopProductView) => {
     if (busyProductId) return;
     if (!window.confirm(`确认消耗 ${formatCoins(product.priceCoins)} 金币兑换「${product.name}」吗？兑换后金币不予退还。`)) return;
+
     setBusyProductId(product.id);
     setError('');
     setMessage('');
     try {
       const result = await purchaseShopProduct(product.id);
-      setCopied(false);
-      setReceipt(result.purchase);
-      setWallet(current => current ? {
-        ...current,
-        coins: result.coins,
-        purchases: [result.purchase, ...current.purchases],
-      } : current);
+      setWallet(current => {
+        if (!current) return current;
+        if (result.kind === 'redemption') {
+          return { ...current, coins: result.coins, purchases: [result.purchase, ...current.purchases] };
+        }
+        return { ...current, coins: result.coins };
+      });
+
+      if (result.kind === 'instant') {
+        setGrantedShards({ productName: product.name, shards: result.shards });
+      } else {
+        setCopied(false);
+        setReceipt(result.purchase);
+      }
     } catch (reason: unknown) {
       const rawMessage = getErrorMessage(reason, '兑换失败，请稍后重试');
       setError(rawMessage.includes('COINS_NOT_ENOUGH') ? '金币不足，无法兑换该商品' : rawMessage);
@@ -117,7 +127,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
             <div>
               <div className="eyebrow">SHOP</div>
               <h1>商店</h1>
-              <p>用游戏金币兑换实物，兑换成功后凭截图联系 owner 领取。</p>
+              <p>用游戏金币兑换奖励；实物商品兑换后凭截图联系 owner 领取。</p>
             </div>
             <div className="button-row">
               <button onClick={onBack} className="action-button">返回主界面</button>
@@ -154,7 +164,10 @@ export default function ShopPage({ onBack }: ShopPageProps) {
                 return (
                   <div key={product.id} className="item-row">
                     <div>
-                      <div className="item-name">🥛 {product.name}</div>
+                      <div className="item-name">
+                        {product.kind === 'instant' ? '📦' : '🥛'} {product.name}
+                        <span className="shop-tag">{product.kind === 'instant' ? '立即到账' : '需凭据'}</span>
+                      </div>
                       <div className="muted">
                         {formatCoins(product.priceCoins)} 金币 · {product.description}
                         {wallet !== null && !affordable && <span className="warning-text">（金币不足）</span>}
@@ -175,11 +188,12 @@ export default function ShopPage({ onBack }: ShopPageProps) {
           </section>
 
           <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.14s', padding: 16 }}>
-            <div className="section-title">我的兑换记录</div>
+            <div className="section-title">兑换凭据记录</div>
+            <div className="muted" style={{ marginBottom: 10 }}>立即到账的商品不会留下记录。</div>
             {!wallet ? (
-              <div className="muted">正在读取兑换记录...</div>
+              <div className="muted">正在读取凭据记录...</div>
             ) : wallet.purchases.length === 0 ? (
-              <div className="muted">还没有兑换记录。</div>
+              <div className="muted">还没有需要凭据的兑换记录。</div>
             ) : (
               <div className="item-list">
                 {wallet.purchases.map(purchase => (
@@ -196,6 +210,26 @@ export default function ShopPage({ onBack }: ShopPageProps) {
           </section>
         </div>
       </main>
+
+      {grantedShards && (
+        <div className="modal-backdrop">
+          <div className="glass-panel modal-panel shop-receipt-panel">
+            <div className="shop-receipt-title">🎁 兑换成功</div>
+            <div className="muted" style={{ textAlign: 'center' }}>
+              {grantedShards.productName} 已直接发放到账号。
+            </div>
+            <div className="shop-receipt">
+              {Object.entries(grantedShards.shards).map(([itemId, count]) => (
+                <div key={itemId} className="shop-receipt-row">
+                  <span>{resolveShardLabel(itemId)}碎片</span>
+                  <strong style={{ color: '#10b981' }}>+{count}</strong>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setGrantedShards(null)} className="action-button primary" style={{ width: '100%' }}>确定</button>
+          </div>
+        </div>
+      )}
 
       {receipt && (
         <div className="modal-backdrop">

@@ -1825,6 +1825,18 @@ input {
   gap: 10px;
 }
 
+.shop-tag {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background: rgba(255, 255, 255, 0.62);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 @media (max-width: 560px) {
   .level-start-actions {
     grid-template-columns: 1fr;

@@ -1,12 +1,13 @@
 import { getToken } from '../td/authProgress';
 import { readApiJson } from '../td/apiClient';
-import { SHOP_PRODUCTS } from '../../shared/shop';
+import { SHOP_PRODUCTS, type ShopProductKind } from '../../shared/shop';
 
 export type ShopProductView = {
   id: string;
   name: string;
   description: string;
   priceCoins: number;
+  kind: ShopProductKind;
 };
 
 export type ShopPurchaseRecord = {
@@ -25,6 +26,7 @@ export type ShopWallet = {
   coins: number;
   diamonds: number;
   experience: number;
+  /** 只包含需要凭据的商品，立即发货的商品不会留下记录。 */
   purchases: ShopPurchaseRecord[];
 };
 
@@ -33,11 +35,16 @@ export type ShopReceipt = ShopPurchaseRecord & {
   username: string;
 };
 
+export type ShopPurchaseResult =
+  | { kind: 'instant'; coins: number; shards: Record<string, number> }
+  | { kind: 'redemption'; coins: number; purchase: ShopReceipt };
+
 export const SHOP_PRODUCT_VIEWS: ShopProductView[] = SHOP_PRODUCTS.map(product => ({
   id: product.id,
   name: product.name,
   description: product.description,
   priceCoins: product.priceCoins,
+  kind: product.kind,
 }));
 
 async function shopRequest<T>(body?: Record<string, unknown>): Promise<T> {
@@ -57,7 +64,6 @@ export function fetchShopWallet() {
   return shopRequest<ShopWallet>();
 }
 
-export async function purchaseShopProduct(productId: string) {
-  const data = await shopRequest<{ ok: boolean; coins: number; purchase: ShopReceipt }>({ action: 'purchase', productId });
-  return data;
+export function purchaseShopProduct(productId: string) {
+  return shopRequest<ShopPurchaseResult>({ action: 'purchase', productId });
 }
