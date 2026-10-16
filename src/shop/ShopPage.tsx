@@ -127,7 +127,7 @@ export default function ShopPage({ onBack }: ShopPageProps) {
             <div>
               <div className="eyebrow">SHOP</div>
               <h1>商店</h1>
-              <p>用游戏金币兑换奖励；实物商品兑换后凭截图联系 owner 领取。</p>
+              <p>？！富富？！</p>
             </div>
             <div className="button-row">
               <button onClick={onBack} className="action-button">返回主界面</button>
