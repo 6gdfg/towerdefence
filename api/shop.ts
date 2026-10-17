@@ -87,9 +87,9 @@ async function deliverInstantPurchase(playerId: string, product: ShopProduct, gr
        RETURNING player_id
      )
      INSERT INTO inventory_shards (player_id, tower_type, shards)
-     SELECT $1::text, grant.item_id, grant.amount
+     SELECT $1::text, granted.item_id, granted.amount
      FROM deducted
-     CROSS JOIN jsonb_to_recordset($3::jsonb) AS grant(item_id text, amount integer)
+     CROSS JOIN jsonb_to_recordset($3::jsonb) AS granted(item_id text, amount integer)
      ON CONFLICT (player_id, tower_type)
      DO UPDATE SET shards = inventory_shards.shards + EXCLUDED.shards
      RETURNING tower_type`,
