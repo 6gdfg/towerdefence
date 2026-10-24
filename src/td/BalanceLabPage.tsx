@@ -60,7 +60,7 @@ type BalanceLabDraftReadResponse = {
 };
 
 const LAB_STORAGE_KEY = 'td-balance-lab-config-v2';
-const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'balloonSoldier', 'armorRepairer'];
+const SHAPE_TYPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'balloonSoldier', 'armorRepairer', 'tank'];
 const CORE_DIFFICULTIES: Array<{ code: DifficultyCode; label: string }> = [
   { code: 'EZ', label: 'EZ' },
   { code: 'HD', label: 'HD' },
@@ -323,7 +323,7 @@ function createTowerLevels(): TowerLevelMap {
   const levels: TowerLevelMap = {};
   PLANT_TYPES.forEach(plant => {
     if (BASE_PLANTS_CONFIG[plant].upgradeable === false) return;
-    levels[plant] = 5;
+    levels[plant] = 10;
   });
   ELEMENT_TYPES.forEach(element => {
     levels[`element:${element}`] = 3;
@@ -492,7 +492,7 @@ function normalizePastedGroup(value: unknown): WaveGroup | null {
   if (value.isBoss === true) {
     group.isBoss = true;
     if (value.bossSpeed != null) {
-      group.bossSpeed = Math.max(0.1, finiteNumber(value.bossSpeed, MONSTER_BASE_STATS[type].speed));
+      group.bossSpeed = Math.max(0.01, finiteNumber(value.bossSpeed, MONSTER_BASE_STATS[type].speed));
     }
   }
   if (value.startDelay != null) {
@@ -1542,8 +1542,8 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                 <input
                   type="number"
                   min="1"
-                  value={config.towerLevels[plant] ?? 1}
-                  onChange={event => updateTowerLevel(plant, readNumber(event.target.value, 1))}
+                  value={config.towerLevels[plant] ?? 10}
+                  onChange={event => updateTowerLevel(plant, readNumber(event.target.value, 10))}
                 />
               </label>
             ))}
@@ -1670,11 +1670,11 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                         <span>Boss 基础速度</span>
                         <input
                           type="number"
-                          min="0.1"
-                          step="0.1"
+                          min="0.01"
+                          step="0.01"
                           value={group.bossSpeed ?? MONSTER_BASE_STATS[group.type].speed}
                           onChange={event => updateWaveGroup(waveIndex, groupIndex, {
-                            bossSpeed: Math.max(0.1, readNumber(event.target.value, group.bossSpeed ?? MONSTER_BASE_STATS[group.type].speed)),
+                            bossSpeed: Math.max(0.01, readNumber(event.target.value, group.bossSpeed ?? MONSTER_BASE_STATS[group.type].speed)),
                           })}
                         />
                       </label>

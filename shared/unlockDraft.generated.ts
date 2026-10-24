@@ -63,5 +63,11 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "difficulty": "EZ",
     "star": 1,
     "itemId": "puffShroom"
+  },
+  {
+    "level": 14,
+    "difficulty": "AT",
+    "star": 3,
+    "itemId": "antiAirTree"
   }
 ];

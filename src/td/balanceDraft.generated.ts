@@ -5043,9 +5043,9 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "sourceLevelId": "L14",
     "levelNumber": 14,
     "levelName": "2-6",
-    "contributor": "驱蚊花露水",
+    "contributor": "",
     "difficulty": "HD",
-    "rating": 15,
+    "rating": 12,
     "mapId": 1,
     "mapName": "新手折线",
     "startGold": 1000,
@@ -5172,6 +5172,225 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 17,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 250,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 8
+          },
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 7
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 280,
+            "startDelay": 2,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.2,
+            "level": 28,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 3
+          },
+          {
+            "type": "armorRepairer",
+            "count": 15,
+            "interval": 0.4,
+            "level": 39,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 16,
+            "interval": 0.4,
+            "level": 45,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 48,
+            "startDelay": 5
+          },
+          {
+            "type": "windEye",
+            "count": 5,
+            "interval": 0.4,
+            "level": 55,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 30,
+            "interval": 0.2,
+            "level": 52,
+            "startDelay": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 50,
+            "interval": 0.4,
+            "level": 53,
+            "startDelay": 15
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 25,
+            "interval": 0.6,
+            "level": 55,
+            "startDelay": 15
+          },
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.2,
+            "level": 53,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.05
+          },
+          {
+            "type": "healer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 57,
+            "startDelay": 2
+          },
+          {
+            "type": "armorRepairer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 60,
+            "startDelay": 3
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 29,
+            "interval": 0.8,
+            "level": 50,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "normal"
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "antiAirTree"
+    ]
   }
 ];
 
@@ -10218,9 +10437,9 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
     "sourceLevelId": "L14",
     "levelNumber": 14,
     "levelName": "2-6",
-    "contributor": "驱蚊花露水",
+    "contributor": "",
     "difficulty": "HD",
-    "rating": 15,
+    "rating": 12,
     "mapId": 1,
     "mapName": "新手折线",
     "startGold": 1000,
@@ -10347,6 +10566,225 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  "L14:AT": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 17,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 250,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 8
+          },
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 7
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 280,
+            "startDelay": 2,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.2,
+            "level": 28,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 3
+          },
+          {
+            "type": "armorRepairer",
+            "count": 15,
+            "interval": 0.4,
+            "level": 39,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 16,
+            "interval": 0.4,
+            "level": 45,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 48,
+            "startDelay": 5
+          },
+          {
+            "type": "windEye",
+            "count": 5,
+            "interval": 0.4,
+            "level": 55,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 30,
+            "interval": 0.2,
+            "level": 52,
+            "startDelay": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 50,
+            "interval": 0.4,
+            "level": 53,
+            "startDelay": 15
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 25,
+            "interval": 0.6,
+            "level": 55,
+            "startDelay": 15
+          },
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.2,
+            "level": 53,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.05
+          },
+          {
+            "type": "healer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 57,
+            "startDelay": 2
+          },
+          {
+            "type": "armorRepairer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 60,
+            "startDelay": 3
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 29,
+            "interval": 0.8,
+            "level": 50,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "normal"
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "antiAirTree"
+    ]
   }
 };
 

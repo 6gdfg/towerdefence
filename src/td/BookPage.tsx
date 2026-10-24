@@ -100,6 +100,11 @@ function plantTags(entry: PlantBookEntry) {
     const knockback = config.controlAura.knockbackDistance + config.controlAura.knockbackBonusPerLevel * (entry.level - 1);
     tags.push(`光环减速 ${slow}%`, `${config.controlAura.pulseInterval}s 击退 ${fmt(knockback)}`);
   }
+  if (config.antiAirField) {
+    const field = config.antiAirField;
+    const duration = Math.min(field.maxTankStopSec, field.tankStopBaseSec + field.tankStopPerLevelSec * entry.level);
+    tags.push('领域内气球兵停步', `同时超过 ${field.maxBalloons} 只时消失`, `遇坦克消耗自身 / 静止 ${fmt(duration)}s`, '重置坦克清除计时', `半径最高 ${field.maxRange}`, '仅风元素光环', '冻结时领域暂停');
+  }
 
   if (config.windWall) {
     const duration = config.windWall.durationBaseSec + config.windWall.durationPerLevelSec * Math.max(0, entry.level - 1);
@@ -138,6 +143,14 @@ function plantTags(entry: PlantBookEntry) {
 
 function plantMetrics(entry: PlantBookEntry) {
   const { config, stats } = entry;
+  if (config.antiAirField) {
+    return [
+      ['费用', config.cost],
+      ['领域半径', fmt(stats.range)],
+      ['放置冷却', `${config.placementCooldown}s`],
+      ['攻击', '风元素光环'],
+    ] as const;
+  }
   if (config.overlayType === 'pumpkinHead') {
     return [
       ['费用', config.cost],
@@ -185,7 +198,7 @@ function singleUseElementNote(entry: ElementBookEntry) {
     case 'gold':
       return `单独放置：2秒后全场破甲 ${5 + 0.2 * level}s，无护甲目标伤害 x${(1.5 + 0.1 * Math.max(0, level - 1)).toFixed(1)}；冷却20秒。`;
     case 'fire':
-      return `单独放置：2秒后对半径4.4内敌人造成 ${800 + 50 * level} 伤害；冷却30秒。`;
+      return `单独放置：2秒后对半径4.4内敌人造成 ${800 + 50 * level} 伤害，对坦克双倍；冷却30秒。`;
     case 'electric':
       return `单独放置：2秒后对全场敌人造成 ${200 + 20 * level} 伤害；冷却30秒。`;
     case 'ice':
@@ -231,7 +244,7 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
       tags.push('免疫冻结/减速', '灼烧易伤 x2');
       break;
     case 'freezer':
-      tags.push('免疫冻结/减速', '灼烧易伤 x2', '30s 范围冻结植物 2s', '死亡全场冻结植物 1s');
+      tags.push('免疫冻结/减速', '灼烧易伤 x2', '30s 范围冻结植物 2s', '死亡全场冻结植物 0.5s');
       break;
     case 'taunter':
       tags.push('半径 4.5 挑衅', '强制植物锁定', '五芒星/非攻击植物免疫');
@@ -257,6 +270,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'armorRepairer':
       tags.push('5s 修复护甲', '半径 3', '恢复12%最大护甲', '不修复报纸护甲');
       break;
+    case 'tank':
+      tags.push('风元素子弹免疫', '电击花伤害 x0.25（含风光环）', '免疫所有击退', '火元素主动伤害 x2', '每30s 随机清除 3x3 植物', '冻结/静止暂停清除计时', '漏怪直接失败', '南瓜头可保护');
+      break;
     default:
       tags.push('标准怪');
   }
@@ -281,6 +297,7 @@ function plantRole(type: PlantType) {
     hotPepper: '灰烬',
     frostBlastShroom: '控制',
     cycloneShroom: '光环',
+    antiAirTree: '防空拦截',
     windSailGrass: '攻速光环',
     windWallGrass: '路径控制',
     magnetNeedle: '反甲',

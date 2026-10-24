@@ -5,15 +5,17 @@ import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
 import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
-import { ElementIcon, getMonsterThemeColor, PlantIcon, ShovelIcon } from './TowerIcons';
+import { ElementIcon, getMonsterThemeColor, MonsterIcon, PlantIcon, ShovelIcon } from './TowerIcons';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
 import { CURRENT_RELEASE } from '../../shared/releaseNotes';
+import BossHealthBars from './BossHealthBars';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
 const ENEMY_SHAPE_SIZE = 22;
 const SUN_COLLECT_ANIMATION_SEC = 0.55;
 const SUN_COLLECT_TARGET: Position = { x: 1.1, y: 1.1 };
+const BOSS_HEALTH_MIN_SPACE = 52;
 
 function SunIcon({ size = 24 }: { size?: number }) {
   return (
@@ -78,6 +80,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
   const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
   const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
+  const hasBossWaves = waves.some(wave => wave.groups.some(group => group.isBoss));
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const atModeVariantLabel = atModeConfig
     ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变', whackAMole: '打地鼠' } as const)[atBaseModeType]}`
@@ -192,11 +195,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const baseMapHeight = mapHeight * CELL_SIZE;
   const mapAspect = baseMapHeight > 0 ? baseMapWidth / baseMapHeight : 1;
   const availableStageWidth = Math.max(0, stageSize.width - 12);
-  const availableStageHeight = Math.max(0, stageSize.height - 12);
+  const bossHealthSpace = hasBossWaves ? BOSS_HEALTH_MIN_SPACE : 0;
+  const availableStageHeight = Math.max(0, stageSize.height - 12 - bossHealthSpace);
   const fittedMapWidth = availableStageWidth > 0 && availableStageHeight > 0
     ? Math.min(availableStageWidth, availableStageHeight * mapAspect)
     : 0;
   const fittedMapHeight = fittedMapWidth > 0 ? fittedMapWidth / mapAspect : 0;
+  const aboveMapSpace = (stageSize.height - fittedMapHeight + bossHealthSpace) / 2;
+  const bossHealthAreaHeight = Math.max(0, Math.min(112, aboveMapSpace - 12));
 
   useEffect(() => {
     let last = Date.now();
@@ -706,9 +712,16 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         <div
           ref={mapWrapperRef}
           className="game-map-stage"
-          style={{
-          }}
+          style={{ paddingTop: 6 + bossHealthSpace }}
         >
+        <BossHealthBars
+          enemies={enemies}
+          availableHeight={bossHealthAreaHeight}
+          style={{
+            width: fittedMapWidth > 0 ? fittedMapWidth : '100%',
+            height: bossHealthAreaHeight,
+          }}
+        />
         <svg
           ref={svgRef}
           onClick={handlePlace}
@@ -903,6 +916,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const pumpkinCover = plantCovers.some(cover => cover.towerId === t.id);
             const elementInfo = t.element ? ELEMENT_PLANT_CONFIG[t.element.type] : null;
             const iconStroke = towerFrozen ? '#2563eb' : t.element ? (elementInfo?.color || t.color || DEFAULT_PLANT_COLOR) : (t.color || '#9ca3af');
+            const antiAirField = !!getPlantRuntimeConfig(t.type, labOverrides)?.antiAirField;
             const lifetimeSec = getPlantRuntimeConfig(t.type, labOverrides)?.lifetimeSec;
             const lifetimePercent = t.expiresAt != null && lifetimeSec
               ? Math.max(0, Math.min(1, (t.expiresAt - gameTime) / lifetimeSec))
@@ -925,8 +939,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     cx={left}
                     cy={top}
                     r={t.range * CELL_SIZE}
-                    fill="none"
-                    stroke="rgba(17,24,39,0.15)"
+                    fill={antiAirField && !towerFrozen ? 'rgba(22,163,74,0.035)' : 'none'}
+                    stroke={antiAirField ? (towerFrozen ? 'rgba(37,99,235,0.25)' : 'rgba(22,163,74,0.38)') : 'rgba(17,24,39,0.15)'}
                     strokeWidth={1}
                     strokeDasharray="4 4"
                     pointerEvents="none"
@@ -1059,7 +1073,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               enemyColor = `rgba(220,38,38,${alpha})`; // 红色
             } else if (e.armorBreakUntil && typeof e.armorBreakUntil === 'number' && gameTime < e.armorBreakUntil) {
               enemyColor = `rgba(245,158,11,${alpha})`; // 破甲金色
-            } else if (e.freezeUntil && typeof e.freezeUntil === 'number' && gameTime < e.freezeUntil) {
+            } else if ((e.freezeUntil && gameTime < e.freezeUntil) || (e.immobilizedUntil && gameTime < e.immobilizedUntil)) {
               enemyColor = `rgba(30,58,138,${alpha})`;
             } else if (e.slowUntil && typeof e.slowUntil === 'number' && gameTime < e.slowUntil) {
               enemyColor = `rgba(37,99,235,${alpha})`;
@@ -1072,6 +1086,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const angryWriterEnraged = e.shape === 'angryWriter' && !!e.newspaperEnraged && !angryWriterStunned;
             const shapeNode = (() => {
               switch (e.shape) {
+                case 'tank':
+                  return <MonsterIcon type="tank" color={enemyColor} size={shapeSize} />;
                 case 'triangle':
                 case 'healer':
                   return (

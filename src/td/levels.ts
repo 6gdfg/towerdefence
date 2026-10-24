@@ -95,6 +95,7 @@ export const MONSTER_BASE_STATS: Record<ShapeType, MonsterBaseStats> = {
   windEye: { hp: 180, speed: 1.7, leakDamage: 2 },
   balloonSoldier: { hp: 50, speed: 2.5, leakDamage: 1 },
   armorRepairer: { hp: 120, speed: 1.8, leakDamage: 1 },
+  tank: { hp: 10000, armorHp: 5000, speed: 0.1, leakDamage: 999 },
 };
 
 export const DIFFICULTY_CONFIG = {

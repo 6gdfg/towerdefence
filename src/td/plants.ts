@@ -50,6 +50,15 @@ export interface BasePlantConfig {
     knockbackDistance: number;
     knockbackBonusPerLevel: number;
   };
+  antiAirField?: {
+    maxBalloons: number;
+    rangeBase: number;
+    rangePerLevel: number;
+    maxRange: number;
+    tankStopBaseSec: number;
+    tankStopPerLevelSec: number;
+    maxTankStopSec: number;
+  };
   fireRateAura?: {
     radiusCells: number;
     baseBonus: number;
@@ -375,6 +384,28 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     },
     description: '永久风场植物：范围内怪物持续减速，并每隔一段时间轻微击退范围内全部怪物。',
   },
+  antiAirTree: {
+    id: 'antiAirTree',
+    name: '防空树',
+    icon: 'T',
+    cost: 1000,
+    placementCooldown: 90,
+    range: 4.1,
+    damage: 0,
+    fireRate: 0,
+    projectileSpeed: 0,
+    allowedElementTypes: ['wind'],
+    antiAirField: {
+      maxBalloons: 15,
+      rangeBase: 4,
+      rangePerLevel: 0.1,
+      maxRange: 6,
+      tankStopBaseSec: 20,
+      tankStopPerLevelSec: 0.5,
+      maxTankStopSec: 30,
+    },
+    description: '阻挡半径内气球兵前进，同时阻拦超过15只时消失。坦克进入时消耗自身，令坦克静止并重置清除计时；半径为4+0.1×等级（最高6），静止为20+0.5×等级秒（最高30）。冷却90秒，仅支持风元素光环伤害。',
+  },
   windSailGrass: {
     id: 'windSailGrass',
     name: '风帆草',
@@ -574,7 +605,9 @@ export function scalePlantStats(base: BasePlantConfig, level: number) {
   const frMul = 1 + (lv - 1) * TOWER_LEVEL_CONFIG.fireRatePerLevel;
   return {
     damage: Number((base.damage * dmgMul).toFixed(2)),
-    range: Number((base.range * rngMul).toFixed(2)),
+    range: base.antiAirField
+      ? Number(Math.min(base.antiAirField.maxRange, base.antiAirField.rangeBase + base.antiAirField.rangePerLevel * lv).toFixed(2))
+      : Number((base.range * rngMul).toFixed(2)),
     fireRate: base.fireRate === 0 || base.channelAttack ? base.fireRate : Number((base.fireRate * frMul).toFixed(2)),
   };
 }

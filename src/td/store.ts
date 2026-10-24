@@ -20,7 +20,7 @@ const PURIFIER_CLEANSE_RADIUS = 3;
 const FREEZER_SPECIAL_INTERVAL = 30;
 const FREEZER_SPECIAL_RADIUS = 4.5;
 const FREEZER_SPECIAL_DURATION = 2;
-const FREEZER_DEATH_DURATION = 1;
+const FREEZER_DEATH_DURATION = 0.5;
 const TAUNTER_RADIUS = 4.5;
 const DEFAULT_WAVE_GAP_SECONDS = 2;
 const DEFAULT_GROUP_GAP_SECONDS = 2;
@@ -59,6 +59,7 @@ const ARMOR_REPAIR_RADIUS = 3;
 const ARMOR_REPAIR_MAX_RATIO = 0.12;
 const ARMOR_REPAIR_MIN_AMOUNT = 10;
 const WIND_PROJECTILE_KNOCKBACK_COOLDOWN = 1.5;
+const TANK_CLEAR_INTERVAL = 30;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -381,7 +382,7 @@ function distancePointToSegment(px: number, py: number, ax: number, ay: number, 
 }
 
 function rewindEnemyAlongPath(enemy: Enemy, distance: number, path: Position[]) {
-  if (distance <= 0) return;
+  if (distance <= 0 || enemy.shape === 'tank') return;
   const totalLen = totalPathLength(path);
   const currentDistance = enemy.progress * totalLen;
   const targetDistance = Math.max(0, currentDistance - distance);
@@ -508,9 +509,10 @@ function applyDamageWithArmor(
   enemy: Enemy,
   damage: number,
   gameTime: number,
-  modifiers?: { armorMultiplier?: number; healthMultiplier?: number },
+  modifiers?: { armorMultiplier?: number; healthMultiplier?: number; sourcePlant?: PlantType },
 ) {
   let amount = Math.max(0, damage);
+  if (enemy.shape === 'tank' && modifiers?.sourcePlant === 'electricFlower') amount *= 0.25;
   if (amount <= 0) return 0;
   clearExpiredArmorBreak(enemy, gameTime);
   const armorBreakActive = isArmorBreakActive(enemy, gameTime);
@@ -658,6 +660,39 @@ function getPathLocationAtProgress(path: Position[], progress: number) {
 
   const lastIndex = path.length - 2;
   return { pos: { ...path[path.length - 1] }, pathIndex: lastIndex, t: 1, progress: 1 };
+}
+
+// Find the first field entry along actual path segments, including turns in one frame.
+function findAntiAirInterception(enemy: Enemy, distance: number, path: Position[], fields: Tower[]) {
+  if (fields.length === 0) return undefined;
+  let best: { tower: Tower; distance: number } | undefined;
+  const startDistance = enemy.progress * totalPathLength(path);
+  let traversed = 0;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const a = path[index];
+    const b = path[index + 1];
+    const length = segmentLength(a, b);
+    const from = Math.max(0, startDistance - traversed);
+    const to = Math.min(length, startDistance + distance - traversed);
+    if (length > 0 && from <= to) {
+      const direction = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+      const start = lerp(a, b, from / length);
+      fields.forEach(tower => {
+        const dx = start.x - tower.pos.x;
+        const dy = start.y - tower.pos.y;
+        const c = dx * dx + dy * dy - tower.range * tower.range;
+        const projection = dx * direction.x + dy * direction.y;
+        const discriminant = projection * projection - c;
+        if (c > 1e-8 && discriminant < 0) return;
+        const entry = c <= 1e-8 ? 0 : -projection - Math.sqrt(discriminant);
+        if (entry < 0 || entry > to - from + 1e-8) return;
+        const hitDistance = Math.max(0, traversed + from + entry - startDistance);
+        if (!best || hitDistance < best.distance) best = { tower, distance: hitDistance };
+      });
+    }
+    traversed += length;
+  }
+  return best;
 }
 
 function resolveSpawnPathId(pathId: number | undefined, paths: Position[][], enemies: Enemy[]) {
@@ -1370,6 +1405,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
     let lives = state.lives;
+    let tankLeaked = false;
     const maxLives = Math.max(1, state.maxLives ?? state.lives);
     let waveIndex = state.waveIndex;
     let isWaveActive = state.isWaveActive;
@@ -1667,7 +1703,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             maxHp: hp,
             armorHp,
             maxArmorHp: armorHp,
-            speed: g.isBoss && g.bossSpeed != null ? Math.max(0.1, g.bossSpeed) : baseStats.speed,
+            speed: g.isBoss && g.bossSpeed != null ? Math.max(0.01, g.bossSpeed) : baseStats.speed,
             shape: g.type,
             leakDamage: g.leakDamage ?? baseStats.leakDamage,
             level: g.level,
@@ -1692,6 +1728,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
             enemy.specialTimer = gameTime + WIND_EYE_FIRST_PRESSURE_DELAY;
           } else if (enemy.shape === 'armorRepairer') {
             enemy.specialTimer = gameTime + ARMOR_REPAIR_INTERVAL;
+          } else if (enemy.shape === 'tank') {
+            enemy.specialTimer = gameTime + TANK_CLEAR_INTERVAL;
           }
           enemies.push(enemy);
           nextCursor = {
@@ -1722,10 +1760,83 @@ export const useTDStore = create<TDStore>((set, get) => ({
     }
 
     const previousEnemyProgress = new Map(enemies.map(enemy => [enemy.id, enemy.progress]));
+    let antiAirFields = towers.filter(tower => (
+      !!getPlantRuntimeConfig(tower.type, state.labOverrides)?.antiAirField && !isTowerFrozen(tower, gameTime)
+    ));
+    // Resolve sacrificed trees before balloons move, so their fields release immediately.
+    enemies = enemies.map(enemy => {
+      if (enemy.shape !== 'tank' || enemy.hp <= 0) return enemy;
+      const next = { ...enemy };
+      const stoppedUntil = Math.max(next.freezeUntil ?? 0, next.immobilizedUntil ?? 0);
+      const pausedSeconds = Math.max(0, Math.min(gameTime, stoppedUntil) - prevGameTime);
+      next.specialTimer = (next.specialTimer ?? prevGameTime + TANK_CLEAR_INTERVAL) + pausedSeconds;
+      const slowed = !!next.slowUntil && gameTime < next.slowUntil;
+      const boost = next.speedBoostUntil && gameTime < next.speedBoostUntil ? (next.speedBoostMultiplier ?? 1) : 1;
+      const speed = next.speed * (slowed ? 1 - (next.slowPct ?? 0) : 1) * boost
+        * getWindPressureEnemySpeedMultiplier(next, enemies);
+      const distance = speed * (dt - pausedSeconds);
+      const path = paths[next.pathId];
+      const interception = (next.immobilizedUntil ?? 0) > gameTime
+        ? undefined : findAntiAirInterception(next, distance, path, antiAirFields);
+      Object.assign(next, getPathLocationAtProgress(path, next.progress + (interception?.distance ?? distance) / Math.max(0.0001, totalPathLength(path))));
+      if (interception) {
+        const field = getPlantRuntimeConfig(interception.tower.type, state.labOverrides)!.antiAirField!;
+        const duration = Math.min(field.maxTankStopSec, field.tankStopBaseSec + field.tankStopPerLevelSec * (interception.tower.level ?? 1));
+        next.immobilizedUntil = gameTime + duration;
+        next.specialTimer = gameTime + TANK_CLEAR_INTERVAL;
+        towers = towers.filter(tower => tower.id !== interception.tower.id);
+        antiAirFields = antiAirFields.filter(tower => tower.id !== interception.tower.id);
+        plantCovers = plantCovers.filter(cover => cover.towerId !== interception.tower.id);
+      }
+      return next;
+    });
+
+    const balloonTravelDistances = new Map<string, number>();
+    enemies.forEach(enemy => {
+      if (!isAirborneEnemy(enemy) || enemy.hp <= 0) return;
+      const frozen = !!enemy.freezeUntil && gameTime < enemy.freezeUntil;
+      const slowed = !!enemy.slowUntil && gameTime < enemy.slowUntil;
+      const boost = enemy.speedBoostUntil && gameTime < enemy.speedBoostUntil ? (enemy.speedBoostMultiplier ?? 1) : 1;
+      const speed = enemy.speed * (frozen ? 0 : slowed ? 1 - (enemy.slowPct ?? 0) : 1)
+        * boost * getWindPressureEnemySpeedMultiplier(enemy, enemies);
+      balloonTravelDistances.set(enemy.id, speed * dt);
+    });
+    const projectBalloonLocations = () => {
+      const locations = new Map<string, ReturnType<typeof getPathLocationAtProgress>>();
+      enemies.forEach(enemy => {
+        const distance = balloonTravelDistances.get(enemy.id);
+        if (distance == null) return;
+        const path = paths[enemy.pathId];
+        const interception = findAntiAirInterception(enemy, distance, path, antiAirFields);
+        locations.set(enemy.id, getPathLocationAtProgress(path,
+          enemy.progress + (interception?.distance ?? distance) / Math.max(0.0001, totalPathLength(path))));
+      });
+      return locations;
+    };
+    let balloonLocations = projectBalloonLocations();
+    // Recompute from original positions after a collapse; overlapping fields may also overload.
+    while (antiAirFields.length > 0 && balloonLocations.size > 0) {
+      const overloadedIds = new Set(antiAirFields.filter(tower => {
+        const field = getPlantRuntimeConfig(tower.type, state.labOverrides)!.antiAirField!;
+        let blocked = 0;
+        for (const { pos } of balloonLocations.values()) {
+          if (getDistance(pos.x, pos.y, tower.pos.x, tower.pos.y) <= tower.range + 1e-8) blocked += 1;
+          if (blocked > field.maxBalloons) return true;
+        }
+        return false;
+      }).map(tower => tower.id));
+      if (overloadedIds.size === 0) break;
+      towers = towers.filter(tower => !overloadedIds.has(tower.id));
+      plantCovers = plantCovers.filter(cover => !overloadedIds.has(cover.towerId));
+      antiAirFields = antiAirFields.filter(tower => !overloadedIds.has(tower.id));
+      balloonLocations = projectBalloonLocations();
+    }
 
     //  advance enemies along path
     enemies = enemies
       .map(e => {
+        if (e.hp <= 0 || e.shape === 'tank') return e;
+        if (isAirborneEnemy(e)) return { ...e, ...balloonLocations.get(e.id)! };
         const path = paths[e.pathId]; // 使用敌人自己的路径
         const totalLen = totalPathLength(path);
         // slow effect decay
@@ -1765,7 +1876,10 @@ export const useTDStore = create<TDStore>((set, get) => ({
         // reached end -> lose life
         const path = paths[e.pathId]; // 使用敌人自己的路径
         const atEnd = e.pathIndex >= path.length - 2 && e.t >= 1;
-        if (atEnd) lives -= e.leakDamage ?? 1;
+        if (atEnd && e.hp > 0) {
+          if (e.shape === 'tank') tankLeaked = true;
+          lives -= e.leakDamage ?? 1;
+        }
         return !atEnd && e.hp > 0;
       });
 
@@ -1798,6 +1912,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
       if (e.freezeUntil && gameTime >= e.freezeUntil) {
         e.freezeUntil = undefined;
+      }
+      if (e.immobilizedUntil && gameTime >= e.immobilizedUntil) {
+        e.immobilizedUntil = undefined;
       }
       if (e.armorBreakUntil && gameTime >= e.armorBreakUntil) {
         e.armorBreakUntil = undefined;
@@ -1840,9 +1957,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }];
     };
 
-    const dealDamage = (enemy: Enemy, amount: number, color?: string) => {
+    const dealDamage = (enemy: Enemy, amount: number, color?: string, sourcePlant?: PlantType) => {
       if (amount <= 0 || enemy.hp <= 0) return 0;
-      const inflicted = applyDamageWithArmor(enemy, amount, gameTime);
+      const inflicted = applyDamageWithArmor(enemy, amount, gameTime, { sourcePlant });
       if (color) addDamagePopup(enemy.pos, inflicted, color);
       if (enemy.hp <= 0 && !enemy.rewardGiven) {
         enemy.rewardGiven = true;
@@ -1885,7 +2002,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const damage = 800 + 50 * cast.level;
           enemies.forEach(enemy => {
             if (getDistance(enemy.pos.x, enemy.pos.y, cast.pos.x, cast.pos.y) <= radius) {
-              dealDamage(enemy, damage, '#ef4444');
+              dealDamage(enemy, damage * (enemy.shape === 'tank' ? 2 : 1), '#ef4444');
             }
           });
           break;
@@ -1935,7 +2052,21 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let towersModified = false;
     enemies.forEach(enemy => {
       if (enemy.hp <= 0) return;
-      if (enemy.shape === 'healer') {
+      if (enemy.shape === 'tank') {
+        if (gameTime < Math.max(enemy.freezeUntil ?? 0, enemy.immobilizedUntil ?? 0)) return;
+        if ((enemy.specialTimer ?? gameTime + TANK_CLEAR_INTERVAL) <= gameTime) {
+          if (towers.length > 0) {
+            const target = towers[Math.floor(Math.random() * towers.length)];
+            towers = towers.filter(tower => (
+              isTowerProtected(tower, plantCovers)
+              || Math.abs(tower.pos.x - target.pos.x) > 1
+              || Math.abs(tower.pos.y - target.pos.y) > 1
+            ));
+            towersModified = true;
+          }
+          enemy.specialTimer = gameTime + TANK_CLEAR_INTERVAL;
+        }
+      } else if (enemy.shape === 'healer') {
         const interval = HEALER_SPECIAL_INTERVAL;
         if ((enemy.specialTimer ?? 0) <= gameTime) {
           const healRadius = 2.8;
@@ -2128,7 +2259,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
         const pct = Math.max(channelAttack.initialDamagePct, tw.channelDamagePct ?? channelAttack.initialDamagePct);
         const damage = tw.damage * Math.min(1, pct);
-        dealDamage(target, damage, channelAttack.color);
+        dealDamage(target, damage, channelAttack.color, tw.type);
         tw.lastShotTime = gameTime;
         tw.channelDamagePct = Math.min(1, pct + channelAttack.rampPctPerTick);
         tw.channelNextTickTime = gameTime + tickInterval;
@@ -2211,6 +2342,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
     const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number, directHit = true) => {
       if (damageAmount <= 0 || !canPlantAffectEnemy(enemy)) return;
+      if (enemy.shape === 'tank' && projectile.elementType === 'wind') return;
       if (projectile.breakArmorDuration) {
         applyArmorBreak(enemy, impactTime + projectile.breakArmorDuration, projectile.breakArmorDamageMultiplier);
       }
@@ -2223,6 +2355,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       }
       const armorBeforeHit = Math.max(0, enemy.armorHp ?? 0);
       applyDamageWithArmor(enemy, damageAmount, impactTime, {
+        sourcePlant: projectile.from,
         armorMultiplier: projectile.armorDamageMultiplier,
         healthMultiplier: projectile.healthDamageMultiplier,
       });
@@ -2387,7 +2520,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (dps <= 0) return;
       enemies.forEach(enemy => {
         if (canPlantAffectEnemy(enemy) && getDistance(enemy.pos.x, enemy.pos.y, tw.pos.x, tw.pos.y) <= tw.range) {
-          applyDamageWithArmor(enemy, dps * dt, gameTime);
+          applyDamageWithArmor(enemy, dps * dt, gameTime, { sourcePlant: tw.type });
           if (enemy.hp <= 0 && !enemy.rewardGiven) {
             enemy.rewardGiven = true;
             gold += rewardForEnemy(enemy, killRewardOverride);
@@ -2399,6 +2532,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     triggerEnemyDeathEffects();
     enemies = enemies.filter(e => e.hp > 0);
     plantCovers = plantCovers.filter(cover => towers.some(tower => tower.id === cover.towerId));
+    windWalls = windWalls.filter(wall => towers.some(tower => tower.id === wall.sourceTowerId));
 
     //  check wave finish
     if (isWaveActive) {
@@ -2422,6 +2556,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     }
 
     // defeat: lives <= 0 -> freeze
+    if (tankLeaked) lives = 0;
     if (lives <= 0) {
       isWaveActive = false;
       spawnCursor = null;

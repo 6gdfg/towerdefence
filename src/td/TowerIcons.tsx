@@ -158,6 +158,13 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <path d="M11.8 9.2 C7.1 10.5 5.3 13.4 5.5 17.8 C8.8 16.8 11.1 13.7 11.8 9.2 Z" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.72} strokeLinejoin="round" />
         </svg>
       );
+    case 'antiAirTree':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 3 L19 13 H15 L18 17 H6 L9 13 H5 Z M12 17 V21 M8 21 H16" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} strokeLinejoin="round" strokeLinecap="round" />
+          <path d="M3 5 V2 H6 M18 2 H21 V5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.65} strokeLinecap="round" />
+        </svg>
+      );
     case 'windWallGrass':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
@@ -292,6 +299,14 @@ export function MonsterIcon({ type, color, size = 28, style }: MonsterIconProps)
           <path d="M12 3.5 L19.5 6.5 V11.8 C19.5 16.2 16.5 19.2 12 20.5 C7.5 19.2 4.5 16.2 4.5 11.8 V6.5 Z" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" />
           <path d="M8 10 H16 M8 13 H16 M10 7.5 H14" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.68} strokeLinecap="round" />
           <path d="M15.5 14.5 L18.5 17.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} strokeLinecap="round" />
+        </svg>
+      );
+    case 'tank':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="2.5" y="13" width="19" height="7" rx="3.5" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M6 13 V9 H17 V13 M9 9 V5 H15 V9 M15 6 H22" fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+          <path d="M6 16.5 H18" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.65} strokeDasharray="1 3" strokeLinecap="round" />
         </svg>
       );
     case 'evilSniper':
