@@ -1,9 +1,12 @@
 import type { MapSpec } from './maps';
 import { countMapPaths } from './mapPath';
 import { ElementType, PlantType, ShapeType, WaveDef, WaveGroup } from './types';
+import { ENDLESS_MODE_ENEMIES_PER_WAVE, ENDLESS_MODE_SPAWN_INTERVAL } from '../../shared/endless';
+export * from '../../shared/endless';
 
 const FUN_MODE_SHAPES = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'armorRepairer'] as const;
 const FUN_MODE_INITIAL_WAVES = 1;
+const ENDLESS_MODE_BASE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'taunter', 'purifier', 'angryWriter', 'windShield', 'armorRepairer'];
 const RANDOM_MODE_SHAPES: ShapeType[] = ['circle', 'triangle', 'square', 'healer', 'evilSniper', 'rager', 'summoner', 'igniter', 'armored', 'iceShell', 'freezer', 'taunter', 'purifier', 'angryWriter', 'bunker', 'windShield', 'windEye', 'armorRepairer'];
 const RANDOM_MODE_SHAPE_MULTIPLIER: Partial<Record<ShapeType, number>> = {
   square: 0.65,
@@ -122,6 +125,74 @@ export function createFunModeWave(waveNumber: number): WaveDef {
 
 export function buildInitialFunWaves(): WaveDef[] {
   return Array.from({ length: FUN_MODE_INITIAL_WAVES }, (_, idx) => createFunModeWave(idx + 1));
+}
+
+export function getEndlessModeMonsterLevel(waveNumber: number) {
+  const safeWave = Math.max(1, Math.floor(waveNumber));
+  return Math.floor((safeWave - 1) / 3) + 1;
+}
+
+export function getEndlessModeEnemyPool(waveNumber: number): ShapeType[] {
+  const safeWave = Math.max(1, Math.floor(waveNumber));
+  const pool = [...ENDLESS_MODE_BASE_SHAPES];
+  if (safeWave >= 20) pool.push('bunker');
+  if (safeWave >= 40) pool.push('balloonSoldier');
+  if (safeWave >= 60) pool.push('windEye');
+  if (safeWave >= 80) pool.push('freezer');
+  return pool;
+}
+
+function pickEndlessWaveShapes(pool: ShapeType[], waveNumber: number, random: () => number) {
+  const candidates = [...pool];
+  const picked: ShapeType[] = [];
+  const targetCount = Math.min(5, candidates.length);
+  while (picked.length < targetCount && candidates.length > 0) {
+    const index = Math.min(candidates.length - 1, Math.floor(Math.max(0, Math.min(0.999999, random())) * candidates.length));
+    picked.push(candidates.splice(index, 1)[0]);
+  }
+  if (picked.length === 0) picked.push('circle');
+  const offset = (Math.max(1, Math.floor(waveNumber)) - 1) % picked.length;
+  return [...picked.slice(offset), ...picked.slice(0, offset)];
+}
+
+export function createEndlessModeWave(waveNumber: number, random: () => number = Math.random): WaveDef {
+  const safeWave = Math.max(1, Math.floor(waveNumber));
+  const level = getEndlessModeMonsterLevel(safeWave);
+  const hasTank = safeWave > 100 && (safeWave - 100) % 3 === 0;
+  const ordinaryCount = ENDLESS_MODE_ENEMIES_PER_WAVE - (hasTank ? 1 : 0);
+  const shapes = pickEndlessWaveShapes(getEndlessModeEnemyPool(safeWave), safeWave, random);
+  const baseCount = Math.floor(ordinaryCount / shapes.length);
+  let remainder = ordinaryCount % shapes.length;
+  let startDelay = 0;
+  const groups: WaveGroup[] = shapes.map(type => {
+    const count = baseCount + (remainder-- > 0 ? 1 : 0);
+    const group: WaveGroup = {
+      type,
+      count,
+      interval: ENDLESS_MODE_SPAWN_INTERVAL,
+      level,
+      startDelay,
+    };
+    startDelay += count * ENDLESS_MODE_SPAWN_INTERVAL;
+    return group;
+  });
+
+  if (hasTank) {
+    groups.push({
+      type: 'tank',
+      count: 1,
+      interval: ENDLESS_MODE_SPAWN_INTERVAL,
+      level,
+      isBoss: true,
+      startDelay,
+    });
+  }
+
+  return { groups };
+}
+
+export function buildInitialEndlessWaves(): WaveDef[] {
+  return [createEndlessModeWave(1)];
 }
 
 export type RandomTowerLevels = Partial<Record<PlantType | `element:${ElementType}`, number>>;

@@ -1,3 +1,5 @@
+import { ELEMENT_ITEM_IDS, NON_UPGRADEABLE_PLANT_ITEMS, PLANT_ITEM_IDS } from './unlocks.js';
+
 export type LevelStar = 1 | 2 | 3;
 export type ChestType = 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -28,7 +30,18 @@ export type RepeatClearChestRewardConfig = {
 
 export const MAX_CHEST_INVENTORY = 20;
 
+export const CHEST_SHARD_REWARD_POOL: readonly string[] = [
+  ...PLANT_ITEM_IDS.filter(item => !(NON_UPGRADEABLE_PLANT_ITEMS as readonly string[]).includes(item)),
+  ...ELEMENT_ITEM_IDS,
+];
+
+export function pickChestShardReward(): string {
+  return CHEST_SHARD_REWARD_POOL[Math.floor(Math.random() * CHEST_SHARD_REWARD_POOL.length)];
+}
+
 export const REPEAT_CLEAR_COIN_MULTIPLIER = 0.5;
+export const ENDLESS_MODE_COIN_PER_WAVE = 15;
+export const ENDLESS_MODE_WAVES_PER_COMMON_CHEST = 20;
 
 export const REPEAT_CLEAR_CHEST_REWARDS: Record<'EZ' | 'HD' | 'IN' | 'AT', RepeatClearChestRewardConfig> = {
   EZ: { guaranteed: ['common'], bonus: [] },
@@ -87,4 +100,28 @@ export function getRepeatClearChestRewardConfig(difficulty: string | null | unde
     return REPEAT_CLEAR_CHEST_REWARDS[difficulty];
   }
   return REPEAT_CLEAR_CHEST_REWARDS[star === 1 ? 'EZ' : star === 2 ? 'HD' : 'IN'];
+}
+
+export function getEndlessModeReward(wavesCleared: number) {
+  const safeWaves = Number.isFinite(wavesCleared) ? Math.max(0, Math.floor(wavesCleared)) : 0;
+  let commonUnits = Math.floor(safeWaves / ENDLESS_MODE_WAVES_PER_COMMON_CHEST);
+  const chestTypes: ChestType[] = [];
+
+  const legendaryCount = Math.floor(commonUnits / 8);
+  commonUnits %= 8;
+  const epicCount = Math.floor(commonUnits / 4);
+  commonUnits %= 4;
+  const rareCount = Math.floor(commonUnits / 2);
+  const commonCount = commonUnits % 2;
+
+  for (let i = 0; i < legendaryCount; i++) chestTypes.push('legendary');
+  for (let i = 0; i < epicCount; i++) chestTypes.push('epic');
+  for (let i = 0; i < rareCount; i++) chestTypes.push('rare');
+  for (let i = 0; i < commonCount; i++) chestTypes.push('common');
+
+  return {
+    wavesCleared: safeWaves,
+    coins: safeWaves * ENDLESS_MODE_COIN_PER_WAVE,
+    chestTypes,
+  };
 }

@@ -161,32 +161,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json(await gardenPayload(playerId));
     }
 
-    if (action === 'plant') {
-      const plotIndex = Math.floor(Number(req.body?.plotIndex));
+    if (action === 'plant' || action === 'plantAll') {
+      const plotIndex = action === 'plant' ? Math.floor(Number(req.body?.plotIndex)) : null;
       const seedType = req.body?.seedType;
-      if (!Number.isFinite(plotIndex) || plotIndex < 0 || (seedType !== 'plant' && seedType !== 'chest')) {
+      if ((plotIndex !== null && (!Number.isFinite(plotIndex) || plotIndex < 0)) || (seedType !== 'plant' && seedType !== 'chest')) {
         return res.status(400).json({ error: 'invalid planting request' });
       }
-      const gardenRows = await sql`SELECT plant_seeds, chest_seeds, unlocked_plots, efficiency_level, luck_level FROM player_garden WHERE player_id=${playerId}`;
-      const garden = gardenRows[0] as GardenRow | undefined;
-      if (!garden || plotIndex >= Number(garden.unlocked_plots ?? BASE_PLOTS)) return res.status(400).json({ error: 'plot locked' });
+      const seedColumn = seedType === 'plant' ? 'plant_seeds' : 'chest_seeds';
+      const baseGrowSeconds = seedType === 'plant' ? PLANT_GROW_SECONDS : CHEST_GROW_SECONDS;
+      // Both single and bulk planting lock the same garden row. Debit only the
+      // plots actually inserted, so concurrent requests cannot waste seeds.
+      const results = await sql.transaction(tx => [
+        tx`SELECT plant_seeds, chest_seeds, unlocked_plots FROM player_garden WHERE player_id=${playerId} FOR UPDATE`,
+        tx.query(`WITH current_garden AS (
+            SELECT * FROM player_garden WHERE player_id=$1
+          ), empty_plots AS (
+            SELECT generated.plot_index
+            FROM current_garden CROSS JOIN LATERAL generate_series(0, unlocked_plots - 1) AS generated(plot_index)
+            WHERE ($3::integer IS NULL OR generated.plot_index=$3::integer)
+              AND NOT EXISTS (SELECT 1 FROM garden_plots WHERE player_id=$1 AND plot_index=generated.plot_index)
+            ORDER BY generated.plot_index
+            LIMIT (SELECT GREATEST(0, ${seedColumn}) FROM current_garden)
+          ), planted AS (
+            INSERT INTO garden_plots (player_id, plot_index, seed_type, target_item, ready_at)
+            SELECT $1, empty_plots.plot_index, $2::text,
+              CASE WHEN $2::text='plant' THEN $5::jsonb->>(floor(random() * jsonb_array_length($5::jsonb)))::integer ELSE NULL END,
+              NOW() + GREATEST(1, round($4::integer * (1 - (GREATEST(1, LEAST($6::integer, efficiency_level)) - 1) * 0.01))) * INTERVAL '1 second'
+            FROM empty_plots CROSS JOIN current_garden WHERE TRUE
+            ON CONFLICT (player_id, plot_index) DO NOTHING RETURNING plot_index
+          ), deducted AS (
+            UPDATE player_garden SET ${seedColumn}=${seedColumn} - (SELECT COUNT(*) FROM planted), updated_at=NOW()
+            WHERE player_id=$1 AND EXISTS (SELECT 1 FROM planted) RETURNING player_id
+          ) SELECT plot_index FROM planted ORDER BY plot_index`,
+        [playerId, seedType, plotIndex, baseGrowSeconds, JSON.stringify(UPGRADEABLE_PLANTS), MAX_EFFICIENCY_LEVEL]),
+      ]) as [GardenRow[], { plot_index: number | string }[]];
+      const garden = results[0][0];
+      if (!garden || (plotIndex !== null && plotIndex >= Number(garden.unlocked_plots ?? BASE_PLOTS))) {
+        return res.status(400).json({ error: 'plot locked' });
+      }
       const seedCount = seedType === 'plant' ? Number(garden.plant_seeds ?? 0) : Number(garden.chest_seeds ?? 0);
       if (seedCount < 1) return res.status(400).json({ error: 'SEEDS_NOT_ENOUGH' });
-      const occupied = await sql`SELECT 1 FROM garden_plots WHERE player_id=${playerId} AND plot_index=${plotIndex}`;
-      if (occupied.length > 0) return res.status(400).json({ error: 'plot occupied' });
-
-      const targetItem = seedType === 'plant' ? randomItem(UPGRADEABLE_PLANTS) : null;
-      const baseGrowSeconds = seedType === 'plant' ? PLANT_GROW_SECONDS : CHEST_GROW_SECONDS;
-      const efficiencyLevel = Math.max(1, Math.min(MAX_EFFICIENCY_LEVEL, Number(garden.efficiency_level ?? 1)));
-      const growSeconds = Math.max(1, Math.round(baseGrowSeconds * (1 - (efficiencyLevel - 1) * 0.01)));
-      const readyAt = new Date(Date.now() + growSeconds * 1000).toISOString();
-      const deducted = seedType === 'plant'
-        ? await sql`UPDATE player_garden SET plant_seeds=plant_seeds - 1, updated_at=NOW() WHERE player_id=${playerId} AND plant_seeds > 0 RETURNING plant_seeds`
-        : await sql`UPDATE player_garden SET chest_seeds=chest_seeds - 1, updated_at=NOW() WHERE player_id=${playerId} AND chest_seeds > 0 RETURNING chest_seeds`;
-      if (deducted.length === 0) return res.status(400).json({ error: 'SEEDS_NOT_ENOUGH' });
-      await sql`INSERT INTO garden_plots (player_id, plot_index, seed_type, target_item, ready_at)
-        VALUES (${playerId}, ${plotIndex}, ${seedType}, ${targetItem}, ${readyAt})`;
-      return res.json(await gardenPayload(playerId));
+      if (results[1].length === 0) return res.status(400).json({ error: plotIndex === null ? 'NO_EMPTY_PLOTS' : 'plot occupied' });
+      return res.json({ ...(await gardenPayload(playerId)), plantingSummary: { seedType, plantedCount: results[1].length } });
     }
 
     if (action === 'harvestAll') {

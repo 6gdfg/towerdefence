@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { useTDStore } from '../src/td/store';
 import { BASE_PLANTS_CONFIG, computePlantStats, ELEMENT_PLANT_CONFIG } from '../src/td/plants';
 import { MONSTER_BASE_STATS } from '../src/td/levels';
+import { BALANCE_LAB_LEVEL_DRAFTS } from '../src/td/balanceDraft.generated';
 import type { Enemy, PlantType, Projectile, Tower } from '../src/td/types';
 
 const path = [{ x: 0, y: 5 }, { x: 20, y: 5 }];
@@ -11,14 +12,14 @@ function reset() {
   useTDStore.getState().loadLevel({ startGold: 10000, lives: 20, waves: [{ groups: [] }] }, {
     path, size: { w: 22, h: 12 }, roadWidthCells: 1,
     plantGrid: [{ x: 5, y: 3 }, { x: 10, y: 3 }],
-  }, { allowedPlants: ['antiAirTree', 'bottleGrass'], allowedElements: ['wind', 'fire', 'ice'] });
+  }, { allowedPlants: ['antiAirTree', 'bottleGrass', 'dandelion'], allowedElements: ['wind', 'fire', 'ice'] });
 }
 
 function enemy(id = 'tank', overrides: Partial<Enemy> = {}): Enemy {
   return {
     id, shape: 'tank', pos: { x: 0, y: 5 }, hp: 10000, maxHp: 10000,
     armorHp: 5000, maxArmorHp: 5000, speed: 0.1, leakDamage: 999,
-    pathId: 0, pathIndex: 0, progress: 0, t: 0, level: 1, specialTimer: 30,
+    pathId: 0, pathIndex: 0, progress: 0, t: 0, level: 1, specialTimer: 20,
     ...overrides,
   };
 }
@@ -57,7 +58,7 @@ test('tank spawns with base armor and HP; boss speed stays configurable', () => 
   assert.equal(tank.hp, 10000);
   assert.equal(tank.armorHp, 5000);
   assert.equal(tank.speed, 0.2);
-  assert.equal(tank.specialTimer, 30.1);
+  assert.equal(tank.specialTimer, 20.1);
   assert.equal(MONSTER_BASE_STATS.tank.leakDamage, 999);
 });
 
@@ -68,6 +69,55 @@ test('boss speed accepts 0.05 and 0.01 without raising them to 0.1', () => {
     useTDStore.getState().startWave();
     useTDStore.getState().update(0.1);
     assert.equal(useTDStore.getState().enemies[0].speed, Math.max(0.01, speed));
+  }
+});
+
+test('dandelion costs 200, cools down for 15 seconds and fires a 100-seed random burst', () => {
+  reset();
+  useTDStore.setState({ towerLevelMap: { dandelion: 10 } });
+  useTDStore.getState().placeTower('dandelion', { x: 5, y: 3 });
+  assert.equal(useTDStore.getState().gold, 9800);
+  assert.equal(useTDStore.getState().plantCooldowns.dandelion, 15);
+  assert.equal(useTDStore.getState().towers[0].level, 10);
+  assert.equal(useTDStore.getState().towers[0].damage, 37.7);
+
+  useTDStore.getState().update(0.01);
+  const state = useTDStore.getState();
+  assert.equal(state.towers.length, 0);
+  assert.equal(state.projectiles.length, 100);
+  assert.ok(state.projectiles.every(projectile => projectile.from === 'dandelion' && projectile.unguided));
+  assert.ok(state.projectiles.every(projectile => projectile.speed === 8 && projectile.damage === 37.7));
+  const directions = new Set(state.projectiles.map(projectile => `${projectile.direction!.x.toFixed(3)},${projectile.direction!.y.toFixed(3)}`));
+  assert.ok(directions.size > 90);
+});
+
+test('dandelion burst inherits attached-element projectile effects', () => {
+  reset();
+  useTDStore.getState().placeTower('dandelion', { x: 5, y: 3 });
+  useTDStore.getState().applyElement('fire', { x: 5, y: 3 });
+  useTDStore.getState().update(0.01);
+  const projectiles = useTDStore.getState().projectiles;
+  assert.equal(projectiles.length, 100);
+  assert.ok(projectiles.every(projectile => projectile.elementType === 'fire'));
+  assert.ok(projectiles.every(projectile => projectile.burnDamagePerSec === 5 && projectile.burnDuration === 4));
+});
+
+test('2-7 EZ and HD drafts follow the rating-to-level limits and end with a gap boss', () => {
+  const ez = BALANCE_LAB_LEVEL_DRAFTS.find(draft => draft.sourceLevelId === 'L15' && draft.difficulty === 'EZ')!;
+  const hd = BALANCE_LAB_LEVEL_DRAFTS.find(draft => draft.sourceLevelId === 'L15' && draft.difficulty === 'HD')!;
+  assert.equal(ez.levelName, '2-7');
+  assert.equal(ez.rating, 10);
+  assert.equal(hd.levelName, '2-7');
+  assert.equal(hd.rating, 14);
+  assert.equal(ez.waves.length, 6);
+  assert.equal(hd.waves.length, 7);
+  const ordinaryMax = (draft: typeof ez) => Math.max(...draft.waves.flatMap(wave => wave.groups.filter(group => !group.isBoss).map(group => group.level)));
+  assert.equal(ordinaryMax(ez), 55);
+  assert.equal(ordinaryMax(hd), 85);
+  for (const draft of [ez, hd]) {
+    const finalBoss = draft.waves.at(-1)!.groups.find(group => group.type === 'bunker' && group.isBoss);
+    assert.ok(finalBoss);
+    assert.ok(finalBoss.level > ordinaryMax(draft) * 2);
   }
 });
 
@@ -110,14 +160,14 @@ test('tank clear uses a 3x3 square and respects pumpkin covers', () => {
   const originalRandom = Math.random;
   Math.random = () => 0;
   try {
-    useTDStore.setState({ gameTime: 29.9, enemies: [enemy()], towers: [
+    useTDStore.setState({ gameTime: 19.9, enemies: [enemy()], towers: [
       tower('center', 'bottleGrass', 5, 3), tower('corner', 'bottleGrass', 6, 4),
       tower('protected', 'bottleGrass', 4, 3), tower('outside', 'bottleGrass', 7, 3),
     ], plantCovers: [{ id: 'cover', type: 'pumpkinHead', towerId: 'protected' }] });
     useTDStore.getState().update(0.2);
     assert.deepEqual(useTDStore.getState().towers.map(item => item.id), ['protected', 'outside']);
     assert.equal(useTDStore.getState().plantCovers.length, 1);
-    assert.ok(Math.abs(useTDStore.getState().enemies[0].specialTimer! - 60.1) < 1e-8);
+    assert.ok(Math.abs(useTDStore.getState().enemies[0].specialTimer! - 40.1) < 1e-8);
   } finally {
     Math.random = originalRandom;
   }
@@ -125,13 +175,13 @@ test('tank clear uses a 3x3 square and respects pumpkin covers', () => {
 
 test('freeze pauses the clear countdown, including partial expiry frames', () => {
   reset();
-  useTDStore.setState({ gameTime: 29, enemies: [enemy('tank', { freezeUntil: 31.5 })],
+  useTDStore.setState({ gameTime: 19, enemies: [enemy('tank', { freezeUntil: 21.5 })],
     towers: [tower('plant', 'bottleGrass', 5, 3)] });
   useTDStore.getState().update(1);
-  assert.equal(useTDStore.getState().enemies[0].specialTimer, 31);
+  assert.equal(useTDStore.getState().enemies[0].specialTimer, 21);
   assert.equal(useTDStore.getState().enemies[0].pos.x, 0);
   useTDStore.getState().update(2);
-  assert.equal(useTDStore.getState().enemies[0].specialTimer, 32.5);
+  assert.equal(useTDStore.getState().enemies[0].specialTimer, 22.5);
   assert.equal(useTDStore.getState().towers.length, 1);
   assert.ok(Math.abs(useTDStore.getState().enemies[0].pos.x - 0.05) < 1e-8);
   useTDStore.getState().update(0.5);
@@ -162,11 +212,11 @@ test('tank consumes a tree before balloon movement, stops and resets countdown',
   assert.equal(state.towers.length, 0);
   assert.equal(state.enemies[0].pos.x, 2);
   assert.equal(state.enemies[1].immobilizedUntil, 21.5);
-  assert.equal(state.enemies[1].specialTimer, 31);
+  assert.equal(state.enemies[1].specialTimer, 21);
   const stoppedX = state.enemies[1].pos.x;
   useTDStore.getState().update(1);
   assert.equal(useTDStore.getState().enemies[1].pos.x, stoppedX);
-  assert.equal(useTDStore.getState().enemies[1].specialTimer, 32);
+  assert.equal(useTDStore.getState().enemies[1].specialTimer, 22);
 });
 
 test('multiple tanks and trees are handled independently and stop duration caps at 30', () => {

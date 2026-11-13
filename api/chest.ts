@@ -3,124 +3,9 @@ import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 import { recordPlayerTaskEvent } from './tasks.js';
-import { getChestRewardConfig, isChestType, type ChestType } from '../shared/rewards.js';
+import { getChestRewardConfig, isChestType, pickChestShardReward, type ChestType } from '../shared/rewards.js';
 import { splitShardInventory } from '../shared/shards.js';
 import { ELEMENT_ITEM_IDS, PLANT_ITEM_IDS } from '../shared/unlocks.js';
-
-const REWARD_POOL_BY_CHEST: Record<ChestType, Array<{ id: string; weight: number }>> = {
-  common: [
-    { id: 'sunflower', weight: 20 },
-    { id: 'bottleGrass', weight: 18 },
-    { id: 'doubleBottleGrass', weight: 6 },
-    { id: 'flameBottleGrass', weight: 6 },
-    { id: 'puffShroom', weight: 18 },
-    { id: 'fourLeafClover', weight: 8 },
-    { id: 'boomerangLeaf', weight: 5 },
-    { id: 'pentagram', weight: 4 },
-    { id: 'rocket', weight: 6 },
-    { id: 'holyFlower', weight: 2 },
-    { id: 'hotPepper', weight: 3 },
-    { id: 'frostBlastShroom', weight: 3 },
-    { id: 'cycloneShroom', weight: 6 },
-    { id: 'windSailGrass', weight: 3 },
-    { id: 'windWallGrass', weight: 3 },
-    { id: 'antiAirTree', weight: 1 },
-    { id: 'magnetNeedle', weight: 4 },
-    { id: 'siegeRamGrass', weight: 3 },
-    { id: 'electricFlower', weight: 4 },
-    { id: 'element:gold', weight: 4 },
-    { id: 'element:fire', weight: 5 },
-    { id: 'element:electric', weight: 4 },
-    { id: 'element:ice', weight: 4 },
-    { id: 'element:wind', weight: 4 },
-    { id: 'element:light', weight: 4 },
-  ],
-  rare: [
-    { id: 'sunflower', weight: 10 },
-    { id: 'bottleGrass', weight: 10 },
-    { id: 'doubleBottleGrass', weight: 10 },
-    { id: 'flameBottleGrass', weight: 10 },
-    { id: 'puffShroom', weight: 10 },
-    { id: 'fourLeafClover', weight: 10 },
-    { id: 'boomerangLeaf', weight: 9 },
-    { id: 'pentagram', weight: 8 },
-    { id: 'rocket', weight: 10 },
-    { id: 'machineGun', weight: 8 },
-    { id: 'sunlightFlower', weight: 7 },
-    { id: 'holyFlower', weight: 6 },
-    { id: 'hotPepper', weight: 8 },
-    { id: 'frostBlastShroom', weight: 8 },
-    { id: 'cycloneShroom', weight: 9 },
-    { id: 'windSailGrass', weight: 7 },
-    { id: 'windWallGrass', weight: 7 },
-    { id: 'antiAirTree', weight: 3 },
-    { id: 'magnetNeedle', weight: 8 },
-    { id: 'siegeRamGrass', weight: 7 },
-    { id: 'electricFlower', weight: 8 },
-    { id: 'element:gold', weight: 8 },
-    { id: 'element:fire', weight: 8 },
-    { id: 'element:electric', weight: 7 },
-    { id: 'element:ice', weight: 8 },
-    { id: 'element:wind', weight: 8 },
-    { id: 'element:light', weight: 8 },
-  ],
-  epic: [
-    { id: 'fourLeafClover', weight: 8 },
-    { id: 'doubleBottleGrass', weight: 9 },
-    { id: 'flameBottleGrass', weight: 9 },
-    { id: 'pentagram', weight: 9 },
-    { id: 'puffShroom', weight: 6 },
-    { id: 'boomerangLeaf', weight: 9 },
-    { id: 'rocket', weight: 9 },
-    { id: 'machineGun', weight: 10 },
-    { id: 'sniper', weight: 10 },
-    { id: 'sunlightFlower', weight: 10 },
-    { id: 'holyFlower', weight: 8 },
-    { id: 'hotPepper', weight: 9 },
-    { id: 'frostBlastShroom', weight: 9 },
-    { id: 'cycloneShroom', weight: 9 },
-    { id: 'windSailGrass', weight: 8 },
-    { id: 'windWallGrass', weight: 8 },
-    { id: 'antiAirTree', weight: 8 },
-    { id: 'magnetNeedle', weight: 9 },
-    { id: 'siegeRamGrass', weight: 9 },
-    { id: 'electricFlower', weight: 9 },
-    { id: 'element:gold', weight: 8 },
-    { id: 'element:fire', weight: 8 },
-    { id: 'element:electric', weight: 9 },
-    { id: 'element:ice', weight: 9 },
-    { id: 'element:wind', weight: 8 },
-    { id: 'element:light', weight: 9 },
-  ],
-  legendary: [
-    { id: 'fourLeafClover', weight: 8 },
-    { id: 'doubleBottleGrass', weight: 9 },
-    { id: 'flameBottleGrass', weight: 9 },
-    { id: 'pentagram', weight: 9 },
-    { id: 'puffShroom', weight: 6 },
-    { id: 'boomerangLeaf', weight: 9 },
-    { id: 'rocket', weight: 9 },
-    { id: 'machineGun', weight: 10 },
-    { id: 'sniper', weight: 10 },
-    { id: 'sunlightFlower', weight: 10 },
-    { id: 'holyFlower', weight: 8 },
-    { id: 'hotPepper', weight: 9 },
-    { id: 'frostBlastShroom', weight: 9 },
-    { id: 'cycloneShroom', weight: 9 },
-    { id: 'windSailGrass', weight: 8 },
-    { id: 'windWallGrass', weight: 8 },
-    { id: 'antiAirTree', weight: 8 },
-    { id: 'magnetNeedle', weight: 9 },
-    { id: 'siegeRamGrass', weight: 9 },
-    { id: 'electricFlower', weight: 9 },
-    { id: 'element:gold', weight: 8 },
-    { id: 'element:fire', weight: 8 },
-    { id: 'element:electric', weight: 9 },
-    { id: 'element:ice', weight: 9 },
-    { id: 'element:wind', weight: 8 },
-    { id: 'element:light', weight: 9 },
-  ],
-};
 
 const LEGENDARY_CRAFT_COST = {
   epic: 2,
@@ -158,17 +43,6 @@ type UnlockedItemRow = {
 
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function pickRewardId(chestType: ChestType): string {
-  const pool = REWARD_POOL_BY_CHEST[chestType];
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
-  let roll = randInt(1, totalWeight);
-  for (const item of pool) {
-    roll -= item.weight;
-    if (roll <= 0) return item.id;
-  }
-  return pool[0].id;
 }
 
 function pickLockedItem(candidates: readonly string[], unlocked: Set<string>): string | null {
@@ -218,7 +92,7 @@ async function grantChestRewards(playerId: string, chests: ChestStatusRow[]) {
 
     const shardCount = randInt(config.shardRolls.min, config.shardRolls.max);
     for (let i = 0; i < shardCount; i++) {
-      const rewardId = pickRewardId(chestType);
+      const rewardId = pickChestShardReward();
       shards[rewardId] = (shards[rewardId] || 0) + 1;
     }
 

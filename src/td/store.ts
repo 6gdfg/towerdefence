@@ -8,6 +8,7 @@ import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { normalizeMapPaths } from './mapPath';
 import { DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE, getAtBaseModeType, isPhantomAtMode } from './atMode';
 import { MAPS, getPlantGrid, isPositionCoveredByRoad, type MapSpec } from './maps';
+import { ENDLESS_MODE_WAVE_GAP } from '../../shared/endless';
 
 const IGNITER_DEATH_RADIUS = 2.8;
 const IGNITER_DEATH_SPEED_MULTIPLIER = 1.6;
@@ -59,7 +60,7 @@ const ARMOR_REPAIR_RADIUS = 3;
 const ARMOR_REPAIR_MAX_RATIO = 0.12;
 const ARMOR_REPAIR_MIN_AMOUNT = 10;
 const WIND_PROJECTILE_KNOCKBACK_COOLDOWN = 1.5;
-const TANK_CLEAR_INTERVAL = 30;
+const TANK_CLEAR_INTERVAL = 20;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -359,6 +360,25 @@ function createRadialProjectilesForTower(tower: Tower, shotCount: number, labOve
         x: tower.pos.x + direction.x,
         y: tower.pos.y + direction.y,
       },
+    }, labOverrides);
+    if (!projectile) continue;
+    projectile.targetId = null;
+    projectile.direction = direction;
+    projectile.unguided = true;
+    if (!projectile.piercing) projectile.pierceLimit = 1;
+    projectiles.push(projectile);
+  }
+  return projectiles;
+}
+
+function createRandomBurstProjectilesForTower(tower: Tower, shotCount: number, labOverrides?: LabOverrides | null): Projectile[] {
+  const projectiles: Projectile[] = [];
+  for (let index = 0; index < shotCount; index += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    const projectile = createProjectileForTower(tower, {
+      id: `burst-${tower.id}-${index}`,
+      pos: { x: tower.pos.x + direction.x, y: tower.pos.y + direction.y },
     }, labOverrides);
     if (!projectile) continue;
     projectile.targetId = null;
@@ -891,6 +911,10 @@ function markSunCollected(pickup: SunPickup, gameTime: number): SunPickup {
   };
 }
 
+export function hasWonLevel(state: Pick<TDState, 'mode' | 'lives' | 'isWaveActive' | 'waveIndex' | 'waves'>) {
+  return state.mode !== 'endless' && state.lives > 0 && !state.isWaveActive && state.waveIndex >= state.waves.length;
+}
+
 export interface TDStore extends TDState {
   startWave: () => void;
   placeTower: (type: PlantType, pos: Position) => void;
@@ -958,6 +982,7 @@ const INITIAL_TD_STATE: TDState = {
   mode: 'campaign',
   lifeBonusPerWave: 0,
   wavesCleared: 0,
+  endlessPendingClearWaves: [],
   endlessWaveFactory: null,
 };
 
@@ -1102,6 +1127,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       mode: opts?.mode ?? 'campaign',
       lifeBonusPerWave: opts?.lifeBonusPerWave ?? 0,
       wavesCleared: 0,
+      endlessPendingClearWaves: [],
       endlessWaveFactory: opts?.endlessWaveFactory ?? null,
     });
   },
@@ -1319,41 +1345,48 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
   manualFireTower: (towerId) => {
     const state = get();
-    const index = state.towers.findIndex(t => t.id === towerId);
-    if (index === -1) return;
-    const tower = state.towers[index];
-    if (tower.type !== 'sunlightFlower') return;
-    if (isTowerFrozen(tower, state.gameTime)) return;
-    const base = getPlantRuntimeConfig(tower.type, state.labOverrides);
+    if (!state.running) return;
+    const clickedTower = state.towers.find(tower => tower.id === towerId);
+    if (clickedTower?.type !== 'sunlightFlower') return;
+    const base = getPlantRuntimeConfig('sunlightFlower', state.labOverrides);
     const abilityCost = base?.activeAbilityCost ?? 10;
     if (state.gold < abilityCost) return;
 
-    const towerCopy: Tower = { ...tower };
-    ensureTowerStats(towerCopy, state.labOverrides);
-
-    const forcedTarget = findTaunterForTower(towerCopy, state.enemies, state.plantCovers);
-    const inRange = state.enemies
-      .filter(e => canPlantAffectEnemy(e) && getDistance(e.pos.x, e.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
-      .sort((a, b) => b.progress - a.progress);
-    const target = forcedTarget ?? inRange[0];
-    if (!target) return;
-
-    const newProjectiles = createProjectilesForTower(towerCopy, target, state.labOverrides);
+    const newProjectiles: Projectile[] = [];
+    let firingFlowerCount = 0;
+    const towers = state.towers.map(tower => {
+      if (tower.type !== 'sunlightFlower' || isTowerFrozen(tower, state.gameTime)) return tower;
+      const towerCopy = { ...tower };
+      ensureTowerStats(towerCopy, state.labOverrides);
+      const forcedTarget = findTaunterForTower(towerCopy, state.enemies, state.plantCovers);
+      const inRange = state.enemies
+        .filter(enemy => enemy.hp > 0 && canPlantAffectEnemy(enemy)
+          && getDistance(enemy.pos.x, enemy.pos.y, towerCopy.pos.x, towerCopy.pos.y) <= towerCopy.range)
+        .sort((a, b) => b.progress - a.progress);
+      const target = forcedTarget ?? inRange[0];
+      if (!target) return tower;
+      const shots = createProjectilesForTower(towerCopy, target, state.labOverrides);
+      if (shots.length === 0) return tower;
+      firingFlowerCount += 1;
+      newProjectiles.push(...shots);
+      return { ...towerCopy, lastShotTime: state.gameTime };
+    });
     if (newProjectiles.length === 0) return;
-
-    const towers = [...state.towers];
-    towers[index] = { ...towerCopy, lastShotTime: state.gameTime };
+    const totalCost = firingFlowerCount * abilityCost;
+    if (state.gold < totalCost) return;
 
     set({
       towers,
       projectiles: [...state.projectiles, ...newProjectiles],
-      gold: state.gold - abilityCost,
+      gold: state.gold - totalCost,
     });
   },
 
   startWave: () => {
     const state = get();
     if (state.isWaveActive) return;
+    // Endless waves are generated on demand; waveIndex remains the absolute index.
+    if (state.mode === 'endless') return;
     if (state.waveIndex >= state.waves.length) return;
     const activeMap = switchFlexibleMapForWave(state.atModeConfig, state.waveIndex, {
       paths: state.paths,
@@ -1379,6 +1412,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
   update: (dt: number) => {
     const state = get();
     if (!state.running) return;
+    if (state.mode === 'endless') dt = Math.min(0.1, Math.max(0, dt));
 
     const prevGameTime = state.gameTime;
     let gameTime = prevGameTime + dt;
@@ -1416,6 +1450,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const lifeBonusPerWave = state.lifeBonusPerWave ?? 0;
     const endlessWaveFactory = state.endlessWaveFactory ?? null;
     let wavesCleared = state.wavesCleared ?? 0;
+    let endlessPendingClearWaves = [...(state.endlessPendingClearWaves ?? [])];
+    const failedEndlessWaves = new Set<number>();
     let conveyorQueue = state.conveyorQueue.slice();
     let nextConveyorItemAt = state.nextConveyorItemAt ?? null;
     let nextSkySunAt = state.nextSkySunAt === undefined ? SKY_SUN_INTERVAL : state.nextSkySunAt;
@@ -1635,7 +1671,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
     });
 
     // auto start scheduled next wave
-    if (!isWaveActive && waveIndex < waves.length && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
+    const spawningWave = mode === 'endless' ? waves[0] : waves[waveIndex];
+    if (!isWaveActive && spawningWave && nextWaveStartTime !== null && gameTime >= nextWaveStartTime) {
       const activeMap = switchFlexibleMapForWave(atModeConfig, waveIndex, {
         paths,
         mapWidth,
@@ -1658,15 +1695,15 @@ export const useTDStore = create<TDStore>((set, get) => ({
       towers = activeMap.towers;
       plantCovers = activeMap.plantCovers;
       if (mapChanged) windWalls = [];
-      const spawnCursors = createSpawnCursorsForWave(waves[waveIndex], gameTime);
+      const spawnCursors = createSpawnCursorsForWave(spawningWave, mode === 'endless' ? nextWaveStartTime : gameTime);
       isWaveActive = true;
       spawnCursor = spawnCursors.length > 0 ? spawnCursors : null;
       nextWaveStartTime = null;
     }
 
     //  handle spawning
-    if (isWaveActive && waveIndex < waves.length && spawnCursor && spawnCursor.length > 0) {
-      const wave = waves[waveIndex];
+    if (isWaveActive && spawningWave && spawnCursor && spawnCursor.length > 0) {
+      const wave = spawningWave;
       const hasExplicitTiming = wave.groups.some(group => group.startDelay != null);
       const nextSpawnCursors: SpawnCursor[] = [];
 
@@ -1675,7 +1712,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (!g || cursor.remaining <= 0) return;
 
         let nextCursor = cursor;
-        if (gameTime >= cursor.nextSpawnTime) {
+        if (gameTime + (mode === 'endless' ? 1e-9 : 0) >= cursor.nextSpawnTime) {
           const baseStats = getMonsterRuntimeStats(g.type, state.labOverrides);
           const mul = getMonsterLevelMultiplier(g.level);
           const hp = Math.round(baseStats.hp * mul);
@@ -1708,6 +1745,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             leakDamage: g.leakDamage ?? baseStats.leakDamage,
             level: g.level,
             isBoss: !!g.isBoss,
+            endlessWaveNumber: mode === 'endless' ? waveIndex + 1 : undefined,
             specialType: rollSpecialEnemyType(specialEnemyConfig),
             pathIndex: spawnLocation.pathIndex,
             t: spawnLocation.t,
@@ -1735,7 +1773,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           nextCursor = {
             ...cursor,
             remaining: cursor.remaining - 1,
-            nextSpawnTime: gameTime + g.interval,
+            nextSpawnTime: (mode === 'endless' ? cursor.nextSpawnTime : gameTime) + g.interval,
           };
         }
 
@@ -1879,6 +1917,9 @@ export const useTDStore = create<TDStore>((set, get) => ({
         if (atEnd && e.hp > 0) {
           if (e.shape === 'tank') tankLeaked = true;
           lives -= e.leakDamage ?? 1;
+          if ((e.shape === 'tank' || lives <= 0) && e.endlessWaveNumber != null) {
+            failedEndlessWaves.add(e.endlessWaveNumber);
+          }
         }
         return !atEnd && e.hp > 0;
       });
@@ -2050,6 +2091,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     singleUseCasts = pendingCasts;
 
     let towersModified = false;
+    const consumedPlantIds = new Set<string>();
     enemies.forEach(enemy => {
       if (enemy.hp <= 0) return;
       if (enemy.shape === 'tank') {
@@ -2151,6 +2193,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
             shape: 'circle',
             leakDamage: baseStats.leakDamage,
             level: enemy.level,
+            endlessWaveNumber: enemy.endlessWaveNumber,
             specialType: rollSpecialEnemyType(specialEnemyConfig),
             pathIndex: spawnPathIndex,
             t: spawnT,
@@ -2216,6 +2259,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
       if (isTowerFrozen(tw, gameTime)) return;
       ensureTowerStats(tw, state.labOverrides);
       const baseConfig = getPlantRuntimeConfig(tw.type, state.labOverrides);
+      if (baseConfig?.randomBurstShotCount) {
+        projectiles.push(...createRandomBurstProjectilesForTower(tw, baseConfig.randomBurstShotCount, state.labOverrides));
+        consumedPlantIds.add(tw.id);
+        return;
+      }
       const fireRateMultiplier = (1 + getFireRateAuraBonus(tw, towers, gameTime, state.labOverrides))
         * getWindPressureTowerFireRateMultiplier(tw, enemies, plantCovers);
       const forcedTarget = findTaunterForTower(tw, enemies, plantCovers);
@@ -2339,6 +2387,11 @@ export const useTDStore = create<TDStore>((set, get) => ({
         projectiles.push(...newProjectiles);
       }
     });
+    if (consumedPlantIds.size > 0) {
+      towers = towers.filter(tower => !consumedPlantIds.has(tower.id));
+      plantCovers = plantCovers.filter(cover => !consumedPlantIds.has(cover.towerId));
+      windWalls = windWalls.filter(wall => !consumedPlantIds.has(wall.sourceTowerId));
+    }
 
     const applyProjectileDamage = (enemy: Enemy, damageAmount: number, projectile: Projectile, impactTime: number, directHit = true) => {
       if (damageAmount <= 0 || !canPlantAffectEnemy(enemy)) return;
@@ -2534,25 +2587,49 @@ export const useTDStore = create<TDStore>((set, get) => ({
     plantCovers = plantCovers.filter(cover => towers.some(tower => tower.id === cover.towerId));
     windWalls = windWalls.filter(wall => towers.some(tower => tower.id === wall.sourceTowerId));
 
-    //  check wave finish
+    // Endless mode advances after the current wave finishes spawning; enemies may overlap across waves.
     if (isWaveActive) {
       const spawningDone = !spawnCursor; // no more spawn
-      if (spawningDone && enemies.length === 0) {
+      const endlessSpawnFinished = mode === 'endless' && spawningDone;
+      const standardWaveFinished = mode !== 'endless' && spawningDone && enemies.length === 0;
+      if (endlessSpawnFinished || standardWaveFinished) {
         isWaveActive = false;
+        const finishedWaveNumber = waveIndex + 1;
         waveIndex += 1;
-        wavesCleared += 1;
-        if (mode !== 'campaign' && lifeBonusPerWave > 0) {
+        if (mode === 'endless') {
+          endlessPendingClearWaves.push(finishedWaveNumber);
+        } else {
+          wavesCleared += 1;
+        }
+        if (mode !== 'campaign' && mode !== 'endless' && lifeBonusPerWave > 0) {
           lives += lifeBonusPerWave;
         }
         if ((mode === 'endless' || mode === 'endlessTest') && endlessWaveFactory) {
           const nextWaveNumber = waveIndex + 1;
           const newWave = endlessWaveFactory(nextWaveNumber);
-          waves = [...waves, newWave];
+          waves = mode === 'endless' ? [newWave] : [...waves, newWave];
         }
-        if (waveIndex < waves.length) {
-          nextWaveStartTime = gameTime + DEFAULT_WAVE_GAP_SECONDS;
+        if ((mode === 'endless' && waves.length > 0) || waveIndex < waves.length) {
+          nextWaveStartTime = gameTime + (mode === 'endless' ? ENDLESS_MODE_WAVE_GAP : DEFAULT_WAVE_GAP_SECONDS);
         }
       }
+    }
+
+    if (mode === 'endless' && endlessPendingClearWaves.length > 0) {
+      const activeWaveNumbers = new Set(
+        enemies
+          .map(enemy => enemy.endlessWaveNumber)
+          .filter((waveNumber): waveNumber is number => waveNumber != null),
+      );
+      const remainingPending: number[] = [];
+      endlessPendingClearWaves.forEach(waveNumber => {
+        if (activeWaveNumbers.has(waveNumber)) {
+          remainingPending.push(waveNumber);
+        } else if (!failedEndlessWaves.has(waveNumber) || (lives > 0 && !tankLeaked)) {
+          wavesCleared += 1;
+        }
+      });
+      endlessPendingClearWaves = remainingPending;
     }
 
     // defeat: lives <= 0 -> freeze
@@ -2612,6 +2689,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       nextWaveStartTime,
       waves,
       wavesCleared,
+      endlessPendingClearWaves,
     });
   },
 

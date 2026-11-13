@@ -7,6 +7,7 @@ import type { DifficultyCode } from './levelRatings';
 type CloudDataCache = {
   stars: Record<string, number>;
   fullHealthClears: Record<string, boolean>;
+  atClears: Record<string, boolean>;
   unlocked: number;
   unlockedItems: string[];
 };
@@ -26,6 +27,7 @@ export type SetStarResult = {
   newFullHealthClear?: boolean;
   diamondReward?: number;
   atFirstClear?: boolean;
+  atCleared?: boolean;
 };
 
 let cloudDataCache: CloudDataCache | null = null;
@@ -42,6 +44,7 @@ function toCloudDataCache(data: CloudProgress): CloudDataCache {
   return {
     stars: data.stars ?? {},
     fullHealthClears: data.fullHealthClears ?? {},
+    atClears: data.atClears ?? {},
     unlocked: typeof data.unlocked === 'number' && data.unlocked >= 1 ? data.unlocked : 1,
     unlockedItems: Array.isArray(data.unlockedItems) && data.unlockedItems.length > 0 ? data.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS],
   };
@@ -113,7 +116,7 @@ export function updateUnlockedItems(newItems: string[]) {
   if (!token) return;
   const cache = getActiveCache();
   if (!cache) {
-    cloudDataCache = { stars: {}, fullHealthClears: {}, unlocked: 1, unlockedItems: [...DEFAULT_UNLOCKED_ITEMS, ...newItems] };
+    cloudDataCache = { stars: {}, fullHealthClears: {}, atClears: {}, unlocked: 1, unlockedItems: [...DEFAULT_UNLOCKED_ITEMS, ...newItems] };
     cacheToken = token;
     cacheTimestamp = Date.now();
     return;
@@ -139,6 +142,10 @@ export function getMaxStarSync(levelId: string): 0 | 1 | 2 | 3 {
 export function getInFullHealthClearSync(levelId: string): boolean {
   const cache = getActiveCache();
   return Boolean(cache?.fullHealthClears[levelId]);
+}
+
+export function getAtClearSync(levelId: string): boolean {
+  return Boolean(getActiveCache()?.atClears[levelId]);
 }
 
 export async function setStarCleared(
@@ -171,6 +178,9 @@ export async function setStarCleared(
         }
         if (data.fullHealthClear) {
           cache.fullHealthClears[levelId] = true;
+        }
+        if (data.atCleared) {
+          cache.atClears[levelId] = true;
         }
       }
       if (Array.isArray(data.newUnlocks) && data.newUnlocks.length > 0) {

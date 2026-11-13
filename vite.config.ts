@@ -154,9 +154,8 @@ async function readExistingDrafts(file: string) {
 
 function buildDraftSource(drafts: BalanceDraftRecord[]) {
   const orderedDrafts = sortDrafts(drafts);
-  const draftMap = Object.fromEntries(orderedDrafts.map(draft => [getDraftKey(draft), draft]));
 
-  return `import type { BalanceLabLevelDraft } from './BalanceLabPage';\n\nexport const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = ${JSON.stringify(orderedDrafts, null, 2)};\n\nexport const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = ${JSON.stringify(draftMap, null, 2)};\n\nexport const BALANCE_LAB_LEVEL_DRAFT: BalanceLabLevelDraft = BALANCE_LAB_LEVEL_DRAFTS[0] as BalanceLabLevelDraft;\n`;
+  return `import type { BalanceLabLevelDraft } from './BalanceLabPage';\n\nexport const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = ${JSON.stringify(orderedDrafts, null, 2)};\n\nexport const BALANCE_LAB_LEVEL_DRAFT: BalanceLabLevelDraft = BALANCE_LAB_LEVEL_DRAFTS[0] as BalanceLabLevelDraft;\n`;
 }
 
 function buildDraftResponse(drafts: BalanceDraftRecord[]) {

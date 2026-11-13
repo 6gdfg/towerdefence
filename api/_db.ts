@@ -5,7 +5,7 @@ import { DATABASE_MIGRATIONS } from './_migrations.js';
 
 export type SqlRow = Record<string, unknown>;
 type QueuedSqlQuery = unknown;
-type TransactionSqlClient = ((strings: TemplateStringsArray, ...params: unknown[]) => QueuedSqlQuery) & {
+export type TransactionSqlClient = ((strings: TemplateStringsArray, ...params: unknown[]) => QueuedSqlQuery) & {
   query: (queryWithPlaceholders: string, params?: unknown[]) => QueuedSqlQuery;
 };
 export type SqlClient = ((strings: TemplateStringsArray, ...params: unknown[]) => Promise<SqlRow[]>) & {

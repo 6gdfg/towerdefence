@@ -3705,14 +3705,41 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "autoStartFirstWave": true,
     "firstWaveDelaySec": 0.8,
     "waves": [
-      { "groups": [{ "type": "circle", "count": 30, "interval": 0.4, "level": 1 }] },
-      { "groups": [
-        { "type": "circle", "count": 40, "interval": 0.1, "level": 1 },
-        { "type": "bunker", "count": 4, "interval": 0.4, "level": 50 }
-      ] }
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 30,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 40,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 0.4,
+            "level": 50
+          }
+        ]
+      }
     ],
-    "specialEnemyConfig": { "enabled": false, "type": "charityAmbassador", "chance": 0.1 },
-    "unlockRewards": ["machineGun"]
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "machineGun"
+    ]
   },
   {
     "sourceLevelId": "L10",
@@ -3728,14 +3755,54 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "autoStartFirstWave": true,
     "firstWaveDelaySec": 0.8,
     "waves": [
-      { "groups": [{ "type": "circle", "count": 19, "interval": 0.1, "level": 1000, "isBoss": true, "bossSpeed": 5 }] },
-      { "groups": [{ "type": "circle", "count": 10, "interval": 0.1, "level": 1000, "isBoss": true, "bossSpeed": 0.1 }] },
-      { "groups": [
-        { "type": "taunter", "count": 5, "interval": 1, "level": 10000, "isBoss": true, "bossSpeed": 3 },
-        { "type": "circle", "count": 100, "interval": 0.1, "level": 1 }
-      ] }
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 19,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 1,
+            "level": 10000,
+            "isBoss": true,
+            "bossSpeed": 3
+          },
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      }
     ],
-    "specialEnemyConfig": { "enabled": true, "type": "charityAmbassador", "chance": 1 },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 1
+    },
     "unlockRewards": []
   },
   {
@@ -3752,9 +3819,42 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "autoStartFirstWave": true,
     "firstWaveDelaySec": 0.8,
     "waves": [
-      { "groups": [{ "type": "angryWriter", "count": 50, "interval": 0.1, "level": 10, "isBoss": true, "bossSpeed": 0.1 }] },
-      { "groups": [{ "type": "circle", "count": 60, "interval": 0.1, "level": 1, "isBoss": true, "bossSpeed": 5 }] },
-      { "groups": [{ "type": "bunker", "count": 60, "interval": 0.1, "level": 10, "isBoss": true, "bossSpeed": 2 }] }
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 50,
+            "interval": 0.1,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.1,
+            "level": 1,
+            "isBoss": true,
+            "bossSpeed": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 60,
+            "interval": 0.1,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 2
+          }
+        ]
+      }
     ],
     "atModeConfig": {
       "type": "conveyor",
@@ -3762,16 +3862,44 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
         "intervalSec": 0.2,
         "maxQueue": 25,
         "pool": [
-          { "kind": "element", "id": "fire", "weight": 1 },
-          { "kind": "element", "id": "ice", "weight": 1 },
-          { "kind": "element", "id": "wind", "weight": 1 },
-          { "kind": "element", "id": "electric", "weight": 1 },
-          { "kind": "element", "id": "gold", "weight": 1 },
-          { "kind": "plant", "id": "hotPepper", "weight": 1 }
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "ice",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "wind",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "electric",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "gold",
+            "weight": 1
+          },
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 1
+          }
         ]
       }
     },
-    "specialEnemyConfig": { "enabled": false, "type": "charityAmbassador", "chance": 0.1 },
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
     "unlockRewards": []
   },
   {
@@ -3787,125 +3915,1834 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "lives": 20,
     "autoStartFirstWave": true,
     "firstWaveDelaySec": 0.8,
-  "waves": [
-    {
-      "groups": [
-        {
-          "type": "circle",
-          "count": 70,
-          "interval": 0.1,
-          "level": 70,
-          "isBoss": true,
-          "bossSpeed": 1.5
-        }
-      ]
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 70,
+            "interval": 0.1,
+            "level": 70,
+            "isBoss": true,
+            "bossSpeed": 1.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 20
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
     },
-    {
-      "groups": [
-        {
-          "type": "angryWriter",
-          "count": 20,
-          "interval": 0.4,
-          "level": 20
-        },
-        {
-          "type": "taunter",
-          "count": 10,
-          "interval": 0.1,
-          "level": 100
-        }
-      ]
-    }
-  ],
-  "specialEnemyConfig": {
-    "enabled": false,
-    "type": "charityAmbassador",
-    "chance": 0.1
-  },
-  "unlockRewards": []
+    "unlockRewards": []
   },
   {
     "sourceLevelId": "L11",
     "levelNumber": 11,
     "levelName": "2-3",
-  "contributor": "驱蚊花露水",
-  "difficulty": "HD",
-  "rating": 15,
-  "mapId": 2,
-  "mapName": "双弯小道",
-  "startGold": 1000,
-  "lives": 20,
-  "autoStartFirstWave": true,
-  "firstWaveDelaySec": 0.8,
-  "waves": [
-    {
-      "groups": [
-        {
-          "type": "circle",
-          "count": 100,
-          "interval": 0.1,
-          "level": 1
-        }
-      ]
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.1,
+            "level": 50
+          },
+          {
+            "type": "windShield",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
     },
-    {
-      "groups": [
-        {
-          "type": "circle",
-          "count": 100,
-          "interval": 0.1,
-          "level": 1
-        },
-        {
-          "type": "bunker",
-          "count": 1,
-          "interval": 0.4,
-          "level": 50,
-          "isBoss": true
-        }
-      ]
-    },
-    {
-      "groups": [
-        {
-          "type": "taunter",
-          "count": 100,
-          "interval": 0.1,
-          "level": 1
-        },
-        {
-          "type": "bunker",
-          "count": 2,
-          "interval": 0.4,
-          "level": 50,
-          "isBoss": true
-        }
-      ]
-    },
-    {
-      "groups": [
-        {
-          "type": "windEye",
-          "count": 1,
-          "interval": 0.1,
-          "level": 50
-        },
-        {
-          "type": "windShield",
-          "count": 100,
-          "interval": 0.1,
-          "level": 1,
-          "isBoss": true
-        }
-      ]
-    }
-  ],
-  "specialEnemyConfig": {
-    "enabled": false,
-    "type": "charityAmbassador",
-    "chance": 0.1
+    "unlockRewards": []
   },
-  "unlockRewards": []
+  {
+    "sourceLevelId": "L11",
+    "levelNumber": 11,
+    "levelName": "2-3",
+    "difficulty": "IN",
+    "rating": 17,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 200,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 10
+          },
+          {
+            "type": "triangle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 18
+          },
+          {
+            "type": "windShield",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 28,
+            "startDelay": 6
+          },
+          {
+            "type": "square",
+            "count": 4,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.4,
+            "level": 43,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 7
+          },
+          {
+            "type": "angryWriter",
+            "count": 24,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 0.4,
+            "level": 276,
+            "startDelay": 3,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "taunter",
+            "count": 25,
+            "interval": 0.4,
+            "level": 31,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 11
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 35,
+            "interval": 0.3,
+            "level": 57,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 46,
+            "interval": 0.2,
+            "level": 66,
+            "startDelay": 8
+          },
+          {
+            "type": "angryWriter",
+            "count": 18,
+            "interval": 0.4,
+            "level": 61,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.2,
+            "level": 188,
+            "isBoss": true,
+            "bossSpeed": 0.5,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 66,
+            "interval": 0.4,
+            "level": 34,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 60,
+            "interval": 0.1,
+            "level": 21,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 333,
+            "startDelay": 8,
+            "isBoss": true,
+            "bossSpeed": 1.2
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 15,
+            "interval": 0.4,
+            "level": 73,
+            "startDelay": 4
+          },
+          {
+            "type": "angryWriter",
+            "count": 25,
+            "interval": 0.4,
+            "level": 77,
+            "startDelay": 8
+          },
+          {
+            "type": "windEye",
+            "count": 3,
+            "interval": 0.4,
+            "level": 307,
+            "isBoss": true,
+            "bossSpeed": 0.8,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 50,
+            "startDelay": 27
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "boomerangLeaf"
+    ]
+  },
+  {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 700,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.4,
+            "level": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.45,
+            "level": 12
+          },
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.5,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.55,
+            "level": 13
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 1,
+            "interval": 0.8,
+            "level": 9,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.35,
+            "level": 6
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 2,
+            "interval": 0.75,
+            "level": 6,
+            "startDelay": 3
+          },
+          {
+            "type": "windShield",
+            "count": 6,
+            "interval": 0.6,
+            "level": 14,
+            "startDelay": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true,
+            "bossSpeed": 0.7
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.45,
+            "level": 6,
+            "startDelay": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 2,
+            "interval": 0.8,
+            "level": 14,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 450,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 40,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "IN",
+    "rating": 16,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 300,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 8,
+            "interval": 2,
+            "level": 14,
+            "startDelay": 8
+          },
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 13
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 7,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 7,
+            "interval": 0.4,
+            "level": 23,
+            "startDelay": 6
+          },
+          {
+            "type": "iceShell",
+            "count": 4,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 10
+          },
+          {
+            "type": "armorRepairer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 0.4,
+            "level": 200,
+            "isBoss": true,
+            "startDelay": 2,
+            "bossSpeed": 0.7
+          },
+          {
+            "type": "healer",
+            "count": 59,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 8
+          },
+          {
+            "type": "armorRepairer",
+            "count": 27,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 16
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 11,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 6
+          },
+          {
+            "type": "angryWriter",
+            "count": 13,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 6,
+            "interval": 0.4,
+            "level": 52,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 3,
+            "interval": 0.4,
+            "level": 64,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 20,
+            "interval": 6,
+            "level": 7,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 555,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 16,
+            "interval": 0.4,
+            "level": 27,
+            "startDelay": 7
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 15,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 1000,
+    "lives": 14,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 2
+          },
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 26,
+            "startDelay": 4
+          },
+          {
+            "type": "bunker",
+            "count": 20,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 200,
+            "interval": 0.4,
+            "level": 47,
+            "startDelay": 1
+          },
+          {
+            "type": "freezer",
+            "count": 100,
+            "interval": 0.6,
+            "level": 53,
+            "startDelay": 3
+          },
+          {
+            "type": "circle",
+            "count": 200,
+            "interval": 0.4,
+            "level": 66,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 500,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 2
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "lastStand",
+      "lastStand": {
+        "startGold": 8000,
+        "bannedPlants": [
+          "sunflower"
+        ],
+        "killReward": 1
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "windWallGrass"
+    ]
+  },
+  {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "iceShell",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "puffShroom"
+    ]
+  },
+  {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 7,
+            "isBoss": true,
+            "bossSpeed": 1
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 8,
+    "mapName": "上路压迫",
+    "startGold": 950,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 100,
+            "interval": 0.1,
+            "level": 20,
+            "isBoss": true,
+            "bossSpeed": 1
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "armorRepairer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "rager",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "purifier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "healer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 0.2,
+        "maxQueue": 15,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "bottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "boomerangLeaf",
+            "weight": 100
+          }
+        ]
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 16,
+    "mapName": "一横两弯",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 1,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "HD",
+    "rating": 12,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 1000,
+    "mapName": "训练回环",
+    "startGold": 150,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 50,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 17,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 250,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 8
+          },
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 7
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 280,
+            "startDelay": 2,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.2,
+            "level": 28,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 3
+          },
+          {
+            "type": "armorRepairer",
+            "count": 15,
+            "interval": 0.4,
+            "level": 39,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 16,
+            "interval": 0.4,
+            "level": 45,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 48,
+            "startDelay": 5
+          },
+          {
+            "type": "windEye",
+            "count": 5,
+            "interval": 0.4,
+            "level": 55,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 30,
+            "interval": 0.2,
+            "level": 52,
+            "startDelay": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 50,
+            "interval": 0.4,
+            "level": 53,
+            "startDelay": 15
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 25,
+            "interval": 0.6,
+            "level": 55,
+            "startDelay": 15
+          },
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.2,
+            "level": 53,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.05
+          },
+          {
+            "type": "healer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 57,
+            "startDelay": 2
+          },
+          {
+            "type": "armorRepairer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 60,
+            "startDelay": 3
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 29,
+            "interval": 0.8,
+            "level": 50,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "normal"
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "antiAirTree"
+    ]
+  },
+  {
+    "rating": 10,
+    "contributor": "",
+    "lives": 20,
+    "specialEnemyConfig": {
+      "chance": 0.1,
+      "type": "charityAmbassador",
+      "enabled": false
+    },
+    "levelNumber": 15,
+    "startGold": 1200,
+    "difficulty": "EZ",
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 18,
+            "startDelay": 0,
+            "interval": 0.45,
+            "level": 10,
+            "type": "circle"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.55,
+            "level": 12,
+            "type": "triangle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.6,
+            "level": 20,
+            "type": "square"
+          },
+          {
+            "count": 20,
+            "startDelay": 3,
+            "interval": 0.35,
+            "level": 18,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 10,
+            "startDelay": 0,
+            "interval": 0.55,
+            "level": 28,
+            "type": "windShield"
+          },
+          {
+            "count": 4,
+            "startDelay": 4,
+            "interval": 1.2,
+            "level": 30,
+            "type": "evilSniper"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 8,
+            "startDelay": 0,
+            "interval": 0.65,
+            "level": 40,
+            "type": "armored"
+          },
+          {
+            "count": 5,
+            "startDelay": 3,
+            "interval": 1.1,
+            "level": 40,
+            "type": "freezer"
+          },
+          {
+            "count": 24,
+            "startDelay": 6,
+            "interval": 0.28,
+            "level": 38,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 6,
+            "startDelay": 0,
+            "interval": 1.1,
+            "level": 48,
+            "type": "summoner"
+          },
+          {
+            "count": 2,
+            "startDelay": 4,
+            "interval": 2,
+            "level": 50,
+            "type": "windEye"
+          },
+          {
+            "count": 10,
+            "startDelay": 7,
+            "interval": 0.65,
+            "level": 55,
+            "type": "taunter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "startDelay": 0,
+            "isBoss": true,
+            "level": 140,
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.5,
+            "bossSpeed": 0.7
+          },
+          {
+            "count": 5,
+            "startDelay": 4,
+            "interval": 1.2,
+            "level": 50,
+            "type": "healer"
+          },
+          {
+            "count": 8,
+            "startDelay": 8,
+            "interval": 0.8,
+            "level": 55,
+            "type": "balloonSoldier"
+          }
+        ]
+      }
+    ],
+    "sourceLevelId": "L15",
+    "mapId": 11,
+    "levelName": "2-7",
+    "firstWaveDelaySec": 0.8,
+    "autoStartFirstWave": true,
+    "unlockRewards": [],
+    "mapName": "?????"
+  },
+  {
+    "rating": 14,
+    "contributor": "",
+    "lives": 16,
+    "specialEnemyConfig": {
+      "chance": 0.1,
+      "type": "charityAmbassador",
+      "enabled": false
+    },
+    "levelNumber": 15,
+    "startGold": 1600,
+    "difficulty": "HD",
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 25,
+            "startDelay": 0,
+            "interval": 0.38,
+            "level": 15,
+            "type": "circle"
+          },
+          {
+            "count": 15,
+            "startDelay": 4,
+            "interval": 0.45,
+            "level": 18,
+            "type": "triangle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 16,
+            "startDelay": 0,
+            "interval": 0.45,
+            "level": 25,
+            "type": "windShield"
+          },
+          {
+            "count": 20,
+            "startDelay": 3,
+            "interval": 0.4,
+            "level": 28,
+            "type": "square"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 15,
+            "startDelay": 0,
+            "interval": 0.5,
+            "level": 40,
+            "type": "armored"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.8,
+            "level": 42,
+            "type": "evilSniper"
+          },
+          {
+            "count": 20,
+            "startDelay": 7,
+            "interval": 0.35,
+            "level": 40,
+            "type": "igniter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.65,
+            "level": 55,
+            "type": "freezer"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.8,
+            "level": 58,
+            "type": "healer"
+          },
+          {
+            "count": 10,
+            "startDelay": 7,
+            "interval": 0.7,
+            "level": 60,
+            "type": "balloonSoldier"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 10,
+            "startDelay": 0,
+            "interval": 0.75,
+            "level": 70,
+            "type": "summoner"
+          },
+          {
+            "count": 4,
+            "startDelay": 4,
+            "interval": 1.3,
+            "level": 72,
+            "type": "windEye"
+          },
+          {
+            "count": 18,
+            "startDelay": 8,
+            "interval": 0.4,
+            "level": 75,
+            "type": "taunter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.7,
+            "level": 80,
+            "type": "armorRepairer"
+          },
+          {
+            "count": 16,
+            "startDelay": 4,
+            "interval": 0.5,
+            "level": 82,
+            "type": "armored"
+          },
+          {
+            "count": 45,
+            "startDelay": 7,
+            "interval": 0.2,
+            "level": 85,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "startDelay": 0,
+            "isBoss": true,
+            "level": 220,
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.5,
+            "bossSpeed": 0.7
+          },
+          {
+            "count": 12,
+            "startDelay": 3,
+            "interval": 0.6,
+            "level": 82,
+            "type": "healer"
+          },
+          {
+            "count": 10,
+            "startDelay": 5,
+            "interval": 0.7,
+            "level": 85,
+            "type": "armorRepairer"
+          },
+          {
+            "count": 20,
+            "startDelay": 8,
+            "interval": 0.45,
+            "level": 80,
+            "type": "balloonSoldier"
+          },
+          {
+            "count": 22,
+            "startDelay": 10,
+            "interval": 0.35,
+            "level": 85,
+            "type": "taunter"
+          }
+        ]
+      }
+    ],
+    "sourceLevelId": "L15",
+    "mapId": 11,
+    "levelName": "2-7",
+    "firstWaveDelaySec": 0.8,
+    "autoStartFirstWave": true,
+    "unlockRewards": [],
+    "mapName": "?????"
   }
 ];
 
@@ -7554,6 +9391,2104 @@ export const BALANCE_LAB_DRAFT_BY_KEY: Record<string, BalanceLabLevelDraft> = {
       "chance": 0.1
     },
     "unlockRewards": []
+  },
+  "L10:EZ": {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 7,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 12
+          },
+          {
+            "type": "windShield",
+            "count": 40,
+            "interval": 0.1,
+            "level": 20
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L10:HD": {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 2000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 30,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 40,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 4,
+            "interval": 0.4,
+            "level": 50
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "machineGun"
+    ]
+  },
+  "L10:IN": {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 14,
+    "mapName": "四线并行",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 19,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 5,
+            "interval": 1,
+            "level": 10000,
+            "isBoss": true,
+            "bossSpeed": 3
+          },
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 1
+    },
+    "unlockRewards": []
+  },
+  "L10:AT": {
+    "sourceLevelId": "L10",
+    "levelNumber": 10,
+    "levelName": "2-2",
+    "contributor": "驱蚊花露水",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 50,
+            "interval": 0.1,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 0.1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 60,
+            "interval": 0.1,
+            "level": 1,
+            "isBoss": true,
+            "bossSpeed": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 60,
+            "interval": 0.1,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 2
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 0.2,
+        "maxQueue": 25,
+        "pool": [
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "ice",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "wind",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "electric",
+            "weight": 1
+          },
+          {
+            "kind": "element",
+            "id": "gold",
+            "weight": 1
+          },
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 1
+          }
+        ]
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L11:EZ": {
+    "sourceLevelId": "L11",
+    "levelNumber": 11,
+    "levelName": "2-3",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 7,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 160,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 70,
+            "interval": 0.1,
+            "level": 70,
+            "isBoss": true,
+            "bossSpeed": 1.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 20
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L11:HD": {
+    "sourceLevelId": "L11",
+    "levelNumber": 11,
+    "levelName": "2-3",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 15,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.1,
+            "level": 50
+          },
+          {
+            "type": "windShield",
+            "count": 100,
+            "interval": 0.1,
+            "level": 1,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L11:IN": {
+    "sourceLevelId": "L11",
+    "levelNumber": 11,
+    "levelName": "2-3",
+    "difficulty": "IN",
+    "rating": 17,
+    "mapId": 17,
+    "mapName": "H",
+    "startGold": 200,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 10
+          },
+          {
+            "type": "triangle",
+            "count": 4,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 18
+          },
+          {
+            "type": "windShield",
+            "count": 1,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 28,
+            "startDelay": 6
+          },
+          {
+            "type": "square",
+            "count": 4,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 8,
+            "interval": 0.4,
+            "level": 43,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 15,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 7
+          },
+          {
+            "type": "angryWriter",
+            "count": 24,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 0.4,
+            "level": 276,
+            "startDelay": 3,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "taunter",
+            "count": 25,
+            "interval": 0.4,
+            "level": 31,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 11
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 35,
+            "interval": 0.3,
+            "level": 57,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 46,
+            "interval": 0.2,
+            "level": 66,
+            "startDelay": 8
+          },
+          {
+            "type": "angryWriter",
+            "count": 18,
+            "interval": 0.4,
+            "level": 61,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.2,
+            "level": 188,
+            "isBoss": true,
+            "bossSpeed": 0.5,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 66,
+            "interval": 0.4,
+            "level": 34,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 60,
+            "interval": 0.1,
+            "level": 21,
+            "startDelay": 5
+          },
+          {
+            "type": "taunter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 333,
+            "startDelay": 8,
+            "isBoss": true,
+            "bossSpeed": 1.2
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 15,
+            "interval": 0.4,
+            "level": 73,
+            "startDelay": 4
+          },
+          {
+            "type": "angryWriter",
+            "count": 25,
+            "interval": 0.4,
+            "level": 77,
+            "startDelay": 8
+          },
+          {
+            "type": "windEye",
+            "count": 3,
+            "interval": 0.4,
+            "level": 307,
+            "isBoss": true,
+            "bossSpeed": 0.8,
+            "startDelay": 15
+          },
+          {
+            "type": "igniter",
+            "count": 20,
+            "interval": 0.4,
+            "level": 50,
+            "startDelay": 27
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "boomerangLeaf"
+    ]
+  },
+  "L12:EZ": {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 700,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 14,
+            "interval": 0.4,
+            "level": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.45,
+            "level": 12
+          },
+          {
+            "type": "circle",
+            "count": 12,
+            "interval": 0.5,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 8,
+            "interval": 0.55,
+            "level": 13
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 1,
+            "interval": 0.8,
+            "level": 9,
+            "startDelay": 4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.35,
+            "level": 6
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 2,
+            "interval": 0.75,
+            "level": 6,
+            "startDelay": 3
+          },
+          {
+            "type": "windShield",
+            "count": 6,
+            "interval": 0.6,
+            "level": 14,
+            "startDelay": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 50,
+            "isBoss": true,
+            "bossSpeed": 0.7
+          },
+          {
+            "type": "windShield",
+            "count": 10,
+            "interval": 0.45,
+            "level": 6,
+            "startDelay": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 2,
+            "interval": 0.8,
+            "level": 14,
+            "startDelay": 5
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L12:HD": {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 4,
+    "mapName": "中心回廊",
+    "startGold": 450,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 40,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L12:IN": {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "IN",
+    "rating": 16,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 300,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 8,
+            "interval": 2,
+            "level": 14,
+            "startDelay": 8
+          },
+          {
+            "type": "circle",
+            "count": 3,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 13
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 16,
+            "startDelay": 5
+          },
+          {
+            "type": "triangle",
+            "count": 7,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 2,
+            "interval": 0.4,
+            "level": 25,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 7,
+            "interval": 0.4,
+            "level": 23,
+            "startDelay": 6
+          },
+          {
+            "type": "iceShell",
+            "count": 4,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 10
+          },
+          {
+            "type": "armorRepairer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 6,
+            "startDelay": 14
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 0.4,
+            "level": 200,
+            "isBoss": true,
+            "startDelay": 2,
+            "bossSpeed": 0.7
+          },
+          {
+            "type": "healer",
+            "count": 59,
+            "interval": 0.4,
+            "level": 8,
+            "startDelay": 8
+          },
+          {
+            "type": "armorRepairer",
+            "count": 27,
+            "interval": 0.4,
+            "level": 7,
+            "startDelay": 16
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 11,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 6
+          },
+          {
+            "type": "angryWriter",
+            "count": 13,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 7
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 6,
+            "interval": 0.4,
+            "level": 52,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 3,
+            "interval": 0.4,
+            "level": 64,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 20,
+            "interval": 6,
+            "level": 7,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 555,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 6
+          },
+          {
+            "type": "taunter",
+            "count": 16,
+            "interval": 0.4,
+            "level": 27,
+            "startDelay": 7
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L12:AT": {
+    "sourceLevelId": "L12",
+    "levelNumber": 12,
+    "levelName": "2-4",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 15,
+    "mapId": 10,
+    "mapName": "交错回环",
+    "startGold": 1000,
+    "lives": 14,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 2
+          },
+          {
+            "type": "square",
+            "count": 20,
+            "interval": 0.4,
+            "level": 26,
+            "startDelay": 4
+          },
+          {
+            "type": "bunker",
+            "count": 20,
+            "interval": 0.4,
+            "level": 29,
+            "startDelay": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 200,
+            "interval": 0.4,
+            "level": 47,
+            "startDelay": 1
+          },
+          {
+            "type": "freezer",
+            "count": 100,
+            "interval": 0.6,
+            "level": 53,
+            "startDelay": 3
+          },
+          {
+            "type": "circle",
+            "count": 200,
+            "interval": 0.4,
+            "level": 66,
+            "startDelay": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 1000,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 1
+          },
+          {
+            "type": "taunter",
+            "count": 500,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 2
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "lastStand",
+      "lastStand": {
+        "startGold": 8000,
+        "bannedPlants": [
+          "sunflower"
+        ],
+        "killReward": 1
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "windWallGrass"
+    ]
+  },
+  "L13:EZ": {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "iceShell",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "puffShroom"
+    ]
+  },
+  "L13:HD": {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "HD",
+    "rating": 10,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 7
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 7,
+            "isBoss": true,
+            "bossSpeed": 1
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L13:IN": {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 8,
+    "mapName": "上路压迫",
+    "startGold": 950,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "bunker",
+            "count": 100,
+            "interval": 0.1,
+            "level": 20,
+            "isBoss": true,
+            "bossSpeed": 1
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L13:AT": {
+    "sourceLevelId": "L13",
+    "levelNumber": 13,
+    "levelName": "2-5",
+    "contributor": "驱蚊花露水",
+    "difficulty": "AT",
+    "rating": 16,
+    "mapId": 2,
+    "mapName": "双弯小道",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": false,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "taunter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "armorRepairer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "rager",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "circle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          },
+          {
+            "type": "purifier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "healer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 0.2,
+        "maxQueue": 15,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "bottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "boomerangLeaf",
+            "weight": 100
+          }
+        ]
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:EZ": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "EZ",
+    "rating": 8,
+    "mapId": 16,
+    "mapName": "一横两弯",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 2
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.1,
+            "level": 100,
+            "pathId": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 1,
+            "level": 10
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:HD": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "HD",
+    "rating": 12,
+    "mapId": 1,
+    "mapName": "新手折线",
+    "startGold": 1000,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "freezer",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10,
+            "isBoss": true
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:IN": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "驱蚊花露水",
+    "difficulty": "IN",
+    "rating": 15,
+    "mapId": 1000,
+    "mapName": "训练回环",
+    "startGold": 150,
+    "lives": 1,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "balloonSoldier",
+            "count": 50,
+            "interval": 0.1,
+            "level": 1000,
+            "isBoss": true
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 10,
+            "interval": 0.4,
+            "level": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 100,
+            "interval": 0.1,
+            "level": 100,
+            "isBoss": true
+          },
+          {
+            "type": "windEye",
+            "count": 10,
+            "interval": 0.4,
+            "level": 10
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  "L14:AT": {
+    "sourceLevelId": "L14",
+    "levelNumber": 14,
+    "levelName": "2-6",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 17,
+    "mapId": 11,
+    "mapName": "双入口合流",
+    "startGold": 250,
+    "lives": 10,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 2,
+            "interval": 0.4,
+            "level": 12,
+            "startDelay": 8
+          },
+          {
+            "type": "triangle",
+            "count": 1,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "evilSniper",
+            "count": 3,
+            "interval": 0.4,
+            "level": 15
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 5,
+            "interval": 0.4,
+            "level": 18,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 2,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 7
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 24,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 280,
+            "startDelay": 2,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "healer",
+            "count": 20,
+            "interval": 0.2,
+            "level": 28,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 26,
+            "interval": 0.4,
+            "level": 35,
+            "startDelay": 1
+          },
+          {
+            "type": "armored",
+            "count": 10,
+            "interval": 0.4,
+            "level": 38,
+            "startDelay": 3
+          },
+          {
+            "type": "armorRepairer",
+            "count": 15,
+            "interval": 0.4,
+            "level": 39,
+            "startDelay": 5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "summoner",
+            "count": 16,
+            "interval": 0.4,
+            "level": 45,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 30,
+            "interval": 0.4,
+            "level": 48,
+            "startDelay": 5
+          },
+          {
+            "type": "windEye",
+            "count": 5,
+            "interval": 0.4,
+            "level": 55,
+            "startDelay": 6
+          },
+          {
+            "type": "igniter",
+            "count": 30,
+            "interval": 0.2,
+            "level": 52,
+            "startDelay": 10
+          },
+          {
+            "type": "evilSniper",
+            "count": 50,
+            "interval": 0.4,
+            "level": 53,
+            "startDelay": 15
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 25,
+            "interval": 0.6,
+            "level": 55,
+            "startDelay": 15
+          },
+          {
+            "type": "taunter",
+            "count": 100,
+            "interval": 0.2,
+            "level": 53,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 400,
+            "startDelay": 1,
+            "isBoss": true,
+            "bossSpeed": 0.05
+          },
+          {
+            "type": "healer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 57,
+            "startDelay": 2
+          },
+          {
+            "type": "armorRepairer",
+            "count": 100,
+            "interval": 0.4,
+            "level": 60,
+            "startDelay": 3
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 29,
+            "interval": 0.8,
+            "level": 50,
+            "startDelay": 10
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "normal"
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": [
+      "antiAirTree"
+    ]
+  },
+  "L15:EZ": {
+    "rating": 10,
+    "contributor": "",
+    "lives": 20,
+    "specialEnemyConfig": {
+      "chance": 0.1,
+      "type": "charityAmbassador",
+      "enabled": false
+    },
+    "levelNumber": 15,
+    "startGold": 1200,
+    "difficulty": "EZ",
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 18,
+            "startDelay": 0,
+            "interval": 0.45,
+            "level": 10,
+            "type": "circle"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.55,
+            "level": 12,
+            "type": "triangle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.6,
+            "level": 20,
+            "type": "square"
+          },
+          {
+            "count": 20,
+            "startDelay": 3,
+            "interval": 0.35,
+            "level": 18,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 10,
+            "startDelay": 0,
+            "interval": 0.55,
+            "level": 28,
+            "type": "windShield"
+          },
+          {
+            "count": 4,
+            "startDelay": 4,
+            "interval": 1.2,
+            "level": 30,
+            "type": "evilSniper"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 8,
+            "startDelay": 0,
+            "interval": 0.65,
+            "level": 40,
+            "type": "armored"
+          },
+          {
+            "count": 5,
+            "startDelay": 3,
+            "interval": 1.1,
+            "level": 40,
+            "type": "freezer"
+          },
+          {
+            "count": 24,
+            "startDelay": 6,
+            "interval": 0.28,
+            "level": 38,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 6,
+            "startDelay": 0,
+            "interval": 1.1,
+            "level": 48,
+            "type": "summoner"
+          },
+          {
+            "count": 2,
+            "startDelay": 4,
+            "interval": 2,
+            "level": 50,
+            "type": "windEye"
+          },
+          {
+            "count": 10,
+            "startDelay": 7,
+            "interval": 0.65,
+            "level": 55,
+            "type": "taunter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "startDelay": 0,
+            "isBoss": true,
+            "level": 140,
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.5,
+            "bossSpeed": 0.7
+          },
+          {
+            "count": 5,
+            "startDelay": 4,
+            "interval": 1.2,
+            "level": 50,
+            "type": "healer"
+          },
+          {
+            "count": 8,
+            "startDelay": 8,
+            "interval": 0.8,
+            "level": 55,
+            "type": "balloonSoldier"
+          }
+        ]
+      }
+    ],
+    "sourceLevelId": "L15",
+    "mapId": 11,
+    "levelName": "2-7",
+    "firstWaveDelaySec": 0.8,
+    "autoStartFirstWave": true,
+    "unlockRewards": [],
+    "mapName": "?????"
+  },
+  "L15:HD": {
+    "rating": 14,
+    "contributor": "",
+    "lives": 16,
+    "specialEnemyConfig": {
+      "chance": 0.1,
+      "type": "charityAmbassador",
+      "enabled": false
+    },
+    "levelNumber": 15,
+    "startGold": 1600,
+    "difficulty": "HD",
+    "waves": [
+      {
+        "groups": [
+          {
+            "count": 25,
+            "startDelay": 0,
+            "interval": 0.38,
+            "level": 15,
+            "type": "circle"
+          },
+          {
+            "count": 15,
+            "startDelay": 4,
+            "interval": 0.45,
+            "level": 18,
+            "type": "triangle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 16,
+            "startDelay": 0,
+            "interval": 0.45,
+            "level": 25,
+            "type": "windShield"
+          },
+          {
+            "count": 20,
+            "startDelay": 3,
+            "interval": 0.4,
+            "level": 28,
+            "type": "square"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 15,
+            "startDelay": 0,
+            "interval": 0.5,
+            "level": 40,
+            "type": "armored"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.8,
+            "level": 42,
+            "type": "evilSniper"
+          },
+          {
+            "count": 20,
+            "startDelay": 7,
+            "interval": 0.35,
+            "level": 40,
+            "type": "igniter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.65,
+            "level": 55,
+            "type": "freezer"
+          },
+          {
+            "count": 8,
+            "startDelay": 4,
+            "interval": 0.8,
+            "level": 58,
+            "type": "healer"
+          },
+          {
+            "count": 10,
+            "startDelay": 7,
+            "interval": 0.7,
+            "level": 60,
+            "type": "balloonSoldier"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 10,
+            "startDelay": 0,
+            "interval": 0.75,
+            "level": 70,
+            "type": "summoner"
+          },
+          {
+            "count": 4,
+            "startDelay": 4,
+            "interval": 1.3,
+            "level": 72,
+            "type": "windEye"
+          },
+          {
+            "count": 18,
+            "startDelay": 8,
+            "interval": 0.4,
+            "level": 75,
+            "type": "taunter"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "count": 12,
+            "startDelay": 0,
+            "interval": 0.7,
+            "level": 80,
+            "type": "armorRepairer"
+          },
+          {
+            "count": 16,
+            "startDelay": 4,
+            "interval": 0.5,
+            "level": 82,
+            "type": "armored"
+          },
+          {
+            "count": 45,
+            "startDelay": 7,
+            "interval": 0.2,
+            "level": 85,
+            "type": "circle"
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "startDelay": 0,
+            "isBoss": true,
+            "level": 220,
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.5,
+            "bossSpeed": 0.7
+          },
+          {
+            "count": 12,
+            "startDelay": 3,
+            "interval": 0.6,
+            "level": 82,
+            "type": "healer"
+          },
+          {
+            "count": 10,
+            "startDelay": 5,
+            "interval": 0.7,
+            "level": 85,
+            "type": "armorRepairer"
+          },
+          {
+            "count": 20,
+            "startDelay": 8,
+            "interval": 0.45,
+            "level": 80,
+            "type": "balloonSoldier"
+          },
+          {
+            "count": 22,
+            "startDelay": 10,
+            "interval": 0.35,
+            "level": 85,
+            "type": "taunter"
+          }
+        ]
+      }
+    ],
+    "sourceLevelId": "L15",
+    "mapId": 11,
+    "levelName": "2-7",
+    "firstWaveDelaySec": 0.8,
+    "autoStartFirstWave": true,
+    "unlockRewards": [],
+    "mapName": "?????"
   }
 };
 

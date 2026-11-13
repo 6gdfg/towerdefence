@@ -14,6 +14,7 @@ export interface Enemy {
   leakDamage: number; // 泄漏时对玩家造成的伤害（生命扣减）
   level?: number; // 怪物等级（显示用，可选，默认1）
   isBoss?: boolean; // Boss 只影响显示体型等表现，不参与基础数值公式
+  endlessWaveNumber?: number;
   specialType?: SpecialEnemyType;
   // 路径进度
   pathIndex: number; // 当前处于 path[pathIndex] -> path[pathIndex+1] 之间
@@ -46,7 +47,7 @@ export interface Enemy {
   };
 }
 
-export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'windWallGrass' | 'magnetNeedle' | 'siegeRamGrass' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower' | 'antiAirTree';
+export type PlantType = 'sunflower' | 'bottleGrass' | 'doubleBottleGrass' | 'flameBottleGrass' | 'puffShroom' | 'fourLeafClover' | 'boomerangLeaf' | 'pentagram' | 'pumpkinHead' | 'machineGun' | 'sniper' | 'rocket' | 'sunlightFlower' | 'hotPepper' | 'cycloneShroom' | 'windSailGrass' | 'windWallGrass' | 'magnetNeedle' | 'siegeRamGrass' | 'frostBlastShroom' | 'electricFlower' | 'holyFlower' | 'antiAirTree' | 'dandelion';
 export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light';
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
@@ -302,5 +303,6 @@ export interface TDState {
   mode?: GameMode;
   lifeBonusPerWave?: number;
   wavesCleared?: number;
+  endlessPendingClearWaves?: number[];
   endlessWaveFactory?: ((waveNumber: number) => WaveDef) | null;
 }

@@ -11,7 +11,7 @@ type CardSelectPageProps = {
   maxElements: number;
   towerLevels?: TowerLevelMap;
   onBack: () => void;
-  onConfirm: (plants: PlantType[], elements: ElementType[]) => void;
+  onConfirm: (plants: PlantType[], elements: ElementType[]) => void | Promise<void>;
 };
 
 function getLevelLabel(key: PlantType | `element:${ElementType}`, towerLevels?: TowerLevelMap) {
@@ -32,6 +32,21 @@ export default function CardSelectPage({
   const defaultElements = useMemo(() => elementOptions.slice(0, Math.max(0, maxElements)), [elementOptions, maxElements]);
   const [selectedPlants, setSelectedPlants] = useState<PlantType[]>(defaultPlants);
   const [selectedElements, setSelectedElements] = useState<ElementType[]>(defaultElements);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirm = async () => {
+    if (starting) return;
+    setStarting(true);
+    setError(null);
+    try {
+      await onConfirm(selectedPlants, selectedElements);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '开始失败，请重试');
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const togglePlant = (plant: PlantType) => {
     setSelectedPlants(current => {
@@ -58,16 +73,17 @@ export default function CardSelectPage({
             <h1>{title}</h1>
           </div>
           <div className="button-row">
-            <button onClick={onBack} className="action-button">返回</button>
+            <button onClick={onBack} disabled={starting} className="action-button">返回</button>
             <button
-              onClick={() => onConfirm(selectedPlants, selectedElements)}
-              disabled={selectedPlants.length === 0}
+              onClick={confirm}
+              disabled={starting || selectedPlants.length === 0}
               className="action-button primary"
             >
-              开始
+              {starting ? '开始中...' : '开始'}
             </button>
           </div>
         </div>
+        {error && <p role="alert" style={{ color: '#dc2626' }}>{error}</p>}
       </section>
 
       <section className="soft-card lab-panel card-enter" style={{ opacity: 0, animationDelay: '0.04s' }}>
@@ -83,7 +99,7 @@ export default function CardSelectPage({
               <button
                 key={plant}
                 onClick={() => togglePlant(plant)}
-                disabled={disabled}
+                disabled={starting || disabled}
                 className={`card-pick-item ${selected ? 'is-selected' : ''}`}
               >
                 <PlantIcon type={plant} color={selected ? '#111827' : DEFAULT_PLANT_COLOR} size={30} />
@@ -109,7 +125,7 @@ export default function CardSelectPage({
               <button
                 key={element}
                 onClick={() => toggleElement(element)}
-                disabled={disabled}
+                disabled={starting || disabled}
                 className={`card-pick-item element ${selected ? 'is-selected' : ''}`}
               >
                 <ElementIcon element={element} color={selected ? cfg.color : '#94a3b8'} size={30} />

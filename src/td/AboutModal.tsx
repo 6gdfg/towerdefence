@@ -15,6 +15,7 @@ export default function AboutModal({ onClose }: AboutModalProps) {
         <p>总策划:hebscyf</p>
         <p>代码:6gdfg</p>
         <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
+        <p>特别鸣谢:DeepSeek Harness Agent</p>
         <button onClick={onClose} className="action-button" style={{ alignSelf: 'flex-end' }}>
           关闭
         </button>

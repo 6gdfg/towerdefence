@@ -286,4 +286,40 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_shop_purchases_player ON shop_purchases(player_id, created_at DESC)`,
     ],
   },
+  {
+    id: '017_endless_mode_claims',
+    description: 'Store one active or settled endless run per player',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS endless_mode_claims (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+        run_id TEXT NOT NULL,
+        waves_cleared INTEGER NOT NULL DEFAULT 0,
+        reward_coins BIGINT NOT NULL DEFAULT 0,
+        chest_types JSONB NOT NULL DEFAULT '[]'::jsonb,
+        chest_inventory_full BOOLEAN NOT NULL DEFAULT FALSE,
+        claim_status TEXT NOT NULL DEFAULT 'active' CHECK (claim_status IN ('active','complete')),
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+    ],
+  },
+  {
+    id: '018_endless_weekly_ranking',
+    description: 'Store current weekly endless records and an idempotent settlement cursor',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS endless_ranking_state (
+        singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton=TRUE),
+        week_start DATE NOT NULL
+      )`,
+      `INSERT INTO endless_ranking_state (singleton, week_start)
+        VALUES (TRUE, date_trunc('week', (NOW() AT TIME ZONE 'Asia/Shanghai') + INTERVAL '1 day')::date - 1)
+        ON CONFLICT (singleton) DO NOTHING`,
+      `CREATE TABLE IF NOT EXISTS endless_weekly_records (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id),
+        best_waves INTEGER NOT NULL CHECK (best_waves > 0),
+        achieved_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_endless_weekly_ranking
+        ON endless_weekly_records(best_waves DESC, achieved_at ASC, player_id ASC)`,
+    ],
+  },
 ];

@@ -1,4 +1,4 @@
-import { getToken } from './authProgress';
+import { getToken, getUsername } from './authProgress';
 import { readApiJson } from './apiClient';
 
 export type ChestOpenResult = {
@@ -28,7 +28,12 @@ async function postCloudAction<T>(url: string, body: Record<string, unknown>): P
     body: JSON.stringify(body),
   });
 
-  return readApiJson<T>(response, `Request failed: ${response.status}`);
+  try {
+    return await readApiJson<T>(response, `Request failed: ${response.status}`);
+  } catch (cause) {
+    if (cause instanceof Error) Object.assign(cause, { status: response.status });
+    throw cause;
+  }
 }
 
 export function startChestUnlock(chestId: string) {
@@ -49,6 +54,59 @@ export function skipChestUnlock(chestId: string, currency: 'diamonds' | 'coins' 
 
 export function craftLegendaryChest() {
   return postCloudAction<{ ok: boolean; chestId: string; chestType: string }>('/api/chest', { action: 'craftLegendary' });
+}
+
+export type EndlessModeRewardResult = {
+  ok: boolean;
+  wavesCleared: number;
+  rewardCoins: number;
+  chestTypes: string[];
+  chestInventoryFull?: boolean;
+};
+
+function pendingEndlessRewardKey() {
+  return `td_endless_pending:${localStorage.getItem('td_player_id') || getUsername()}`;
+}
+
+export async function claimEndlessModeReward(runId: string, wavesCleared: number) {
+  const key = pendingEndlessRewardKey();
+  const pending = JSON.stringify({ runId, wavesCleared });
+  try { localStorage.setItem(key, pending); } catch { /* Storage may be disabled. */ }
+  let result: EndlessModeRewardResult | null;
+  try {
+    result = await postCloudAction<EndlessModeRewardResult>('/api/progress', { action: 'claimEndlessReward', runId, wavesCleared });
+  } catch (cause) {
+    if ((cause as { status?: number })?.status === 409) {
+      try { if (localStorage.getItem(key) === pending) localStorage.removeItem(key); } catch { /* Storage may be disabled. */ }
+    }
+    throw cause;
+  }
+  if (result?.ok) {
+    try {
+      if (localStorage.getItem(key) === pending) localStorage.removeItem(key);
+    } catch { /* The server already saved the reward. */ }
+  }
+  return result;
+}
+
+export async function startEndlessModeRun() {
+  let pending: { runId?: unknown; wavesCleared?: unknown } | null = null;
+  try { pending = JSON.parse(localStorage.getItem(pendingEndlessRewardKey()) || 'null'); } catch { /* Ignore invalid local cache. */ }
+  if (typeof pending?.runId === 'string' && Number.isInteger(pending.wavesCleared)) {
+    try {
+      const settled = await claimEndlessModeReward(pending.runId, Number(pending.wavesCleared));
+      if (!settled?.ok) throw new Error('上一局奖励尚未结算，请稍后重试');
+    } catch (cause) {
+      if ((cause as { status?: number })?.status !== 409) throw cause;
+    }
+  }
+  const result = await postCloudAction<{ ok: boolean; runId: string }>('/api/progress', { action: 'startEndlessRun' });
+  if (!result?.ok) throw new Error('无法开始无尽模式，请检查登录状态和网络');
+  return result;
+}
+
+export function abandonEndlessModeRun(runId: string) {
+  return postCloudAction<{ ok: boolean }>('/api/progress', { action: 'abandonEndlessRun', runId });
 }
 
 export function upgradeCloudTower(towerType: string) {

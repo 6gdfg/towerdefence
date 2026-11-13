@@ -20,6 +20,9 @@ type ResultModalProps = {
   onBackToHub: () => void;
   onRestartFunMode: () => void;
   onBackToFunMode: () => void;
+  rewardPending?: boolean;
+  rewardBusy?: boolean;
+  onRetryReward?: () => void;
 };
 
 const secondaryButtonStyle: CSSProperties = {
@@ -49,6 +52,9 @@ export default function ResultModal({
   onBackToHub,
   onRestartFunMode,
   onBackToFunMode,
+  rewardPending = false,
+  rewardBusy = false,
+  onRetryReward,
 }: ResultModalProps) {
   const isWon = result === 'won';
   const levelName = levelIndex != null ? LEVELS[levelIndex]?.name ?? '' : '';
@@ -57,7 +63,7 @@ export default function ResultModal({
     : activeFunMode
       ? `趣味模式 · ${funModeLabel}`
       : '';
-  const reward = isWon ? winReward : null;
+  const reward = isWon || activeFunMode === 'endless' ? winReward : null;
   const chestTypes = reward?.chestTypes?.length
     ? reward.chestTypes
     : reward?.chestType
@@ -84,7 +90,7 @@ export default function ResultModal({
 
         {showReward && reward && (
           <div className="reward-panel" style={{ marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 6, color: '#059669' }}>通关奖励</div>
+            <div style={{ fontWeight: 600, marginBottom: 6, color: '#059669' }}>{activeFunMode === 'endless' ? '结算奖励' : '通关奖励'}</div>
             {reward.message && (
               <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 6 }}>{reward.message}</div>
             )}
@@ -116,6 +122,12 @@ export default function ResultModal({
           </div>
         )}
 
+        {activeFunMode === 'endless' && rewardPending && (
+          <button className="action-button" onClick={onRetryReward} disabled={rewardBusy} style={{ marginBottom: 12 }}>
+            {rewardBusy ? '结算中...' : '重试结算'}
+          </button>
+        )}
+
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isWon ? (
             <>
@@ -129,9 +141,9 @@ export default function ResultModal({
             </>
           ) : activeFunMode ? (
             <>
-              <button onClick={onRestartFunMode} className="action-button primary" style={secondaryButtonStyle}>重新开始{funModeLabel}</button>
-              <button onClick={onBackToFunMode} className="action-button" style={secondaryButtonStyle}>返回趣味模式</button>
-              <button onClick={onBackToHub} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
+              <button onClick={onRestartFunMode} disabled={rewardBusy} className="action-button primary" style={secondaryButtonStyle}>重新开始{funModeLabel}</button>
+              <button onClick={onBackToFunMode} disabled={rewardBusy} className="action-button" style={secondaryButtonStyle}>返回趣味模式</button>
+              <button onClick={onBackToHub} disabled={rewardBusy} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
             </>
           ) : (
             <>

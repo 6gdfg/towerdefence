@@ -17,6 +17,7 @@ export type HubData = {
 export type CloudProgress = HubData & {
   stars?: Record<string, number>;
   fullHealthClears?: Record<string, boolean>;
+  atClears?: Record<string, boolean>;
   unlocked?: number;
 };
 

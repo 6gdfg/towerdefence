@@ -3,7 +3,7 @@ import { STAR_LABELS } from './appConfig';
 import { getChapterById, getChapterLevelLabel } from './chapters';
 import { getLevelSpecForDifficulty, hasAnyLevelDraft, hasLevelDifficultyDraft, LEVELS } from './levels';
 import { MAPS } from './maps';
-import { getAllStars, getMaxStarSync } from './progress';
+import { getAllStars, getAtClearSync, getMaxStarSync } from './progress';
 import { resolveUnlockItemLabel } from './labels';
 import { getLevelDifficultyRatings, type DifficultyCode } from './levelRatings';
 import type { ChallengeId } from './ChallengeSelectPage';
@@ -72,6 +72,7 @@ export default function LevelSelectPage({
       <section className="phigros-level-list">
         {chapterLevels.map(({ level: L, index: i }, displayIndex) => {
           const clearedMax = getMaxStarSync(L.id);
+          const atCleared = getAtClearSync(L.id);
           const hasStarRecord = L.id in allStars;
           const missingLevelDraft = !hasAnyLevelDraft(L);
           const progressLocked = (i + 1 > unlocked) && !hasStarRecord;
@@ -94,9 +95,11 @@ export default function LevelSelectPage({
             ? 'NO DRAFT'
             : progressLocked
               ? 'LOCKED'
-              : clearedMax > 0
-                ? `${STAR_LABELS[clearedMax as 1 | 2 | 3]} CLEAR`
-                : 'NO CLEAR';
+              : atCleared
+                ? 'AT CLEAR'
+                : clearedMax > 0
+                  ? `${STAR_LABELS[clearedMax as 1 | 2 | 3]} CLEAR`
+                  : 'NO CLEAR';
 
           return (
             <article
@@ -164,7 +167,7 @@ export default function LevelSelectPage({
                     type="button"
                     onClick={() => onSelectDifficulty(i, 'AT')}
                     disabled={isLocked}
-                    className={`phigros-diff-tile diff-at ${selectedDifficulty === 'AT' ? 'is-active' : ''}`}
+                    className={`phigros-diff-tile diff-at ${selectedDifficulty === 'AT' ? 'is-active' : ''} ${atCleared ? 'is-cleared' : ''}`}
                     aria-pressed={selectedDifficulty === 'AT'}
                   >
                     <span className="phigros-diff-content">

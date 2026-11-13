@@ -19,6 +19,7 @@ import LevelStartModal from './td/LevelStartModal';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
 import UpdateAnnouncementModal from './td/UpdateAnnouncementModal';
 import SubmissionRewardModal from './td/SubmissionRewardModal';
+import EndlessChampionModal from './td/EndlessChampionModal';
 import { useTDStore } from './td/store';
 import { getLevelSpecForDifficulty, hasLevelDifficultyDraft, INTRODUCTION_LEVEL, LEVELS, MONSTER_BASE_STATS } from './td/levels';
 import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
@@ -27,15 +28,16 @@ import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
 import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
 import { DEFAULT_WHACK_A_MOLE_PLANTS, getAtBaseModeType } from './td/atMode';
-import { acknowledgeReleaseAnnouncement, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openAllReadyChests, openChestReward, skipChestUnlock, startChestUnlock, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
+import { abandonEndlessModeRun, acknowledgeReleaseAnnouncement, claimEndlessModeReward, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openAllReadyChests, openChestReward, skipChestUnlock, startChestUnlock, startEndlessModeRun, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
-import { buildInitialFunWaves, buildRandomModeWaves, createFunModeWave, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
+import { buildInitialEndlessWaves, buildInitialFunWaves, buildRandomModeWaves, createEndlessModeWave, createFunModeWave, ENDLESS_MODE_FIRST_WAVE_DELAY, ENDLESS_MODE_LIVES, ENDLESS_MODE_MAX_ELEMENTS, ENDLESS_MODE_MAX_PLANTS, ENDLESS_MODE_SPECIAL_ENEMY_CHANCE, ENDLESS_MODE_START_GOLD, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
 import type { ChestReward, HubData, WinReward } from './td/appTypes';
 import { buildElementBookData, buildPlantBookData } from './td/bookData';
 import { getErrorMessage } from './td/errors';
 import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
 import { CURRENT_RELEASE } from '../shared/releaseNotes';
+import { ENDLESS_CHAMPION_COINS, ENDLESS_CHAMPION_EXPERIENCE } from '../shared/ranking';
 import { getChapterForLevelIndex } from './td/chapters';
 import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRatings';
 import { getPlayableDifficulty } from './td/levelUnlockLogic';
@@ -58,7 +60,7 @@ type PendingCardSelect = {
   maxElements: number;
   towerLevels: TowerLevelMap;
   returnStage: Stage;
-  onConfirm: (plants: PlantType[], elements: ElementType[]) => void;
+  onConfirm: (plants: PlantType[], elements: ElementType[]) => void | Promise<void>;
 };
 
 type PendingLevelStart = {
@@ -77,9 +79,17 @@ type ActiveChallengeRun = {
 };
 
 type SubmissionApprovalNotice = {
+  type: 'level_submission_approved';
   id: string;
   levelName: string;
   difficulty: string;
+} | {
+  type: 'endless_weekly_champion';
+  id: string;
+  weekStart: string;
+  bestWaves: number;
+  coins: number;
+  experience: number;
 };
 
 function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] {
@@ -207,6 +217,10 @@ function App() {
   const [unlocked, setUnlockedState] = useState<number>(() => getUnlocked());
   const [showAbout, setShowAbout] = useState(false);
   const [activeFunMode, setActiveFunMode] = useState<FunModeType | null>(null);
+  const [endlessRunId, setEndlessRunId] = useState<string | null>(null);
+  const [endlessRewardPending, setEndlessRewardPending] = useState(false);
+  const [endlessRewardBusy, setEndlessRewardBusy] = useState(false);
+  const endlessRewardBusyRef = useRef(false);
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
   const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
   const [pendingLevelStart, setPendingLevelStart] = useState<PendingLevelStart | null>(null);
@@ -329,15 +343,28 @@ function App() {
 
   const loadSubmissionApprovalNotice = useCallback(async () => {
     try {
+      const token = getToken();
       const notification = await getNextUnreadNotification();
-      if (!notification || notification.type !== 'level_submission_approved') {
+      if (getToken() !== token) return;
+      if (!notification) {
         setSubmissionApprovalNotice(null);
         return;
       }
-      const levelName = typeof notification.payload.levelName === 'string' ? notification.payload.levelName : '未命名关卡';
-      const difficulty = typeof notification.payload.difficulty === 'string' ? notification.payload.difficulty : '';
       setSubmissionApprovalError(null);
-      setSubmissionApprovalNotice({ id: notification.id, levelName, difficulty });
+      if (notification.type === 'level_submission_approved') {
+        const levelName = typeof notification.payload.levelName === 'string' ? notification.payload.levelName : '未命名关卡';
+        const difficulty = typeof notification.payload.difficulty === 'string' ? notification.payload.difficulty : '';
+        setSubmissionApprovalNotice({ type: notification.type, id: notification.id, levelName, difficulty });
+      } else if (notification.type === 'endless_weekly_champion') {
+        setSubmissionApprovalNotice({
+          type: notification.type, id: notification.id, weekStart: String(notification.payload.weekStart ?? ''),
+          bestWaves: Number(notification.payload.bestWaves ?? 0),
+          coins: Number(notification.payload.coins ?? ENDLESS_CHAMPION_COINS),
+          experience: Number(notification.payload.experience ?? ENDLESS_CHAMPION_EXPERIENCE),
+        });
+      } else {
+        setSubmissionApprovalNotice(null);
+      }
     } catch (error) {
       console.error('Failed to load submission approval notification', error);
     }
@@ -696,6 +723,7 @@ function App() {
   };
 
   const startFunMode = useCallback((mode: FunModeType) => {
+    if (endlessRewardBusyRef.current) return;
     setActiveLabConfig(null);
     setActiveChallengeRun(null);
     const finalizeStart = () => {
@@ -753,6 +781,60 @@ function App() {
       return;
     }
 
+    if (mode === 'endless') {
+      const maps = MAPS.filter(map => map.id !== SPIRAL_MAP_ID);
+      const endlessMap = maps[Math.floor(Math.random() * maps.length)];
+      if (!endlessMap) {
+        alert('没有可用于无尽模式的地图');
+        return;
+      }
+
+      const unlockedItems = getUnlockedItems();
+      const plantOptions = Array.from(new Set(
+        unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item)),
+      ));
+      const elementOptions = Array.from(new Set(
+        unlockedItems
+          .filter(item => item.startsWith('element:'))
+          .map(item => item.slice('element:'.length))
+          .filter((element): element is ElementType => Object.prototype.hasOwnProperty.call(ELEMENT_PLANT_CONFIG, element)),
+      ));
+      const towerLevels = hub?.towerLevels ? { ...hub.towerLevels } : {};
+
+      setPendingCardSelect({
+        title: '无尽模式 · 选择卡组',
+        plantOptions,
+        elementOptions,
+        maxPlants: ENDLESS_MODE_MAX_PLANTS,
+        maxElements: ENDLESS_MODE_MAX_ELEMENTS,
+        towerLevels,
+        returnStage: 'fun',
+        onConfirm: async (plants, elements) => {
+          const run = await startEndlessModeRun();
+          setEndlessRunId(run.runId);
+          setEndlessRewardPending(false);
+          setPendingCardSelect(null);
+          loadLevel(
+            { startGold: ENDLESS_MODE_START_GOLD, lives: ENDLESS_MODE_LIVES, waves: buildInitialEndlessWaves() },
+            { path: endlessMap.path, size: endlessMap.size, roadWidthCells: endlessMap.roadWidthCells, plantGrid: getPlantGrid(endlessMap) },
+            {
+              autoStartFirstWave: true,
+              firstWaveDelaySec: ENDLESS_MODE_FIRST_WAVE_DELAY,
+              towerLevels,
+              allowedPlants: plants,
+              allowedElements: elements,
+              mode: 'endless',
+              specialEnemyConfig: { enabled: true, type: 'charityAmbassador', chance: ENDLESS_MODE_SPECIAL_ENEMY_CHANCE },
+              endlessWaveFactory: createEndlessModeWave,
+            },
+          );
+          finalizeStart();
+        },
+      });
+      navigateWithTransition('cardSelect');
+      return;
+    }
+
     if (!funMap) {
       alert('Fun mode map missing, cannot start');
       return;
@@ -762,7 +844,7 @@ function App() {
     let allowedPlants: PlantType[] = [];
     let allowedElements: ElementType[] = [];
     let towerLevels: TowerLevelMap = {};
-    const startGold = mode === 'test' ? 6000 : 2000;
+    const startGold = 6000;
 
     if (mode === 'test') {
       allowedPlants = [...PLANT_TYPES];
@@ -789,18 +871,6 @@ function App() {
         configuredLevels[key] = level;
       }
       towerLevels = configuredLevels;
-    } else {
-      const unlockedItems = getUnlockedItems();
-      const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType =>
-        Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item),
-      );
-      allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
-      const allowedElementsRaw = unlockedItems
-        .filter(item => item.startsWith('element:'))
-        .map(item => item.split(':')[1])
-        .filter((el): el is ElementType => Object.prototype.hasOwnProperty.call(ELEMENT_PLANT_CONFIG, el));
-      allowedElements = Array.from(new Set(allowedElementsRaw)) as ElementType[];
-      towerLevels = hub?.towerLevels ? { ...hub.towerLevels } : {};
     }
 
     const initialWaves = buildInitialFunWaves();
@@ -812,7 +882,7 @@ function App() {
         towerLevels,
         allowedPlants,
         allowedElements,
-        mode: mode === 'test' ? 'endlessTest' : 'endless',
+        mode: 'endlessTest',
         lifeBonusPerWave: 50,
         endlessWaveFactory: (waveNumber: number) => createFunModeWave(waveNumber),
       },
@@ -1039,6 +1109,46 @@ function App() {
     navigateWithTransition('won');
   }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId]);
 
+  const settleEndlessReward = useCallback(async () => {
+    if (endlessRewardBusyRef.current) return;
+    endlessRewardBusyRef.current = true;
+    setEndlessRewardBusy(true);
+    setEndlessRewardPending(true);
+    const cleared = useTDStore.getState().wavesCleared ?? 0;
+    const token = getToken();
+    try {
+      if (!endlessRunId) throw new Error('缺少无尽游戏记录');
+      const result = await claimEndlessModeReward(endlessRunId, cleared);
+      if (!result) throw new Error('奖励服务暂不可用');
+      if (getToken() !== token) return;
+      const fullText = result.chestInventoryFull ? '；宝箱库存已满，超出部分未发放' : '';
+      setWinReward({
+        coins: result.rewardCoins,
+        chestTypes: result.chestTypes,
+        message: `击退 ${result.wavesCleared} 波${fullText}`,
+      });
+      setEndlessRewardPending(false);
+      await loadHub();
+    } catch (error) {
+      if (getToken() !== token) return;
+      setWinReward({
+        coins: 0,
+        message: error instanceof Error ? `击退 ${cleared} 波；结算失败：${error.message}` : `击退 ${cleared} 波；结算失败，请重试。`,
+      });
+      console.error('Failed to claim endless mode reward', error);
+    } finally {
+      endlessRewardBusyRef.current = false;
+      setEndlessRewardBusy(false);
+    }
+  }, [endlessRunId, loadHub]);
+
+  const handleGameLose = useCallback(() => {
+    useTDStore.setState({ running: false });
+    setActiveChallengeRun(null);
+    navigateWithTransition('lost');
+    if (activeFunMode === 'endless') void settleEndlessReward();
+  }, [activeFunMode, navigateWithTransition, settleEndlessReward]);
+
   const handleAuth = useCallback(() => {
     setIsLoading(true);
     setAnimationFinished(false);
@@ -1229,11 +1339,19 @@ function App() {
               <TDGame
                 difficultyLabel={activeLabConfig ? `${activeLabConfig.targetDifficulty} Lv.${activeLabConfig.difficultyRatings[activeLabConfig.targetDifficulty] ?? ''}` : currentDifficultyLabel}
                 onWin={activeLabConfig ? () => navigateWithTransition('lab') : handleGameWin}
-                onLose={activeLabConfig ? () => navigateWithTransition('lab') : () => {
-                  setActiveChallengeRun(null);
-                  navigateWithTransition('lost');
-                }}
+                onLose={activeLabConfig ? () => navigateWithTransition('lab') : handleGameLose}
                 onExit={() => {
+                  if (activeFunMode === 'endless' && !activeLabConfig) {
+                    if (endlessRewardBusyRef.current) return;
+                    useTDStore.setState({ running: false });
+                    if (endlessRunId) void abandonEndlessModeRun(endlessRunId).catch(error => console.error('Failed to abandon endless run', error));
+                    setEndlessRunId(null);
+                    setEndlessRewardPending(false);
+                    setWinReward(null);
+                    setActiveFunMode(null);
+                    navigateWithTransition('fun');
+                    return;
+                  }
                   setWinReward(null);
                   setActiveChallengeRun(null);
                   setLevelIndex(null);
@@ -1251,6 +1369,9 @@ function App() {
               currentStar={currentStar}
               wavesCleared={wavesCleared}
               winReward={winReward}
+              rewardPending={activeFunMode === 'endless' && endlessRewardPending}
+              rewardBusy={activeFunMode === 'endless' && endlessRewardBusy}
+              onRetryReward={settleEndlessReward}
               onChallengeHigherStar={() => {
                 if (levelIndex != null) {
                   const nextStar = Math.min(3, currentStar + 1) as 1|2|3;
@@ -1320,10 +1441,21 @@ function App() {
           onConfirm={confirmUpdateAnnouncement}
         />
       )}
-      {submissionApprovalNotice && !showUpdateAnnouncement && stage !== 'auth' && (
+      {submissionApprovalNotice?.type === 'level_submission_approved' && !showUpdateAnnouncement && stage !== 'auth' && (
         <SubmissionRewardModal
           levelName={submissionApprovalNotice.levelName}
           difficulty={submissionApprovalNotice.difficulty}
+          confirming={confirmingSubmissionApproval}
+          error={submissionApprovalError}
+          onConfirm={confirmSubmissionApproval}
+        />
+      )}
+      {submissionApprovalNotice?.type === 'endless_weekly_champion' && !showUpdateAnnouncement && stage !== 'auth' && (
+        <EndlessChampionModal
+          weekStart={submissionApprovalNotice.weekStart}
+          bestWaves={submissionApprovalNotice.bestWaves}
+          coins={submissionApprovalNotice.coins}
+          experience={submissionApprovalNotice.experience}
           confirming={confirmingSubmissionApproval}
           error={submissionApprovalError}
           onConfirm={confirmSubmissionApproval}

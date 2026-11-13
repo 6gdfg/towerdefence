@@ -1,11 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { splitShardInventory } from '../shared/shards.js';
 import { LEVEL_UNLOCK_REQUIREMENTS } from '../shared/unlocks.js';
-import { CHEST_REWARD_CONFIG, MAX_CHEST_INVENTORY, REPEAT_CLEAR_COIN_MULTIPLIER, getRepeatClearChestRewardConfig, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
+import { CHEST_REWARD_CONFIG, MAX_CHEST_INVENTORY, REPEAT_CLEAR_COIN_MULTIPLIER, getEndlessModeReward, getRepeatClearChestRewardConfig, getStarRewardConfig, type ChestType } from '../shared/rewards.js';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 import { recordPlayerTaskEvent } from './tasks.js';
+import { getEndlessModeMinimumDurationSeconds } from '../shared/endless.js';
+import { endlessRankingSettlementQueries, settleEndlessRanking } from './_endlessRanking.js';
 
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -37,6 +39,24 @@ type ShardRow = { tower_type: string; shards: number | string };
 type TowerLevelRow = { tower_type: string; level: number | string };
 type UnlockedItemRow = { item_id: string };
 type NotificationRow = { notification_id: string; notification_type: string; payload: unknown };
+type EndlessClaimRow = {
+  waves_cleared: number | string;
+  reward_coins: number | string;
+  chest_types: unknown;
+  chest_inventory_full: boolean | string | number;
+  claim_status: string;
+  elapsed_seconds?: number | string;
+};
+
+function endlessRewardResponse(row: EndlessClaimRow) {
+  return {
+    ok: true,
+    wavesCleared: Number(row.waves_cleared),
+    rewardCoins: Number(row.reward_coins),
+    chestTypes: Array.isArray(row.chest_types) ? row.chest_types as string[] : [],
+    chestInventoryFull: readDbBoolean(row.chest_inventory_full),
+  };
+}
 
 function getRequiredPlayerId(req: VercelRequest, res: VercelResponse) {
   const playerId = getAuthPlayerId(req);
@@ -56,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const playerId = getRequiredPlayerId(req, res);
       if (!playerId) return;
       await ensurePlayer(playerId);
+      await settleEndlessRanking();
 
       const [prog, wallet, shards, levels, chests, unlockedRows] = await Promise.all([
         sql`SELECT level_id, max_star, in_full_health_clear, at_cleared FROM player_progress WHERE player_id=${playerId}`,
@@ -68,10 +89,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const stars: Record<string, number> = {};
       const fullHealthClears: Record<string, boolean> = {};
+      const atClears: Record<string, boolean> = {};
       (prog as ProgressRow[]).forEach(r => stars[r.level_id] = Number(r.max_star));
       (prog as ProgressRow[]).forEach(r => {
         if (readDbBoolean(r.in_full_health_clear)) {
           fullHealthClears[r.level_id] = true;
+        }
+        if (readDbBoolean(r.at_cleared)) {
+          atClears[r.level_id] = true;
         }
       });
       const coins = Number((wallet as WalletRow[])[0]?.coins ?? 0);
@@ -95,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      return res.json({ stars, fullHealthClears, coins, magicKeys, diamonds, experience, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
+      return res.json({ stars, fullHealthClears, atClears, coins, magicKeys, diamonds, experience, shards: shardInv, ...splitShards, towerLevels: towerLv, chests, unlocked, unlockedItems });
     }
 
     if (req.method === 'POST') {
@@ -121,6 +146,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tx`DELETE FROM player_task_progress WHERE player_id=${pid}`,
           tx`DELETE FROM chests WHERE player_id=${pid}`,
           tx`DELETE FROM shop_purchases WHERE player_id=${pid}`,
+          tx`DELETE FROM endless_mode_claims WHERE player_id=${pid}`,
+          tx`DELETE FROM endless_weekly_records WHERE player_id=${pid}`,
           tx`DELETE FROM unlocked_items WHERE player_id=${pid}`,
           tx`DELETE FROM tower_levels WHERE player_id=${pid}`,
           tx`DELETE FROM inventory_shards WHERE player_id=${pid}`,
@@ -133,6 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (action === 'getNextNotification') {
+        await settleEndlessRanking();
         const rows = await sql`
           SELECT notification_id, notification_type, payload
           FROM player_notifications
@@ -183,6 +211,95 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ON CONFLICT (player_id, level_id) DO NOTHING`;
 
         return res.json({ ok: true, remainingKeys: Number(spent[0].magic_keys ?? 0) });
+      }
+
+      if (action === 'startEndlessRun') {
+        const runId = createId('endless');
+        await sql`INSERT INTO endless_mode_claims (player_id, run_id)
+          VALUES (${pid}, ${runId})
+          ON CONFLICT (player_id) DO UPDATE SET run_id=excluded.run_id,
+            claim_status='active', started_at=NOW(), waves_cleared=0, reward_coins=0,
+            chest_types='[]'::jsonb, chest_inventory_full=FALSE`;
+        return res.json({ ok: true, runId });
+      }
+
+      if (action === 'abandonEndlessRun') {
+        const runId = typeof req.body?.runId === 'string' ? req.body.runId : '';
+        await sql`DELETE FROM endless_mode_claims WHERE player_id=${pid} AND run_id=${runId} AND claim_status='active'`;
+        return res.json({ ok: true });
+      }
+
+      if (action === 'claimEndlessReward') {
+        const runId = typeof req.body?.runId === 'string' ? req.body.runId.trim() : '';
+        if (!/^endless_[0-9a-f-]{36}$/i.test(runId)) {
+          return res.status(400).json({ error: 'invalid runId' });
+        }
+        const parsedWaves = Number(req.body?.wavesCleared);
+        if (!Number.isInteger(parsedWaves) || parsedWaves < 0 || parsedWaves > 1000000) {
+          return res.status(400).json({ error: 'invalid wavesCleared' });
+        }
+
+        const existingRows = await sql`SELECT waves_cleared, reward_coins, chest_types, chest_inventory_full, claim_status,
+            EXTRACT(EPOCH FROM (NOW() - started_at)) AS elapsed_seconds
+          FROM endless_mode_claims WHERE player_id=${pid} AND run_id=${runId}`;
+        const existing = existingRows[0] as EndlessClaimRow | undefined;
+        if (!existing) return res.status(409).json({ error: '无尽记录已失效，请勿同时开启多局无尽游戏' });
+        if (existing.claim_status === 'complete') {
+          return res.json({ ...endlessRewardResponse(existing), alreadyClaimed: true });
+        }
+        if (getEndlessModeMinimumDurationSeconds(parsedWaves) > Number(existing.elapsed_seconds) + 1) {
+          return res.status(400).json({ error: 'invalid run duration' });
+        }
+
+        const reward = getEndlessModeReward(parsedWaves);
+        const chestOffers = reward.chestTypes.map(chestType => {
+          const config = CHEST_REWARD_CONFIG[chestType];
+          return { chest_id: createId('c'), chest_type: chestType,
+            duration_seconds: config.unlockSeconds, coin_reward: randInt(config.coins.min, config.coins.max) };
+        });
+        // Serialize the weekly rollover before locking the wallet. Claim, rewards
+        // and the best score commit together, so retries cannot grant twice.
+        const results = await sql.transaction(tx => [
+          ...endlessRankingSettlementQueries(tx),
+          tx`SELECT player_id FROM player_wallet WHERE player_id=${pid} FOR UPDATE`,
+          tx`WITH capacity AS (
+              SELECT GREATEST(0, ${MAX_CHEST_INVENTORY} - COUNT(*)) AS slots FROM chests WHERE player_id=${pid}
+            ), offers AS (
+              SELECT value, ordinality FROM jsonb_array_elements(${JSON.stringify(chestOffers)}::jsonb) WITH ORDINALITY
+            ), allocated AS (
+              SELECT COALESCE(jsonb_agg(value->'chest_type' ORDER BY ordinality), '[]'::jsonb) AS chest_types
+              FROM offers WHERE ordinality <= (SELECT slots FROM capacity)
+            ), finished AS (
+              UPDATE endless_mode_claims SET claim_status='complete', waves_cleared=${reward.wavesCleared},
+                reward_coins=${reward.coins}, chest_types=allocated.chest_types,
+                chest_inventory_full=(${reward.chestTypes.length} > (SELECT slots FROM capacity))
+              FROM allocated WHERE player_id=${pid} AND run_id=${runId} AND claim_status='active'
+              RETURNING endless_mode_claims.*
+            ), credited AS (
+              UPDATE player_wallet SET coins=coins+finished.reward_coins, updated_at=NOW()
+              FROM finished WHERE player_wallet.player_id=finished.player_id RETURNING player_wallet.player_id
+            ), awarded AS (
+              INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
+              SELECT value->>'chest_id', finished.player_id, 'locked', (value->>'duration_seconds')::integer,
+                value->>'chest_type', (value->>'coin_reward')::bigint
+              FROM offers CROSS JOIN finished CROSS JOIN credited
+              WHERE ordinality <= (SELECT slots FROM capacity) RETURNING chest_id
+            ), ranked AS (
+              INSERT INTO endless_weekly_records (player_id, best_waves, achieved_at)
+              SELECT player_id, waves_cleared, transaction_timestamp() FROM finished WHERE waves_cleared > 0
+              ON CONFLICT (player_id) DO UPDATE SET best_waves=EXCLUDED.best_waves, achieved_at=EXCLUDED.achieved_at
+                WHERE endless_weekly_records.best_waves < EXCLUDED.best_waves
+              RETURNING player_id
+            )
+            SELECT waves_cleared, reward_coins, chest_types, chest_inventory_full, claim_status FROM finished
+            UNION ALL
+            SELECT waves_cleared, reward_coins, chest_types, chest_inventory_full, claim_status
+              FROM endless_mode_claims WHERE player_id=${pid} AND run_id=${runId} AND claim_status='complete'
+              AND NOT EXISTS (SELECT 1 FROM finished)`,
+        ]) as unknown[];
+        const settled = (results[results.length - 1] as EndlessClaimRow[])[0];
+        if (!settled) return res.status(409).json({ error: '无尽记录已失效，请勿同时开启多局无尽游戏' });
+        return res.json(endlessRewardResponse(settled));
       }
 
       if (action === 'setStar') {
@@ -290,6 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           previousStar: prev,
           newRecord,
           atFirstClear,
+          atCleared: nextAtClear,
           newUnlocks,
           fullHealthClear: nextFullHealthClear,
           newFullHealthClear,

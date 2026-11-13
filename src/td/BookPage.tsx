@@ -88,6 +88,7 @@ function plantTags(entry: PlantBookEntry) {
   if (config.armorBreakKnockback) tags.push(`破甲击退 ${fmt(config.armorBreakKnockback)}`);
   if (config.shotCount && config.shotCount > 1) tags.push(`每次 ${config.shotCount} 发`);
   if (config.randomElementShot) tags.push(`${Math.round(config.randomElementShot.chance * 100)}% 火元素子弹`);
+  if (config.randomBurstShotCount) tags.push('一次性', `随机方向齐射 ${config.randomBurstShotCount} 发`, '子弹伤害随等级提升', '发射后消失');
 
   if (config.instantEffect?.type === 'crossDamage') {
     tags.push('一次性', `延迟 ${config.instantEffect.delaySec}s`, '横竖爆炸', '升级仅伤害');
@@ -128,7 +129,6 @@ function plantTags(entry: PlantBookEntry) {
       '最高伤害每级 +3%',
     );
   }
-
   if (config.elementAllowed === false) {
     tags.push('禁元素');
   } else if (config.allowedElementTypes?.length) {
@@ -137,7 +137,7 @@ function plantTags(entry: PlantBookEntry) {
     tags.push('可附元素');
   }
 
-  if (stats.fireRate === 0 && !config.instantEffect && !config.activeAbilityCost && !config.controlAura && !config.windWall) tags.push('不自动攻击');
+  if (stats.fireRate === 0 && !config.instantEffect && !config.randomBurstShotCount && !config.activeAbilityCost && !config.controlAura && !config.windWall) tags.push('不自动攻击');
   return tags;
 }
 
@@ -164,6 +164,14 @@ function plantMetrics(entry: PlantBookEntry) {
       ['最高伤害', fmt(stats.damage)],
       ['射程', fmt(stats.range)],
       ['间隔', `${config.channelAttack.tickInterval}s`],
+    ] as const;
+  }
+  if (config.randomBurstShotCount) {
+    return [
+      ['费用', config.cost],
+      ['单发伤害', fmt(stats.damage)],
+      ['齐射数量', config.randomBurstShotCount],
+      ['放置冷却', `${config.placementCooldown ?? 0}s`],
     ] as const;
   }
   return [

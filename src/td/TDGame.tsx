@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getHammerDamage, getHammerUpgradeCost, useTDStore } from './store';
+import { getHammerDamage, getHammerUpgradeCost, hasWonLevel, useTDStore } from './store';
 import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
 import { ELEMENT_PLANT_CONFIG, DEFAULT_PLANT_COLOR, DEFAULT_BULLET_COLOR, getPlantRuntimeConfig } from './plants';
@@ -79,8 +79,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const elementChoices = availableElements.map(id => ELEMENT_PLANT_CONFIG[id]).filter(Boolean);
   const selectedElementCooldown = selectedElement ? ELEMENT_SINGLE_USE_COOLDOWN[selectedElement] : 0;
   const selectedPlantRemaining = selectedPlant ? Math.max(0, (plantCooldowns?.[selectedPlant] ?? 0) - gameTime) : 0;
-  const waveNumberDisplay = waveIndex + (isWaveActive ? 1 : 0);
-  const hasBossWaves = waves.some(wave => wave.groups.some(group => group.isBoss));
+  const waveNumberDisplay = Math.max(mode === 'endless' ? 1 : 0, waveIndex + (isWaveActive ? 1 : 0));
+  const wonLevel = hasWonLevel({ mode, lives, isWaveActive, waveIndex, waves });
+  const hasBossWaves = mode === 'endless' || waves.some(wave => wave.groups.some(group => group.isBoss));
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const atModeVariantLabel = atModeConfig
     ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变', whackAMole: '打地鼠' } as const)[atBaseModeType]}`
@@ -217,11 +218,11 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
 
 
   useEffect(() => {
-    if (!isWaveActive && waveIndex >= waves.length && !announcedWinRef.current) {
+    if (wonLevel && !announcedWinRef.current) {
       announcedWinRef.current = true;
       onWin && onWin();
     }
-  }, [isWaveActive, waveIndex, waves.length, onWin]);
+  }, [wonLevel, onWin]);
 
   useEffect(() => {
     if (lives <= 0 && !announcedLoseRef.current) {
@@ -307,7 +308,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   };
 
   const handleExit = () => {
-    if (!window.confirm('退出当前对局？本局进度不会保存。')) return;
+    const message = mode === 'endless' ? '退出本轮无尽挑战？主动退出不会获得奖励，也不会提交排行榜成绩。' : '退出当前对局？本局进度不会保存。';
+    if (!window.confirm(message)) return;
     onExit?.();
   };
 
@@ -384,7 +386,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                 </button>
               </>
             )}
-            <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
+            {mode !== 'endless' && (
+              <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
+            )}
           </div>
       </header>
 
@@ -1383,7 +1387,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
       </div>
       </div>
 
-      {!isWaveActive && waveIndex >= waves.length && (
+      {wonLevel && (
         <div style={{ padding:'12px 18px', color:'#059669', flexShrink:0, fontWeight:700 }}>全部波次完成！🎉</div>
       )}
       {showAbout && (
@@ -1395,6 +1399,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             <p>总策划:hebscyf</p>
             <p>代码:6gdfg</p>
             <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
+            <p>特别鸣谢:DeepSeek Harness Agent</p>
             <button onClick={() => setShowAbout(false)} className="action-button" style={{ alignSelf: 'flex-end' }}>
               关闭
             </button>

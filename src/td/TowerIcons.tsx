@@ -165,6 +165,14 @@ export function PlantIcon({ type, color = DEFAULT_ICON_COLOR, size = 28, style }
           <path d="M3 5 V2 H6 M18 2 H21 V5" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.65} strokeLinecap="round" />
         </svg>
       );
+    case 'dandelion':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <path d="M12 11 V21 M12 18 C9.5 16 8.5 16 7 16 M12 19 C14.5 17 16 17 17.5 17" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.82} strokeLinecap="round" />
+          <circle cx="12" cy="8" r="3.1" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH} />
+          <path d="M12 2.2 V4 M6.3 4.3 L7.6 5.6 M4 10 H5.8 M18.2 10 H20 M16.4 5.6 L17.7 4.3 M9.2 7.2 L7.7 6.5 M14.8 7.2 L16.3 6.5 M9.2 9.2 L7.6 10 M14.8 9.2 L16.4 10 M12 11 V13.6" fill="none" stroke={stroke} strokeWidth={STROKE_WIDTH * 0.62} strokeLinecap="round" />
+        </svg>
+      );
     case 'windWallGrass':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">

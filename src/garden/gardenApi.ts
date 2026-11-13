@@ -49,10 +49,11 @@ export type GardenPayload = {
   wallet: { coins: number; diamonds: number; experience: number };
   harvest?: GardenHarvest;
   harvestSummary?: GardenHarvestSummary;
+  plantingSummary?: { seedType: GardenSeedType; plantedCount: number };
 };
 
 const DEV_GARDEN_KEY = 'td-garden-dev-preview-v1';
-const DEV_PLANTS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'flameBottleGrass', 'puffShroom', 'fourLeafClover', 'boomerangLeaf', 'pentagram', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'windSailGrass', 'windWallGrass', 'antiAirTree', 'magnetNeedle', 'siegeRamGrass', 'electricFlower'];
+const DEV_PLANTS = ['sunflower', 'bottleGrass', 'doubleBottleGrass', 'flameBottleGrass', 'puffShroom', 'fourLeafClover', 'boomerangLeaf', 'pentagram', 'machineGun', 'sniper', 'rocket', 'sunlightFlower', 'holyFlower', 'hotPepper', 'frostBlastShroom', 'cycloneShroom', 'windSailGrass', 'windWallGrass', 'antiAirTree', 'magnetNeedle', 'siegeRamGrass', 'electricFlower', 'dandelion'];
 
 export function isGardenDevPreview() {
   return import.meta.env.DEV && !getToken();
@@ -84,7 +85,7 @@ function readDevGarden() {
     const raw = window.localStorage.getItem(DEV_GARDEN_KEY);
     if (!raw) return createDevGarden();
     const parsed = JSON.parse(raw) as GardenPayload;
-    const merged = { ...createDevGarden(), ...parsed, harvest: undefined, harvestSummary: undefined };
+    const merged = { ...createDevGarden(), ...parsed, harvest: undefined, harvestSummary: undefined, plantingSummary: undefined };
     if (typeof parsed.efficiencyLevel !== 'number') {
       merged.wallet = { ...merged.wallet, experience: 1000 };
     }
@@ -95,7 +96,7 @@ function readDevGarden() {
 }
 
 function saveDevGarden(garden: GardenPayload) {
-  const { harvest: _harvest, harvestSummary: _harvestSummary, ...stored } = garden;
+  const { harvest: _harvest, harvestSummary: _harvestSummary, plantingSummary: _plantingSummary, ...stored } = garden;
   window.localStorage.setItem(DEV_GARDEN_KEY, JSON.stringify(stored));
 }
 
@@ -131,23 +132,29 @@ function devGardenRequest(body?: Record<string, unknown>): GardenPayload {
     const luckSteps = Math.min(11, garden.luckLevel) - 1;
     garden.shardChances = { one: 100 - 10 * luckSteps, two: 7 * luckSteps, three: 3 * luckSteps };
     garden.seedRecyclePct = 49 + garden.luckLevel;
-  } else if (action === 'plant') {
-    const plotIndex = Math.floor(Number(body.plotIndex));
+  } else if (action === 'plant' || action === 'plantAll') {
+    const plotIndex = action === 'plant' ? Math.floor(Number(body.plotIndex)) : null;
     const seedType = body.seedType as GardenSeedType;
-    if (!Number.isFinite(plotIndex) || plotIndex < 0 || plotIndex >= garden.unlockedPlots) throw new Error('田地不可用');
-    if (garden.plots.some(plot => plot.index === plotIndex)) throw new Error('田地已有作物');
+    if (plotIndex !== null && (!Number.isFinite(plotIndex) || plotIndex < 0 || plotIndex >= garden.unlockedPlots)) throw new Error('田地不可用');
+    if (plotIndex !== null && garden.plots.some(plot => plot.index === plotIndex)) throw new Error('田地已有作物');
     if (seedType !== 'plant' && seedType !== 'chest') throw new Error('种子类型无效');
     const seedKey = seedType === 'plant' ? 'plantSeeds' : 'chestSeeds';
     if (garden[seedKey] < 1) throw new Error('种子不足');
-    garden[seedKey] -= 1;
+    const occupied = new Set(garden.plots.map(plot => plot.index));
+    const indexes = Array.from({ length: garden.unlockedPlots }, (_, index) => index)
+      .filter(index => !occupied.has(index) && (plotIndex === null || index === plotIndex))
+      .slice(0, garden[seedKey]);
+    if (indexes.length === 0) throw new Error('NO_EMPTY_PLOTS');
+    garden[seedKey] -= indexes.length;
     const now = Date.now();
-    garden.plots.push({
-      index: plotIndex,
+    garden.plots.push(...indexes.map(index => ({
+      index,
       seedType,
       targetItem: seedType === 'plant' ? DEV_PLANTS[Math.floor(Math.random() * DEV_PLANTS.length)] : null,
       plantedAt: new Date(now).toISOString(),
       readyAt: new Date(now + garden.growthSeconds[seedType] * (1 - garden.efficiencyReductionPct / 100) * 1000).toISOString(),
-    });
+    })));
+    garden.plantingSummary = { seedType, plantedCount: indexes.length };
   } else if (action === 'harvest') {
     const plotIndex = Math.floor(Number(body.plotIndex));
     const plot = garden.plots.find(item => item.index === plotIndex);
@@ -229,6 +236,10 @@ export function fetchGarden() {
 
 export function plantGardenSeed(plotIndex: number, seedType: GardenSeedType) {
   return gardenRequest({ action: 'plant', plotIndex, seedType });
+}
+
+export function plantAllGardenSeeds(seedType: GardenSeedType) {
+  return gardenRequest({ action: 'plantAll', seedType });
 }
 
 export function harvestGardenPlot(plotIndex: number) {

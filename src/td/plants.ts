@@ -14,6 +14,7 @@ export interface BasePlantConfig {
   projectileSpeed: number;
   shotCount?: number;
   radialShotCount?: number;
+  randomBurstShotCount?: number;
   randomElementShot?: {
     type: ElementType;
     chance: number;
@@ -309,7 +310,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     fireRate: 0,
     projectileSpeed: 8,
     activeAbilityCost: 10,
-    description: '主动技能植物：点击时消耗10阳光发射高伤害子弹，平时不会自动攻击。',
+    description: '点击任意日光花，全场可攻击的日光花一起发射，每株消耗10阳光；各自按射程索敌，冻结时不发射。阳光不足以支付整次齐射时不触发，平时不自动攻击。',
   },
   holyFlower: {
     id: 'holyFlower',
@@ -405,6 +406,19 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
       maxTankStopSec: 30,
     },
     description: '阻挡半径内气球兵前进，同时阻拦超过15只时消失。坦克进入时消耗自身，令坦克静止并重置清除计时；半径为4+0.1×等级（最高6），静止为20+0.5×等级秒（最高30）。冷却90秒，仅支持风元素光环伤害。',
+  },
+  dandelion: {
+    id: 'dandelion',
+    name: '蒲公英',
+    icon: '*',
+    cost: 200,
+    placementCooldown: 15,
+    range: 0,
+    damage: 26,
+    fireRate: 0,
+    projectileSpeed: 8,
+    randomBurstShotCount: 100,
+    description: '一次性植物：种下后立即向随机方向齐射100颗子弹，子弹伤害随植物等级提升；子弹速度与瓶子草相同，发射后消失。',
   },
   windSailGrass: {
     id: 'windSailGrass',

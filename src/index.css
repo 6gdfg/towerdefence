@@ -2481,6 +2481,12 @@ input {
 }
 
 .garden-header h1 { margin-top: 4px; font-size: 30px; line-height: 1.1; }
+.ranking-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid #d1d5db; margin-top: 20px; }
+.ranking-tabs button { padding: 12px 16px; background: transparent; border: 0; border-bottom: 2px solid transparent; color: #6b7280; font: inherit; font-size: 14px; cursor: pointer; }
+.ranking-tabs button.is-active { color: #111827; border-bottom-color: #059669; font-weight: 700; }
+.ranking-tabs button:focus-visible { outline: 2px solid #059669; outline-offset: -2px; }
+.ranking-period { padding-top: 12px; font-size: 13px; color: #6b7280; }
+.ranking-page .table-panel { overflow-x: auto; }
 .garden-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px 0 16px; }
 .garden-seed-picker { display: flex; gap: 8px; }
 

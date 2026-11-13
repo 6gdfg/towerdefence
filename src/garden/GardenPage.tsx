@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AuthBar from '../td/AuthBar';
 import { getToken } from '../td/authProgress';
 import { resolveChestTypeLabel, resolveUnlockItemLabel } from '../td/labels';
-import { fetchGarden, harvestAllGardenPlots, harvestGardenPlot, isGardenDevPreview, plantGardenSeed, unlockGardenPlot, upgradeGarden, type GardenPayload, type GardenSeedType } from './gardenApi';
+import { fetchGarden, harvestAllGardenPlots, harvestGardenPlot, isGardenDevPreview, plantAllGardenSeeds, plantGardenSeed, unlockGardenPlot, upgradeGarden, type GardenPayload, type GardenSeedType } from './gardenApi';
 
 type GardenPageProps = { onBack: () => void };
 
@@ -18,7 +18,8 @@ export default function GardenPage({ onBack }: GardenPageProps) {
   const [garden, setGarden] = useState<GardenPayload | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<GardenSeedType>('plant');
   const [now, setNow] = useState(Date.now());
-  const [busyPlot, setBusyPlot] = useState<number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll' | null>(null);
+  const [busyPlot, setBusyPlot] = useState<number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll' | 'plantAll' | null>(null);
+  const busyRef = useRef(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -38,16 +39,23 @@ export default function GardenPage({ onBack }: GardenPageProps) {
   const readyChestCount = readyPlots.length - readyPlantCount;
   const availableChestSlots = garden ? Math.max(0, garden.maxChests - garden.chestCount) : 0;
   const harvestableCount = readyPlantCount + Math.min(readyChestCount, availableChestSlots);
+  const emptyPlotCount = garden ? Array.from({ length: garden.unlockedPlots }, (_, index) => index).filter(index => !plotByIndex.has(index)).length : 0;
+  const selectedSeedCount = garden ? selectedSeed === 'plant' ? garden.plantSeeds : garden.chestSeeds : 0;
+  const plantableCount = Math.min(emptyPlotCount, selectedSeedCount);
 
-  const runAction = async (key: number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll', action: () => Promise<GardenPayload>) => {
-    if (busyPlot !== null) return;
+  const runAction = async (key: number | 'unlock' | 'efficiency' | 'luck' | 'harvestAll' | 'plantAll', action: () => Promise<GardenPayload>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusyPlot(key);
     setError('');
     setMessage('');
     try {
       const result = await action();
       setGarden(result);
-      if (result.harvestSummary) {
+      if (result.plantingSummary) {
+        const label = result.plantingSummary.seedType === 'plant' ? '植物种子' : '宝箱种子';
+        setMessage(`已种植 ${label} x${result.plantingSummary.plantedCount}`);
+      } else if (result.harvestSummary) {
         const totalShards = Object.values(result.harvestSummary.shards).reduce((sum, count) => sum + count, 0);
         const parts = [
           `收获 ${result.harvestSummary.harvestedCount} 块田地`,
@@ -72,9 +80,14 @@ export default function GardenPage({ onBack }: GardenPageProps) {
           ? '经验不足'
           : rawMessage.includes('MAX_LEVEL')
             ? '已达到最高等级'
-            : rawMessage;
+            : rawMessage.includes('SEEDS_NOT_ENOUGH')
+              ? '种子不足'
+              : rawMessage.includes('NO_EMPTY_PLOTS')
+                ? '没有空闲田地'
+                : rawMessage;
       setError(friendlyMessage);
     } finally {
+      busyRef.current = false;
       setBusyPlot(null);
     }
   };
@@ -99,13 +112,21 @@ export default function GardenPage({ onBack }: GardenPageProps) {
 
         <div className="garden-toolbar">
           <div className="garden-seed-picker" role="group" aria-label="选择种子">
-            <button className={selectedSeed === 'plant' ? 'is-active' : ''} onClick={() => setSelectedSeed('plant')}>
+            <button className={selectedSeed === 'plant' ? 'is-active' : ''} disabled={busyPlot !== null} aria-pressed={selectedSeed === 'plant'} onClick={() => setSelectedSeed('plant')}>
               <span className="garden-seed-icon plant" aria-hidden="true" /><strong>植物种子</strong><em>{garden?.plantSeeds ?? 0}</em>
             </button>
-            <button className={selectedSeed === 'chest' ? 'is-active' : ''} onClick={() => setSelectedSeed('chest')}>
+            <button className={selectedSeed === 'chest' ? 'is-active' : ''} disabled={busyPlot !== null} aria-pressed={selectedSeed === 'chest'} onClick={() => setSelectedSeed('chest')}>
               <span className="garden-seed-icon chest" aria-hidden="true" /><strong>宝箱种子</strong><em>{garden?.chestSeeds ?? 0}</em>
             </button>
           </div>
+          <button
+            className="action-button"
+            disabled={busyPlot !== null || plantableCount === 0}
+            onClick={() => void runAction('plantAll', () => plantAllGardenSeeds(selectedSeed))}
+            title={selectedSeed === 'plant' ? '种植植物种子' : '种植宝箱种子'}
+          >
+            {busyPlot === 'plantAll' ? '种植中...' : `一键种植（${plantableCount}）`}
+          </button>
           <button
             className="action-button primary"
             disabled={busyPlot !== null || harvestableCount === 0}

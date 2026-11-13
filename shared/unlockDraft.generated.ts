@@ -69,5 +69,11 @@ export const GENERATED_LEVEL_UNLOCK_REQUIREMENTS: Array<{
     "difficulty": "AT",
     "star": 3,
     "itemId": "antiAirTree"
+  },
+  {
+    "level": 15,
+    "difficulty": "AT",
+    "star": 3,
+    "itemId": "fourLeafClover"
   }
 ];

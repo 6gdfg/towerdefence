@@ -1,5 +1,8 @@
 {
   "buildCommand": "npm run vercel-build",
+  "crons": [
+    { "path": "/api/ranking?settle=1", "schedule": "0 16 * * 6" }
+  ],
   "rewrites": [
     { "source": "/api/db-health", "destination": "/api/health?db=1" },
     { "source": "/study", "destination": "/index.html" },

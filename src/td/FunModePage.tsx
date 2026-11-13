@@ -23,8 +23,8 @@ const modes: Array<{
   {
     id: 'endless',
     title: '无尽模式',
-    copy: '沿用当前账号配置，逐波强化敌人。',
-    action: '直接开始',
+    copy: '无尽防线',
+    action: '选择卡组',
   },
   {
     id: 'random',
