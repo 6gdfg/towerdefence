@@ -71,7 +71,6 @@ const AT_MODE_OPTIONS: Array<{ type: AtModeType; label: string }> = [
   { type: 'normal', label: '普通' },
   { type: 'conveyor', label: '传送带' },
   { type: 'lastStand', label: '孤注一掷' },
-  { type: 'cardSelect', label: '选卡' },
   { type: 'flexible', label: '灵活多变' },
   { type: 'whackAMole', label: '打地鼠' },
   { type: 'phantom', label: '神出鬼没' },
@@ -81,7 +80,6 @@ const PHANTOM_SUB_MODE_OPTIONS: Array<{ type: AtBaseModeType; label: string }> =
   { type: 'normal', label: '普通' },
   { type: 'conveyor', label: '传送带' },
   { type: 'lastStand', label: '孤注一掷' },
-  { type: 'cardSelect', label: '选卡' },
   { type: 'flexible', label: '灵活多变' },
 ];
 
@@ -195,16 +193,6 @@ function createDefaultAtModeConfig(type: AtModeType = 'normal'): AtModeConfig {
       },
     };
   }
-  if (type === 'cardSelect') {
-    return {
-      type,
-      cardSelect: {
-        maxPlants: 5,
-        maxElements: 2,
-        monsterLevelMultiplier: 10,
-      },
-    };
-  }
   if (type === 'flexible') {
     return {
       type,
@@ -243,11 +231,8 @@ function normalizeConveyorPool(pool: ConveyorItem[] | undefined) {
 }
 
 function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
-  const legacyPhantom = config?.type !== 'phantom' && config?.phantomSpawn === true;
-  const type: AtModeType = config?.type === 'phantom' || legacyPhantom ? 'phantom' : (config?.type ?? 'normal');
-  const baseType: AtBaseModeType = type === 'phantom'
-    ? (config?.type === 'phantom' ? config.phantom?.subMode : config?.type) ?? 'normal'
-    : type;
+  const baseType = getAtBaseModeType(config);
+  const type: AtModeType = config?.type === 'phantom' || config?.phantomSpawn === true ? 'phantom' : baseType;
   const defaults = createDefaultAtModeConfig(baseType);
   const identity = type === 'phantom'
     ? { type: 'phantom' as const, phantom: { subMode: baseType } }
@@ -274,17 +259,6 @@ function normalizeAtModeConfig(config?: AtModeConfig | null): AtModeConfig {
         startGold: Math.max(0, Math.floor(finiteNumber(lastStand.startGold, defaults.lastStand!.startGold))),
         bannedPlants,
         killReward: Math.max(0, Math.floor(finiteNumber(lastStand.killReward, 0))),
-      },
-    };
-  }
-  if (baseType === 'cardSelect') {
-    const cardSelect = config?.cardSelect ?? defaults.cardSelect!;
-    return {
-      ...identity,
-      cardSelect: {
-        maxPlants: Math.max(1, Math.floor(finiteNumber(cardSelect.maxPlants, defaults.cardSelect!.maxPlants))),
-        maxElements: Math.max(0, Math.floor(finiteNumber(cardSelect.maxElements, defaults.cardSelect!.maxElements))),
-        monsterLevelMultiplier: Math.max(1, finiteNumber(cardSelect.monsterLevelMultiplier, defaults.cardSelect!.monsterLevelMultiplier)),
       },
     };
   }
@@ -610,7 +584,6 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
   const atModeConfig = isAtEditing ? normalizeAtModeConfig(config.atModeConfig) : createDefaultAtModeConfig('normal');
   const atModeType = atModeConfig.type;
   const atBaseModeType = getAtBaseModeType(atModeConfig);
-  const cardSelectLocksMonsterLevel = isAtEditing && atBaseModeType === 'cardSelect';
   const flexibleLocksPathSelection = isAtEditing && atBaseModeType === 'flexible';
   const wavePathSelectionLocked = flexibleLocksPathSelection || (isAtEditing && atBaseModeType === 'whackAMole');
   const compatibleFlexibleMaps = getCompatibleFlexibleMaps(config.mapId);
@@ -776,18 +749,6 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
       ...currentMode,
       lastStand: {
         ...base.lastStand!,
-        ...patch,
-      },
-    });
-  };
-
-  const updateCardSelectConfig = (patch: Partial<NonNullable<AtModeConfig['cardSelect']>>) => {
-    const currentMode = normalizeAtModeConfig(config.atModeConfig);
-    const base = currentMode.cardSelect ? currentMode : createDefaultAtModeConfig('cardSelect');
-    updateAtModeConfig({
-      ...currentMode,
-      cardSelect: {
-        ...base.cardSelect!,
         ...patch,
       },
     });
@@ -1385,45 +1346,6 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
             </div>
           )}
 
-          {atBaseModeType === 'cardSelect' && (
-            <div className="lab-at-panel">
-              <div className="lab-form-grid">
-                <label className="lab-field">
-                  <span>植物上限</span>
-                  <input
-                    className="lab-input"
-                    type="number"
-                    min="1"
-                    value={atModeConfig.cardSelect?.maxPlants ?? 5}
-                    onChange={event => updateCardSelectConfig({ maxPlants: Math.max(1, Math.floor(readNumber(event.target.value, 5))) })}
-                  />
-                </label>
-                <label className="lab-field">
-                  <span>元素上限</span>
-                  <input
-                    className="lab-input"
-                    type="number"
-                    min="0"
-                    value={atModeConfig.cardSelect?.maxElements ?? 2}
-                    onChange={event => updateCardSelectConfig({ maxElements: Math.max(0, Math.floor(readNumber(event.target.value, 2))) })}
-                  />
-                </label>
-                <label className="lab-field">
-                  <span>怪物等级倍率</span>
-                  <input
-                    className="lab-input"
-                    type="number"
-                    min="1"
-                    step="0.1"
-                    value={atModeConfig.cardSelect?.monsterLevelMultiplier ?? 10}
-                    onChange={event => updateCardSelectConfig({ monsterLevelMultiplier: Math.max(1, readNumber(event.target.value, 10)) })}
-                  />
-                </label>
-              </div>
-              <div className="lab-draft-summary">该模式运行时会按所选植物最高等级重新写入怪物等级。</div>
-            </div>
-          )}
-
           {atBaseModeType === 'whackAMole' && (
             <div className="lab-at-panel">
               <div className="lab-form-grid">
@@ -1626,8 +1548,6 @@ export default function BalanceLabPage({ onBack, onStartTest }: BalanceLabPagePr
                       <input
                         type="number"
                         value={group.level}
-                        disabled={cardSelectLocksMonsterLevel}
-                        title={cardSelectLocksMonsterLevel ? '选卡模式运行时统一按最高植物等级和倍率计算' : undefined}
                         onChange={event => updateWaveGroup(waveIndex, groupIndex, { level: Math.max(1, Math.floor(readNumber(event.target.value, group.level))) })}
                       />
                     </label>

@@ -52,7 +52,7 @@ export type ElementType = 'gold' | 'fire' | 'electric' | 'ice' | 'wind' | 'light
 export type TowerLevelKey = PlantType | `element:${ElementType}`;
 export type TowerLevelMap = Partial<Record<TowerLevelKey, number>>;
 
-export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'cardSelect' | 'flexible' | 'whackAMole';
+export type AtBaseModeType = 'normal' | 'conveyor' | 'lastStand' | 'flexible' | 'whackAMole';
 export type AtModeType = AtBaseModeType | 'phantom';
 export type ConveyorItem =
   | { kind: 'plant'; id: PlantType; weight?: number }
@@ -75,11 +75,6 @@ export type AtModeConfig = {
     bannedPlants?: PlantType[];
     disableKillRewards?: boolean;
     killReward?: number;
-  };
-  cardSelect?: {
-    maxPlants: number;
-    maxElements: number;
-    monsterLevelMultiplier: number;
   };
   flexible?: {
     mode: 'sequence' | 'random';

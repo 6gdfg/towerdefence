@@ -6,13 +6,16 @@ type BossHealthBarsProps = {
   enemies: Enemy[];
   style: CSSProperties;
   availableHeight: number;
+  compact?: boolean;
 };
 
-export default function BossHealthBars({ enemies, style, availableHeight }: BossHealthBarsProps) {
+export default function BossHealthBars({ enemies, style, availableHeight, compact = false }: BossHealthBarsProps) {
   const bosses = enemies.filter(enemy => enemy.isBoss && enemy.hp > 0);
   if (bosses.length === 0) return null;
-  // Match the 38px row and 8px gap so the last visible name keeps its full bar.
-  const listHeight = Math.max(0, Math.floor((availableHeight + 8) / 46) * 46 - 8);
+  // Round to complete rows so the last visible name keeps its full bar.
+  const gap = compact ? 6 : 8;
+  const rowHeight = compact ? 24 : 38;
+  const listHeight = Math.max(0, Math.floor((availableHeight + gap) / (rowHeight + gap)) * (rowHeight + gap) - gap);
 
   return (
     <div className="boss-health-area" style={style} aria-label="Boss 血条">

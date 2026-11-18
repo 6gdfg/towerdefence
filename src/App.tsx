@@ -92,22 +92,10 @@ type SubmissionApprovalNotice = {
   experience: number;
 };
 
-function cloneWavesWithMonsterLevel(waves: WaveDef[], level: number): WaveDef[] {
-  const fixedLevel = Math.max(1, Math.floor(level || 1));
-  return waves.map(wave => ({
-    groups: wave.groups.map(group => ({ ...group, level: fixedLevel })),
-  }));
-}
-
 function getWhackAMolePlants(config: AtModeConfig): PlantType[] {
   const configured = config.whackAMole?.plants ?? DEFAULT_WHACK_A_MOLE_PLANTS;
   const plants = Array.from(new Set(configured.filter(plant => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, plant))));
   return plants.length > 0 ? plants : [...DEFAULT_WHACK_A_MOLE_PLANTS];
-}
-
-function getHighestPlantLevel(plants: PlantType[], towerLevels?: TowerLevelMap) {
-  const upgradeablePlants = plants.filter(plant => BASE_PLANTS_CONFIG[plant]?.upgradeable !== false);
-  return Math.max(1, ...upgradeablePlants.map(plant => Math.max(1, Math.floor(towerLevels?.[plant] || 1))));
 }
 
 function hasChallenge(challenges: ChallengeId[], id: ChallengeId) {
@@ -577,7 +565,7 @@ function App() {
     let startGold = selectedLevel.startGold;
     let autoStartFirstWave = selectedLevel.autoStartFirstWave;
     let firstWaveDelaySec = selectedLevel.firstWaveDelaySec;
-    let waves = selectedLevel.waves;
+    const waves = selectedLevel.waves;
     let killRewardOverride: number | null = null;
     const towerLevels: TowerLevelMap = hub?.towerLevels ? { ...hub.towerLevels } : {};
     const atModeConfig: AtModeConfig | null = difficulty === 'AT' ? (selectedLevel.atModeConfig ?? { type: 'normal' }) : null;
@@ -588,15 +576,15 @@ function App() {
       ? Math.max(1, Math.ceil(selectedLevel.lives / 2))
       : selectedLevel.lives;
 
-    const finalizeLevelStart = (plants: PlantType[], elements: ElementType[], finalWaves = waves, finalTowerLevels = towerLevels) => {
+    const finalizeLevelStart = (plants: PlantType[], elements: ElementType[]) => {
       const challengeElements = elementlessChallenge ? [] : elements;
       loadLevel(
-        { startGold, lives: challengeStartLives, waves: finalWaves },
+        { startGold, lives: challengeStartLives, waves },
         { path: M.path, size: M.size, roadWidthCells: M.roadWidthCells, plantGrid },
         {
           autoStartFirstWave,
           firstWaveDelaySec,
-          towerLevels: finalTowerLevels,
+          towerLevels,
           allowedPlants: plants,
           allowedElements: challengeElements,
           mode: atModeConfig ? 'at' : 'campaign',
@@ -647,25 +635,6 @@ function App() {
           ? Math.max(1, Math.floor(towerLevels[plant] || 1))
           : 1;
       });
-    } else if (atModeConfig && atBaseModeType === 'cardSelect') {
-      const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
-      setPendingCardSelect({
-        title: `${selectedLevel.name} / AT Lv.${getLevelDifficultyRatings(L.id, idx + 1).AT ?? '-'}`,
-        plantOptions: allowedPlants,
-        elementOptions: elementlessChallenge ? [] : allowedElements,
-        maxPlants: Math.max(1, cardSelect.maxPlants),
-        maxElements: elementlessChallenge ? 0 : Math.max(0, cardSelect.maxElements),
-        towerLevels,
-        returnStage: 'select',
-        onConfirm: (plants, elements) => {
-          const highestPlantLevel = getHighestPlantLevel(plants, towerLevels);
-          const fixedLevel = Math.max(1, Math.round(highestPlantLevel * Math.max(1, cardSelect.monsterLevelMultiplier)));
-          setPendingCardSelect(null);
-          finalizeLevelStart(plants, elements, cloneWavesWithMonsterLevel(waves, fixedLevel), towerLevels);
-        },
-      });
-      navigateWithTransition('cardSelect');
-      return;
     }
 
     finalizeLevelStart(allowedPlants, allowedElements);
@@ -917,9 +886,9 @@ function App() {
     let killRewardOverride: number | null = null;
     const towerLevels: TowerLevelMap = { ...config.towerLevels };
 
-    const finalizeLabStart = (plants: PlantType[], elements: ElementType[], waves: WaveDef[] = config.waves) => {
+    const finalizeLabStart = (plants: PlantType[], elements: ElementType[]) => {
       loadLevel(
-        { startGold, lives: config.lives, waves },
+        { startGold, lives: config.lives, waves: config.waves },
         { path: labMap.path, size: labMap.size, roadWidthCells: labMap.roadWidthCells, plantGrid },
         {
           autoStartFirstWave,
@@ -964,25 +933,6 @@ function App() {
         if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
         towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
       });
-    } else if (atModeConfig && atBaseModeType === 'cardSelect') {
-      const cardSelect = atModeConfig.cardSelect ?? { maxPlants: 5, maxElements: 2, monsterLevelMultiplier: 10 };
-      setPendingCardSelect({
-        title: `${config.levelName} / AT Lv.${config.difficultyRatings.AT ?? '-'}`,
-        plantOptions: allowedPlants,
-        elementOptions: allowedElements,
-        maxPlants: Math.max(1, cardSelect.maxPlants),
-        maxElements: Math.max(0, cardSelect.maxElements),
-        towerLevels,
-        returnStage: 'lab',
-        onConfirm: (plants, elements) => {
-          const highestPlantLevel = getHighestPlantLevel(plants, towerLevels);
-          const fixedLevel = Math.max(1, Math.round(highestPlantLevel * Math.max(1, cardSelect.monsterLevelMultiplier)));
-          setPendingCardSelect(null);
-          finalizeLabStart(plants, elements, cloneWavesWithMonsterLevel(config.waves, fixedLevel));
-        },
-      });
-      navigateWithTransition('cardSelect');
-      return;
     }
 
     finalizeLabStart(allowedPlants, allowedElements);

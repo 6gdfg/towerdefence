@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { CircleArrowUp, Hammer, Heart, Layers, LogOut, Maximize, Minimize, Pause, Play, RotateCw, Scan, SkipForward, Smartphone, ZoomIn, ZoomOut } from 'lucide-react';
 import { getHammerDamage, getHammerUpgradeCost, hasWonLevel, useTDStore } from './store';
 import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
@@ -9,6 +10,8 @@ import { ElementIcon, getMonsterThemeColor, MonsterIcon, PlantIcon, ShovelIcon }
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
 import { CURRENT_RELEASE } from '../../shared/releaseNotes';
 import BossHealthBars from './BossHealthBars';
+import { useGameViewport } from './useGameViewport';
+import { useMobileMapView } from './useMobileMapView';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
@@ -50,9 +53,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
   const [selectedConveyorIndex, setSelectedConveyorIndex] = useState<number | null>(null);
   const [shovelActive, setShovelActive] = useState(false);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth <= 900 : false,
-  );
+  const viewport = useGameViewport();
+  const isPhone = viewport.isPhone;
+  const isMobile = isPhone || viewport.isCompact;
+  const orientationBlocked = isPhone && viewport.isPortrait;
+  const [mobileTab, setMobileTab] = useState<'plants' | 'elements'>('plants');
+  const [fullscreen, setFullscreen] = useState(false);
+  const gameShellRef = useRef<HTMLDivElement>(null);
+  const resumeAfterOrientationRef = useRef<boolean | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const announcedWinRef = useRef(false);
   const announcedLoseRef = useRef(false);
@@ -84,7 +92,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const hasBossWaves = mode === 'endless' || waves.some(wave => wave.groups.some(group => group.isBoss));
   const isFiniteMode = mode === 'campaign' || mode === 'at' || mode === 'random' || mode === 'lab';
   const atModeVariantLabel = atModeConfig
-    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', cardSelect: '选卡', flexible: '灵活多变', whackAMole: '打地鼠' } as const)[atBaseModeType]}`
+    ? `${isPhantomAtMode(atModeConfig) ? '神出鬼没 · ' : ''}${({ normal: '普通', conveyor: '传送带', lastStand: '孤注一掷', flexible: '灵活多变', whackAMole: '打地鼠' } as const)[atBaseModeType]}`
     : null;
   const modeLabel = mode === 'endless'
     ? '无尽模式'
@@ -160,13 +168,29 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     }
   }, [conveyorQueue.length, isConveyorMode, selectedConveyorIndex]);
 
+  useLayoutEffect(() => {
+    if (orientationBlocked) {
+      if (resumeAfterOrientationRef.current === null) resumeAfterOrientationRef.current = useTDStore.getState().running;
+      useTDStore.setState({ running: false });
+    } else if (resumeAfterOrientationRef.current !== null) {
+      const state = useTDStore.getState();
+      if (resumeAfterOrientationRef.current && state.lives > 0 && !hasWonLevel(state)) useTDStore.setState({ running: true });
+      resumeAfterOrientationRef.current = null;
+    }
+  }, [orientationBlocked]);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => setIsMobile(window.innerWidth <= 900);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const updateFullscreen = () => setFullscreen(document.fullscreenElement === gameShellRef.current);
+    document.addEventListener('fullscreenchange', updateFullscreen);
+    return () => document.removeEventListener('fullscreenchange', updateFullscreen);
   }, []);
+
+  useEffect(() => {
+    if (!isPhone) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isPhone]);
 
   useEffect(() => {
     const node = mapWrapperRef.current;
@@ -194,16 +218,17 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const outerWidth = corridorPx + BORDER_PX * 2;
   const baseMapWidth = mapWidth * CELL_SIZE;
   const baseMapHeight = mapHeight * CELL_SIZE;
+  const mobileMapView = useMobileMapView(svgRef, isPhone, baseMapWidth, baseMapHeight);
   const mapAspect = baseMapHeight > 0 ? baseMapWidth / baseMapHeight : 1;
   const availableStageWidth = Math.max(0, stageSize.width - 12);
-  const bossHealthSpace = hasBossWaves ? BOSS_HEALTH_MIN_SPACE : 0;
+  const bossHealthSpace = hasBossWaves ? (isPhone ? 32 : BOSS_HEALTH_MIN_SPACE) : 0;
   const availableStageHeight = Math.max(0, stageSize.height - 12 - bossHealthSpace);
   const fittedMapWidth = availableStageWidth > 0 && availableStageHeight > 0
     ? Math.min(availableStageWidth, availableStageHeight * mapAspect)
     : 0;
   const fittedMapHeight = fittedMapWidth > 0 ? fittedMapWidth / mapAspect : 0;
   const aboveMapSpace = (stageSize.height - fittedMapHeight + bossHealthSpace) / 2;
-  const bossHealthAreaHeight = Math.max(0, Math.min(112, aboveMapSpace - 12));
+  const bossHealthAreaHeight = Math.max(0, Math.min(isPhone ? 32 : 112, aboveMapSpace - 12));
 
   useEffect(() => {
     let last = Date.now();
@@ -211,10 +236,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
       const now = Date.now();
       const dt = (now - last) / 1000;
       last = now;
-      update(dt);
+      if (!orientationBlocked) update(dt);
     }, 1000 / 30);
     return () => clearInterval(id);
-  }, [update]);
+  }, [orientationBlocked, update]);
 
 
   useEffect(() => {
@@ -241,11 +266,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     pt.x = e.clientX;
     pt.y = e.clientY;
 
-    // Transform the screen point to SVG coordinate system
-    const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const svgP = pt.matrixTransform(matrix.inverse());
 
     const clickX = svgP.x / CELL_SIZE;
     const clickY = svgP.y / CELL_SIZE;
+    if (clickX < 0 || clickX > mapWidth || clickY < 0 || clickY > mapHeight) return;
 
     let nearestGrid = null as Position | null;
     let minDist = Infinity;
@@ -310,7 +337,27 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const handleExit = () => {
     const message = mode === 'endless' ? '退出本轮无尽挑战？主动退出不会获得奖励，也不会提交排行榜成绩。' : '退出当前对局？本局进度不会保存。';
     if (!window.confirm(message)) return;
+    if (document.fullscreenElement === gameShellRef.current) void document.exitFullscreen().catch(() => {});
     onExit?.();
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement === gameShellRef.current) {
+        await document.exitFullscreen();
+      } else {
+        await gameShellRef.current?.requestFullscreen();
+        const orientation = screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> };
+        await orientation?.lock?.('landscape').catch(() => {});
+      }
+    } catch {
+      // Some mobile browsers do not support element fullscreen or orientation locking.
+    }
+  };
+
+  const itemLevel = (id: string) => {
+    const levels = useTDStore.getState().towerLevelMap ?? {};
+    return Math.max(1, Math.floor(levels[id as keyof typeof levels] ?? 1));
   };
 
   const getSunDisplayPos = (sun: typeof sunPickups[number]) => {
@@ -324,20 +371,43 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
     };
   };
 
+  const hammerUpgradeControl = (
+    <button
+      type="button"
+      onClick={upgradeHammer}
+      disabled={gold < hammerUpgradeCost}
+      className="action-button primary game-hammer-upgrade"
+      aria-label={`升级锤子，${hammerUpgradeCost}阳光`}
+      title={`升级后伤害 +20，消耗 ${hammerUpgradeCost} 阳光`}
+      style={{ opacity: gold < hammerUpgradeCost ? 0.55 : 1 }}
+    >
+      {isPhone ? <CircleArrowUp size={16} /> : '升级锤子 · '}{hammerUpgradeCost}
+    </button>
+  );
+
 
   return (
-    <div className="game-shell">
+    <div ref={gameShellRef} className={`game-shell${isPhone ? ' game-phone' : ''}`}>
+      {orientationBlocked && (
+        <div className="game-orientation-gate" role="dialog" aria-modal="true" aria-label="请横屏游玩">
+          <div className="game-rotate-icon" aria-hidden="true"><Smartphone size={56} /><RotateCw size={24} /></div>
+          <h2>请横屏游玩</h2>
+          <p>对局已暂停</p>
+          <button type="button" className="action-button" onClick={handleExit}><LogOut size={18} />退出</button>
+        </div>
+      )}
+      <div className="game-content" {...(orientationBlocked ? { inert: '' } : {})} aria-hidden={orientationBlocked || undefined}>
       <header className="glass-panel game-topbar">
         <div className="game-stats">
           <div className="game-stat" aria-label={`阳光 ${gold}`} style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
             <SunIcon size={24} />
             <span>{gold}</span>
           </div>
-          <div className="game-stat">生命: {lives}</div>
-          <div className="game-stat">波次: {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
+          <div className="game-stat" aria-label={`生命 ${lives}`}>{isPhone ? <Heart size={16} /> : '生命:'} {lives}</div>
+          <div className="game-stat" aria-label={`波次 ${waveNumberDisplay}`}>{isPhone ? <Layers size={16} /> : '波次:'} {isFiniteMode ? `${Math.min(waveNumberDisplay, waves.length)} / ${waves.length}` : `${waveNumberDisplay} / ∞`}</div>
           {difficultyLabel && <div className="game-stat difficulty-stat">{difficultyLabel}</div>}
-          {atBaseModeType === 'flexible' && activeMapName && <div className="game-stat">{`地图: ${activeMapName}`}</div>}
-          {mode && mode !== 'campaign' && modeLabel && (
+          {!isPhone && atBaseModeType === 'flexible' && activeMapName && <div className="game-stat">{`地图: ${activeMapName}`}</div>}
+          {!isPhone && mode && mode !== 'campaign' && modeLabel && (
             <div className="game-stat" style={{ color:'#f97316' }}>
               模式：{modeLabel}
               {lifeBonusPerWave ? (
@@ -346,7 +416,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             </div>
           )}
         </div>
-          <div style={{ display:'flex', gap:8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="game-actions">
+            {!isPhone && <>
             <a className="icon-button" href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
               <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
@@ -355,39 +426,36 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             <button onClick={() => setShowAbout(true)} className="action-button">
               关于
             </button>
-            <button onClick={togglePause} className="action-button">
-              {running ? '⏸️ 暂停' : '▶️ 继续'}
+            </>}
+            <button onClick={togglePause} className="action-button game-control" title={running ? '暂停' : '继续'} aria-label={running ? '暂停' : '继续'}>
+              {running ? <Pause size={18} /> : <Play size={18} />}{!isPhone && (running ? '暂停' : '继续')}
             </button>
-            <button onClick={handleExit} className="action-button danger">
-              退出
+            <button onClick={handleExit} className="action-button danger game-control" title="退出" aria-label="退出">
+              <LogOut size={18} />{!isPhone && '退出'}
             </button>
-            <label className="action-button" style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+            {isPhone && typeof document !== 'undefined' && document.fullscreenEnabled && (
+              <button type="button" className="action-button game-control" onClick={() => void toggleFullscreen()} title={fullscreen ? '退出全屏' : '全屏'} aria-label={fullscreen ? '退出全屏' : '全屏'}>
+                {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+              </button>
+            )}
+            <label className="action-button game-auto-collect" style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer' }}>
               <input
                 type="checkbox"
                 checked={!!autoCollectSun}
                 onChange={event => setAutoCollectSun(event.target.checked)}
               />
-              自动收集
+              {isPhone ? '自动' : '自动收集'}
             </label>
-            {isWhackAMoleMode && (
+            {isWhackAMoleMode && !isPhone && (
               <>
                 <div className="game-stat" title="点击怪物造成锤子伤害">
                   锤子 Lv.{hammerLevel} · 伤害 {hammerDamage}
                 </div>
-                <button
-                  type="button"
-                  onClick={upgradeHammer}
-                  disabled={gold < hammerUpgradeCost}
-                  className="action-button primary"
-                  title={`升级后伤害 +20，消耗 ${hammerUpgradeCost} 阳光`}
-                  style={{ opacity: gold < hammerUpgradeCost ? 0.55 : 1 }}
-                >
-                  升级锤子 · {hammerUpgradeCost}
-                </button>
+                {hammerUpgradeControl}
               </>
             )}
             {mode !== 'endless' && (
-              <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}>开始/下一波</button>
+              <button disabled={isWaveActive || waveIndex >= waves.length} onClick={startWave} className="action-button primary game-control" title="开始/下一波" aria-label="开始/下一波" style={{ opacity: isWaveActive || waveIndex >= waves.length ? 0.55 : 1 }}><SkipForward size={18} />{!isPhone && '开始/下一波'}</button>
             )}
           </div>
       </header>
@@ -406,24 +474,32 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         </div>
       )}
 
-      <div style={{ display:'flex', flex:'1 1 auto', minHeight:0, flexDirection: isMobile ? 'column' : 'row' }}>
+      <div className="game-body" style={{ display:'flex', flex:'1 1 auto', minHeight:0, flexDirection: isMobile && !isPhone ? 'column' : 'row' }}>
         <aside
           className="game-sidepanel"
           style={{
-            width: isMobile ? '100%' : 240,
-            padding: isMobile ? '12px 16px' : '12px 16px 20px 24px',
-            borderRight: isMobile ? 'none' : '1px solid rgba(203,213,225,0.68)',
-            borderBottom: isMobile ? '1px solid rgba(203,213,225,0.68)' : 'none',
-            overflowY: isMobile ? 'visible' : 'auto',
+            width: isPhone ? 128 : isMobile ? '100%' : 240,
+            padding: isPhone ? 6 : isMobile ? '12px 16px' : '12px 16px 20px 24px',
+            borderRight: isMobile && !isPhone ? 'none' : '1px solid rgba(203,213,225,0.68)',
+            borderBottom: isMobile && !isPhone ? '1px solid rgba(203,213,225,0.68)' : 'none',
+            overflowY: isMobile && !isPhone ? 'visible' : 'auto',
             flexShrink:0,
           }}
         >
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div className="game-sidepanel-content" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {isPhone && !isConveyorMode && (
+              <div className="game-card-tabs" role="tablist" aria-label="选择卡片类型">
+                <button role="tab" aria-selected={mobileTab === 'plants'} onClick={() => setMobileTab('plants')}>植物</button>
+                <button role="tab" aria-selected={mobileTab === 'elements'} onClick={() => setMobileTab('elements')}>元素</button>
+              </div>
+            )}
             <div>
-              <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>工具</div>
+              {!isPhone && <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>工具</div>}
               <button
                 type="button"
                 title="铲子"
+                aria-label="铲子"
+                aria-pressed={shovelActive}
                 onClick={() => {
                   setShovelActive(active => !active);
                   setSelectedPlant(null);
@@ -455,7 +531,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                   </div>
                 )}
               </button>
-              {shovelActive && (
+              {shovelActive && !isPhone && (
                 <div style={{ fontSize:12, color:'#6b7280', padding:'6px 0 0' }}>
                   当前操作：铲掉一个植物
                 </div>
@@ -465,6 +541,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               <div>
                 <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>传送带</div>
                 <div
+                  className="game-card-grid"
                   style={{
                     display:'flex',
                     flexDirection: isMobile ? 'row' : 'column',
@@ -482,10 +559,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     const elementCfg = !isPlant ? ELEMENT_PLANT_CONFIG[item.id] : null;
                     const name = plantCfg?.name ?? elementCfg?.name ?? item.id;
                     const color = isPlant ? DEFAULT_PLANT_COLOR : elementCfg?.color ?? '#64748b';
+                    const remaining = item.kind === 'element' ? Math.max(0, (elementCooldowns?.[item.id] ?? 0) - gameTime) : 0;
                     return (
                       <button
                         key={`${item.kind}-${item.id}-${index}`}
                         title={name}
+                        className="game-choice-card"
+                        aria-label={name}
+                        aria-pressed={active}
                         onClick={() => {
                           setSelectedConveyorIndex(active ? null : index);
                           setSelectedPlant(null);
@@ -515,6 +596,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                             <ElementIcon element={item.id} color={active ? '#111827' : color} size={isMobile ? 26 : 28} />
                           )}
                         </span>
+                        {isPhone && <span className="game-card-caption"><span>{name}</span><small>Lv.{itemLevel(isPlant ? item.id : `element:${item.id}`)}{remaining > 0.01 && <span>{Math.ceil(remaining)}s</span>}</small></span>}
                         {!isMobile && (
                           <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}>
                             <span>{name}</span>
@@ -525,7 +607,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     );
                   })}
                 </div>
-                {selectedConveyorItem && (
+                {selectedConveyorItem && !isPhone && (
                   <div style={{ fontSize:12, color:'#6b7280', padding:'8px 0 0' }}>
                     当前操作：放置传送带物品（不消耗阳光；元素单独释放仍有冷却）
                     {selectedConveyorElementRemaining > 0.01 ? `，单放冷却 ${Math.ceil(selectedConveyorElementRemaining)} 秒` : ''}
@@ -534,9 +616,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               </div>
             ) : (
               <>
-            <div>
-              <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>基础植物</div>
+            <div hidden={isPhone && mobileTab !== 'plants'}>
+              {!isPhone && <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>基础植物</div>}
               <div
+                className="game-card-grid"
                 style={{
                   display:'flex',
                   flexDirection: isMobile ? 'row' : 'column',
@@ -556,6 +639,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     <button
                       key={cfg.id}
                       title={cfg.name}
+                      className="game-choice-card"
+                      aria-label={`${cfg.name}，${cfg.cost}阳光`}
+                      aria-pressed={active}
                       disabled={onCooldown}
                       onClick={() => {
                         if (onCooldown) return;
@@ -588,9 +674,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                         </div>
                       )}
                       {isMobile ? (
-                        <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          <PlantIcon type={cfg.id} color={active ? '#111827' : DEFAULT_PLANT_COLOR} size={26} />
-                        </span>
+                        <>
+                          <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><PlantIcon type={cfg.id} color={active ? '#111827' : DEFAULT_PLANT_COLOR} size={26} /></span>
+                          {isPhone && <span className="game-card-caption"><span>{cfg.name}</span><small>{cfg.cost} <span>{cfg.upgradeable === false ? '特殊' : `Lv.${itemLevel(cfg.id)}`}</span></small></span>}
+                        </>
                       ) : (
                         <>
                           <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -611,9 +698,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>元素增幅</div>
+            <div hidden={isPhone && mobileTab !== 'elements'}>
+              {!isPhone && <div style={{ fontSize:12, color:'#6b7280', marginBottom:6 }}>元素增幅</div>}
               <div
+                className="game-card-grid"
                 style={{
                   display:'flex',
                   flexDirection: isMobile ? 'row' : 'column',
@@ -645,6 +733,9 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     <button
                       key={cfg.id}
                       title={cfg.name}
+                      className="game-choice-card"
+                      aria-label={`${cfg.name}，${cfg.cost}阳光`}
+                      aria-pressed={active}
                       onClick={handleSelect}
                       style={{
                         display:'flex',
@@ -674,9 +765,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                         </>
                       )}
                       {isMobile ? (
-                        <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          <ElementIcon element={cfg.id} color={active ? '#ffffff' : cfg.color} size={26} />
-                        </span>
+                        <>
+                          <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><ElementIcon element={cfg.id} color={active ? '#ffffff' : cfg.color} size={26} /></span>
+                          {isPhone && <span className="game-card-caption"><span>{cfg.name}</span><small>{cfg.cost} <span>Lv.{itemLevel(`element:${cfg.id}`)}</span></small></span>}
+                        </>
                       ) : (
                         <>
                           <span style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -697,13 +789,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               </div>
             </div>
 
-            {selectedPlantInfo && (
+            {selectedPlantInfo && !isPhone && (
               <div style={{ fontSize:12, color:'#6b7280', padding:'4px 0' }}>
                 当前操作：放置 {selectedPlantInfo.name}（消耗 {selectedPlantInfo.cost} 阳光）
                 {selectedPlantRemaining > 0.01 ? `，冷却中 ${Math.ceil(selectedPlantRemaining)} 秒` : selectedPlantInfo.placementCooldown ? `，冷却 ${selectedPlantInfo.placementCooldown} 秒` : ''}
               </div>
             )}
-          {!selectedPlantInfo && selectedElementInfo && (
+          {!selectedPlantInfo && selectedElementInfo && !isPhone && (
             <div style={{ fontSize:12, color:'#6b7280', padding:'4px 0' }}>
               当前操作：释放 {selectedElementInfo.name}（消耗 {selectedElementInfo.cost} 阳光，单独释放冷却 {selectedElementCooldown} 秒，附加到植物时无冷却）
             </div>
@@ -711,6 +803,19 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               </>
             )}
           </div>
+          {isPhone && isWhackAMoleMode && (
+            <div className="game-hammer-tools">
+              <div aria-label={`锤子等级 ${hammerLevel}，伤害 ${hammerDamage}`}><Hammer size={14} /><span>Lv.{hammerLevel} · {hammerDamage}</span></div>
+              {hammerUpgradeControl}
+            </div>
+          )}
+          {isPhone && (
+            <div className="game-map-zoom-controls" aria-label="地图缩放">
+              <button type="button" title="缩小地图" aria-label="缩小地图" disabled={mobileMapView.zoom <= 1} onClick={() => mobileMapView.changeZoom(-0.5)}><ZoomOut size={18} /></button>
+              <button type="button" title="显示完整地图" aria-label="显示完整地图" onClick={mobileMapView.reset}><Scan size={18} /></button>
+              <button type="button" title="放大地图" aria-label="放大地图" disabled={mobileMapView.zoom >= 3} onClick={() => mobileMapView.changeZoom(0.5)}><ZoomIn size={18} /></button>
+            </div>
+          )}
         </aside>
 
         <div
@@ -720,6 +825,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
         >
         <BossHealthBars
           enemies={enemies}
+          compact={isPhone}
           availableHeight={bossHealthAreaHeight}
           style={{
             width: fittedMapWidth > 0 ? fittedMapWidth : '100%',
@@ -735,7 +841,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             height: fittedMapHeight > 0 ? fittedMapHeight : undefined,
             cursor: isWhackAMoleMode || shovelActive ? 'crosshair' : selectedPlant || selectedConveyorItem?.kind === 'plant' ? 'crosshair' : selectedElement || selectedConveyorItem?.kind === 'element' ? 'cell' : 'default',
           }}
-          viewBox={`0 0 ${baseMapWidth} ${baseMapHeight}`}
+          viewBox={mobileMapView.viewBox}
           preserveAspectRatio="xMidYMid meet"
         >
           <rect width="100%" height="100%" fill="transparent" />
@@ -1406,6 +1512,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -29,7 +29,7 @@ test('an interrupted reward is retried before starting the next endless run', as
     calls.push(body);
     if (calls.length === 1) throw new Error('offline');
     return body.action === 'claimEndlessReward'
-      ? jsonResponse({ ok: true, wavesCleared: 192, rewardCoins: 2880, chestTypes: ['legendary', 'common'] })
+      ? jsonResponse({ ok: true, wavesCleared: 192, rewardCoins: 9600, chestTypes: ['legendary', 'common'] })
       : jsonResponse({ ok: true, runId: 'next-run' });
   });
   await assert.rejects(claimEndlessModeReward('first-run', 192), /offline/);
@@ -65,7 +65,7 @@ test('an obsolete run from another session does not permanently block new games'
 });
 
 test('claims use authenticated progress actions and preserve inventory-full results', async context => {
-  const response = { ok: true, wavesCleared: 192, rewardCoins: 2880, chestTypes: [], chestInventoryFull: true };
+  const response = { ok: true, wavesCleared: 192, rewardCoins: 9600, chestTypes: [], chestInventoryFull: true };
   context.mock.method(globalThis, 'fetch', async (url: unknown, options: RequestInit) => {
     assert.equal(url, '/api/progress');
     assert.equal((options.headers as Record<string, string>).Authorization, 'Bearer test-token');

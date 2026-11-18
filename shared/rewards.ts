@@ -40,7 +40,7 @@ export function pickChestShardReward(): string {
 }
 
 export const REPEAT_CLEAR_COIN_MULTIPLIER = 0.5;
-export const ENDLESS_MODE_COIN_PER_WAVE = 15;
+export const ENDLESS_MODE_COIN_PER_WAVE = 50;
 export const ENDLESS_MODE_WAVES_PER_COMMON_CHEST = 20;
 
 export const REPEAT_CLEAR_CHEST_REWARDS: Record<'EZ' | 'HD' | 'IN' | 'AT', RepeatClearChestRewardConfig> = {

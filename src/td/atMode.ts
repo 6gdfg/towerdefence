@@ -4,9 +4,16 @@ export const DEFAULT_WHACK_A_MOLE_PLANTS: PlantType[] = ['sunflower', 'bottleGra
 export const DEFAULT_WHACK_A_MOLE_HAMMER_DAMAGE = 30;
 
 export function getAtBaseModeType(config?: AtModeConfig | null): AtBaseModeType {
-  if (!config) return 'normal';
-  if (config.type === 'phantom') return config.phantom?.subMode ?? 'normal';
-  return config.type;
+  const type = config?.type === 'phantom' ? config.phantom?.subMode : config?.type;
+  switch (type) {
+    case 'conveyor':
+    case 'lastStand':
+    case 'flexible':
+    case 'whackAMole':
+      return type;
+    default:
+      return 'normal';
+  }
 }
 
 export function isPhantomAtMode(config?: AtModeConfig | null) {

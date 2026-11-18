@@ -129,7 +129,7 @@ export function buildInitialFunWaves(): WaveDef[] {
 
 export function getEndlessModeMonsterLevel(waveNumber: number) {
   const safeWave = Math.max(1, Math.floor(waveNumber));
-  return Math.floor((safeWave - 1) / 3) + 1;
+  return Math.floor((safeWave - 1) / 2) + 1;
 }
 
 export function getEndlessModeEnemyPool(waveNumber: number): ShapeType[] {

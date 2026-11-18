@@ -103,7 +103,9 @@ async function dueWeek() {
 
 const options = { skip: !modulePath };
 test('higher endless records replace the best; lower and equal scores preserve it', options, async () => {
-  await finish(70);
+  const result = await finish(70);
+  assert.equal(result.data.rewardCoins, 3500);
+  assert.equal(Number((await db.query(`SELECT coins FROM player_wallet WHERE player_id='a'`)).rows[0].coins), 3500);
   const first = (await db.query(`SELECT * FROM endless_weekly_records WHERE player_id='a'`)).rows[0];
   await finish(30);
   await finish(70);
@@ -205,7 +207,7 @@ test('a fresh score after rollover starts a new weekly best and does not erase c
   await dueWeek();
   await finish(20);
   assert.equal((await db.query(`SELECT best_waves FROM endless_weekly_records WHERE player_id='a'`)).rows[0].best_waves, 20);
-  assert.equal(Number((await db.query(`SELECT coins FROM player_wallet WHERE player_id='a'`)).rows[0].coins), previousCoins + 20000 + 300);
+  assert.equal(Number((await db.query(`SELECT coins FROM player_wallet WHERE player_id='a'`)).rows[0].coins), previousCoins + 20000 + 1000);
   assert.equal((await db.query(`SELECT * FROM player_notifications`)).rows.length, 1);
 });
 

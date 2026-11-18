@@ -103,13 +103,14 @@ test('all 1348 configured monsters spawn with valid positions, statistics and bo
   assert.equal(total, 1348);
 });
 
-test('release 0.5.14 announces the submission and the other player-facing updates', () => {
-  assert.equal(CURRENT_RELEASE.version, '0.5.14');
+test('release 0.5.15 announces mobile play and endless balance changes', () => {
+  assert.equal(CURRENT_RELEASE.version, '0.5.15');
   assert.ok(CURRENT_RELEASE.title.endsWith(CURRENT_RELEASE.version));
   const notes = CURRENT_RELEASE.notes.join('\n');
-  for (const text of ['hebscyf', '四叶草', '蒲公英', '20秒', '无尽模式', '排行榜', '一键种植', '日光花', 'CLEAR']) {
+  for (const text of ['手机', '横屏', '每2波', '击退波数×50', '主动退出']) {
     assert.ok(notes.includes(text), text);
   }
+  assert.equal(notes.includes('选卡'), false);
 });
 
 test('a fatal final-wave leak never becomes a victory, including tanks and ordinary monsters', () => {

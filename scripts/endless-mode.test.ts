@@ -14,11 +14,13 @@ import {
   getEndlessModeMinimumDurationSeconds,
 } from '../src/td/funModes';
 
-test('endless monster levels rise once every three waves', () => {
+test('endless monster levels rise once every two waves', () => {
   assert.equal(getEndlessModeMonsterLevel(1), 1);
-  assert.equal(getEndlessModeMonsterLevel(3), 1);
+  assert.equal(getEndlessModeMonsterLevel(2), 1);
+  assert.equal(getEndlessModeMonsterLevel(3), 2);
   assert.equal(getEndlessModeMonsterLevel(4), 2);
-  assert.equal(getEndlessModeMonsterLevel(100), 34);
+  assert.equal(getEndlessModeMonsterLevel(5), 3);
+  assert.equal(getEndlessModeMonsterLevel(100), 50);
 });
 
 test('endless enemy pool unlocks milestone monsters', () => {
@@ -33,7 +35,7 @@ test('every endless wave contains exactly 50 enemies at 0.4 second intervals', (
   const wave = createEndlessModeWave(81, () => 0.25);
   assert.equal(wave.groups.reduce((sum, group) => sum + group.count, 0), ENDLESS_MODE_ENEMIES_PER_WAVE);
   assert.ok(wave.groups.every(group => group.interval === ENDLESS_MODE_SPAWN_INTERVAL));
-  assert.ok(wave.groups.every(group => group.level === 27));
+  assert.ok(wave.groups.every(group => group.level === 41));
   assert.ok(wave.groups.every(group => !group.isBoss));
 });
 
@@ -49,10 +51,16 @@ test('every third wave after wave 100 includes one tank', () => {
 test('endless rewards convert every eight common units into one legendary chest', () => {
   assert.deepEqual(getEndlessModeReward(192), {
     wavesCleared: 192,
-    coins: 2880,
+    coins: 9600,
     chestTypes: ['legendary', 'common'],
   });
   assert.deepEqual(getEndlessModeReward(220).chestTypes, ['legendary', 'rare', 'common']);
+});
+
+test('endless rewards grant fifty coins per cleared wave', () => {
+  for (const waves of [0, 1, 19, 20, 192, 220]) {
+    assert.equal(getEndlessModeReward(waves).coins, waves * 50);
+  }
 });
 
 function circleWave(): WaveDef {
