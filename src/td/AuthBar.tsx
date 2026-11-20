@@ -14,6 +14,7 @@ type AuthBarProps = {
   onNavigateGarden?: () => void;
   onNavigateStudy?: () => void;
   wallet?: Pick<HubData, 'coins' | 'diamonds' | 'experience'>;
+  onExitPlaytest?: () => void;
 };
 
 type QuickWallet = {
@@ -34,15 +35,17 @@ export default function AuthBar({
   onNavigateGarden,
   onNavigateStudy,
   wallet,
+  onExitPlaytest,
 }: AuthBarProps) {
   const [username, setUsername] = useState(() => getUsername() || '');
   const [password, setPassword] = useState('');
   const [me, setMe] = useState<QuickWallet>({ username: getUsername(), coins: null, diamonds: null, experience: null });
   const authed = Boolean(getToken());
+  const localPlaytest = import.meta.env.DEV && Boolean(onExitPlaytest);
 
   async function refresh() {
     try {
-      if (!getToken()) return;
+      if (localPlaytest || !getToken()) return;
       const data = await fetchCloudProgress();
       setMe({
         username: getUsername(),
@@ -97,7 +100,13 @@ export default function AuthBar({
   return (
     <div className="top-nav">
       <div className="nav-inner">
-        {authed && me.username ? (
+        {localPlaytest ? (
+          <div className="nav-meta">
+            <span>本地试玩 · Lv.10</span>
+            {onNavigateBook && <button onClick={onNavigateBook} className="action-button">图鉴</button>}
+            <button onClick={onExitPlaytest} className="action-button">退出试玩</button>
+          </div>
+        ) : authed && me.username ? (
           <div className="nav-meta">
             <span>已登录：{me.username}</span>
             <span>金币：{wallet?.coins ?? me.coins ?? '-'}</span>

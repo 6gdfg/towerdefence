@@ -6094,6 +6094,1300 @@ export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
     "unlockRewards": [
       "fourLeafClover"
     ]
+  },
+  {
+    "sourceLevelId": "L16",
+    "levelNumber": 16,
+    "levelName": "2-8",
+    "contributor": "",
+    "difficulty": "EZ",
+    "rating": 11,
+    "mapId": 18,
+    "mapName": "Z",
+    "startGold": 1200,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 10,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 20,
+            "interval": 0.5,
+            "level": 15,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 8,
+            "interval": 0.7,
+            "level": 15,
+            "startDelay": 6
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 2,
+            "interval": 5,
+            "level": 15,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 20,
+            "interval": 0.5,
+            "level": 24,
+            "startDelay": 0
+          },
+          {
+            "type": "square",
+            "count": 12,
+            "interval": 0.7,
+            "level": 24,
+            "startDelay": 4
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 4,
+            "interval": 4,
+            "level": 24,
+            "startDelay": 8
+          },
+          {
+            "type": "healer",
+            "count": 2,
+            "interval": 5,
+            "level": 24,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 32,
+            "interval": 0.35,
+            "level": 32,
+            "startDelay": 0
+          },
+          {
+            "type": "angryWriter",
+            "count": 14,
+            "interval": 0.8,
+            "level": 32,
+            "startDelay": 4
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 1,
+            "level": 90,
+            "isBoss": true,
+            "bossSpeed": 0.9,
+            "startDelay": 6
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 6,
+            "interval": 3,
+            "level": 32,
+            "startDelay": 8
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 20,
+            "interval": 0.5,
+            "level": 40,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 24,
+            "interval": 0.4,
+            "level": 40,
+            "startDelay": 4
+          },
+          {
+            "type": "armorRepairer",
+            "count": 4,
+            "interval": 4,
+            "level": 40,
+            "startDelay": 6
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 6,
+            "interval": 3,
+            "level": 40,
+            "startDelay": 8
+          },
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 1,
+            "level": 130,
+            "isBoss": true,
+            "bossSpeed": 0.75,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "iceShell",
+            "count": 20,
+            "interval": 0.6,
+            "level": 50,
+            "startDelay": 0
+          },
+          {
+            "type": "windShield",
+            "count": 28,
+            "interval": 0.4,
+            "level": 50,
+            "startDelay": 3
+          },
+          {
+            "type": "freezer",
+            "count": 3,
+            "interval": 5,
+            "level": 50,
+            "startDelay": 5
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 8,
+            "interval": 2.8,
+            "level": 50,
+            "startDelay": 6
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 1,
+            "level": 180,
+            "isBoss": true,
+            "bossSpeed": 0.5,
+            "startDelay": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 2,
+            "interval": 6,
+            "level": 50,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 40,
+            "interval": 0.3,
+            "level": 60,
+            "startDelay": 0
+          },
+          {
+            "type": "armored",
+            "count": 24,
+            "interval": 0.45,
+            "level": 60,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 10,
+            "interval": 2.5,
+            "level": 60,
+            "startDelay": 5
+          },
+          {
+            "type": "armorRepairer",
+            "count": 4,
+            "interval": 4,
+            "level": 60,
+            "startDelay": 7
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 8,
+            "level": 260,
+            "isBoss": true,
+            "bossSpeed": 0.45,
+            "startDelay": 8
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 1,
+            "level": 230,
+            "isBoss": true,
+            "bossSpeed": 0.7,
+            "startDelay": 10
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 1,
+            "interval": 1,
+            "level": 200,
+            "isBoss": true,
+            "bossSpeed": 1.2,
+            "startDelay": 14
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 3,
+            "interval": 6,
+            "level": 60,
+            "startDelay": 16
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L16",
+    "levelNumber": 16,
+    "levelName": "2-8",
+    "contributor": "",
+    "difficulty": "HD",
+    "rating": 16,
+    "mapId": 18,
+    "mapName": "Z",
+    "startGold": 1500,
+    "lives": 20,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 10,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "circle",
+            "count": 30,
+            "interval": 0.4,
+            "level": 20,
+            "startDelay": 0
+          },
+          {
+            "type": "windShield",
+            "count": 17,
+            "interval": 0.6,
+            "level": 20,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 4,
+            "interval": 4,
+            "level": 20,
+            "startDelay": 6
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 21,
+            "interval": 0.6,
+            "level": 30,
+            "startDelay": 0
+          },
+          {
+            "type": "armored",
+            "count": 21,
+            "interval": 0.5,
+            "level": 30,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 7,
+            "interval": 3,
+            "level": 30,
+            "startDelay": 5
+          },
+          {
+            "type": "armorRepairer",
+            "count": 4,
+            "interval": 4,
+            "level": 30,
+            "startDelay": 7
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 1,
+            "level": 160,
+            "isBoss": true,
+            "bossSpeed": 0.9,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "iceShell",
+            "count": 26,
+            "interval": 0.55,
+            "level": 42,
+            "startDelay": 0
+          },
+          {
+            "type": "triangle",
+            "count": 34,
+            "interval": 0.3,
+            "level": 42,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 9,
+            "interval": 2.8,
+            "level": 42,
+            "startDelay": 5
+          },
+          {
+            "type": "healer",
+            "count": 5,
+            "interval": 3,
+            "level": 42,
+            "startDelay": 6
+          },
+          {
+            "type": "armored",
+            "count": 2,
+            "interval": 7,
+            "level": 250,
+            "isBoss": true,
+            "bossSpeed": 0.75,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 38,
+            "interval": 0.35,
+            "level": 55,
+            "startDelay": 0
+          },
+          {
+            "type": "angryWriter",
+            "count": 26,
+            "interval": 0.5,
+            "level": 55,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 10,
+            "interval": 2.5,
+            "level": 55,
+            "startDelay": 5
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 4,
+            "level": 55,
+            "startDelay": 7
+          },
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 8,
+            "level": 300,
+            "isBoss": true,
+            "bossSpeed": 0.7,
+            "startDelay": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 4,
+            "interval": 6,
+            "level": 55,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 34,
+            "interval": 0.4,
+            "level": 70,
+            "startDelay": 0
+          },
+          {
+            "type": "iceShell",
+            "count": 26,
+            "interval": 0.5,
+            "level": 70,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 12,
+            "interval": 2.3,
+            "level": 70,
+            "startDelay": 5
+          },
+          {
+            "type": "armorRepairer",
+            "count": 7,
+            "interval": 3,
+            "level": 70,
+            "startDelay": 6
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 8,
+            "level": 360,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 9
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 2,
+            "interval": 10,
+            "level": 320,
+            "isBoss": true,
+            "bossSpeed": 1.3,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "taunter",
+            "count": 13,
+            "interval": 1.2,
+            "level": 85,
+            "startDelay": 0
+          },
+          {
+            "type": "windShield",
+            "count": 43,
+            "interval": 0.3,
+            "level": 85,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 14,
+            "interval": 2.1,
+            "level": 85,
+            "startDelay": 5
+          },
+          {
+            "type": "freezer",
+            "count": 7,
+            "interval": 3,
+            "level": 85,
+            "startDelay": 7
+          },
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 7,
+            "level": 420,
+            "isBoss": true,
+            "bossSpeed": 0.65,
+            "startDelay": 10
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 6,
+            "interval": 5.5,
+            "level": 85,
+            "startDelay": 12
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 43,
+            "interval": 0.3,
+            "level": 100,
+            "startDelay": 0
+          },
+          {
+            "type": "angryWriter",
+            "count": 34,
+            "interval": 0.4,
+            "level": 100,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 15,
+            "interval": 2,
+            "level": 100,
+            "startDelay": 5
+          },
+          {
+            "type": "armorRepairer",
+            "count": 9,
+            "interval": 2.5,
+            "level": 100,
+            "startDelay": 6
+          },
+          {
+            "type": "bunker",
+            "count": 3,
+            "interval": 7,
+            "level": 550,
+            "isBoss": true,
+            "bossSpeed": 0.4,
+            "startDelay": 8
+          },
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 8,
+            "level": 500,
+            "isBoss": true,
+            "bossSpeed": 0.6,
+            "startDelay": 10
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 2,
+            "interval": 10,
+            "level": 450,
+            "isBoss": true,
+            "bossSpeed": 1.4,
+            "startDelay": 12
+          },
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 1,
+            "level": 130,
+            "isBoss": true,
+            "bossSpeed": 0.06,
+            "startDelay": 16
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 7,
+            "interval": 5.5,
+            "level": 100,
+            "startDelay": 18
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": false,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L16",
+    "levelNumber": 16,
+    "levelName": "2-8",
+    "contributor": "",
+    "difficulty": "IN",
+    "rating": 17,
+    "mapId": 18,
+    "mapName": "Z",
+    "startGold": 230,
+    "lives": 8,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "triangle",
+            "count": 10,
+            "interval": 0.4,
+            "level": 14,
+            "startDelay": 5
+          },
+          {
+            "type": "igniter",
+            "count": 6,
+            "interval": 0.4,
+            "level": 13,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 5,
+            "interval": 0.4,
+            "level": 17,
+            "startDelay": 9
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "jackInTheBox",
+            "count": 50,
+            "interval": 0.3,
+            "level": 140,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 21,
+            "startDelay": 7
+          },
+          {
+            "type": "summoner",
+            "count": 10,
+            "interval": 0.4,
+            "level": 26,
+            "startDelay": 13
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 7,
+            "interval": 0.4,
+            "level": 34,
+            "startDelay": 18
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windEye",
+            "count": 2,
+            "interval": 0.4,
+            "level": 160,
+            "startDelay": 3,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "circle",
+            "count": 18,
+            "interval": 0.4,
+            "level": 31,
+            "startDelay": 8
+          },
+          {
+            "type": "igniter",
+            "count": 13,
+            "interval": 0.4,
+            "level": 36,
+            "startDelay": 14
+          },
+          {
+            "type": "windShield",
+            "count": 34,
+            "interval": 0.4,
+            "level": 41,
+            "startDelay": 18
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 1,
+            "interval": 0.4,
+            "level": 300,
+            "startDelay": 19,
+            "isBoss": true
+          },
+          {
+            "type": "evilSniper",
+            "count": 4,
+            "interval": 0.4,
+            "level": 47,
+            "startDelay": 20
+          },
+          {
+            "type": "taunter",
+            "count": 40,
+            "interval": 0.4,
+            "level": 50,
+            "startDelay": 24
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 80,
+            "isBoss": true,
+            "startDelay": 2
+          },
+          {
+            "type": "freezer",
+            "count": 8,
+            "interval": 0.4,
+            "level": 56,
+            "startDelay": 6
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 13,
+            "interval": 0.4,
+            "level": 53,
+            "startDelay": 7
+          },
+          {
+            "type": "purifier",
+            "count": 55,
+            "interval": 0.2,
+            "level": 60,
+            "startDelay": 13
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 200,
+            "startDelay": 15,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "jackInTheBox",
+            "count": 80,
+            "interval": 0.4,
+            "level": 67,
+            "startDelay": 3
+          },
+          {
+            "type": "taunter",
+            "count": 65,
+            "interval": 0.1,
+            "level": 71,
+            "startDelay": 4
+          },
+          {
+            "type": "freezer",
+            "count": 4,
+            "interval": 0.4,
+            "level": 75,
+            "startDelay": 9
+          },
+          {
+            "type": "evilSniper",
+            "count": 1,
+            "interval": 0.4,
+            "level": 450,
+            "startDelay": 10,
+            "isBoss": true,
+            "bossSpeed": 1
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "tank",
+            "count": 2,
+            "interval": 0.4,
+            "level": 330,
+            "isBoss": true,
+            "startDelay": 4,
+            "bossSpeed": 0.06
+          },
+          {
+            "type": "summoner",
+            "count": 300,
+            "interval": 0.1,
+            "level": 88,
+            "startDelay": 7
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 35,
+            "interval": 0.6,
+            "level": 97,
+            "startDelay": 8
+          },
+          {
+            "type": "angryWriter",
+            "count": 1,
+            "interval": 0.4,
+            "level": 600,
+            "startDelay": 11,
+            "isBoss": true,
+            "bossSpeed": 1
+          },
+          {
+            "type": "purifier",
+            "count": 88,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 15
+          },
+          {
+            "type": "armorRepairer",
+            "count": 40,
+            "interval": 0.4,
+            "level": 130,
+            "startDelay": 18
+          }
+        ]
+      }
+    ],
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
+  },
+  {
+    "sourceLevelId": "L16",
+    "levelNumber": 16,
+    "levelName": "2-8",
+    "contributor": "",
+    "difficulty": "AT",
+    "rating": 17,
+    "mapId": 18,
+    "mapName": "Z",
+    "startGold": 1000,
+    "lives": 12,
+    "autoStartFirstWave": true,
+    "firstWaveDelaySec": 0.8,
+    "waves": [
+      {
+        "groups": [
+          {
+            "type": "jackInTheBox",
+            "count": 10,
+            "interval": 0.4,
+            "level": 15,
+            "startDelay": 4
+          },
+          {
+            "type": "summoner",
+            "count": 7,
+            "interval": 0.4,
+            "level": 34,
+            "startDelay": 8
+          },
+          {
+            "type": "square",
+            "count": 8,
+            "interval": 0.4,
+            "level": 37,
+            "startDelay": 10
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "igniter",
+            "count": 10,
+            "interval": 0.4,
+            "level": 47,
+            "startDelay": 3
+          },
+          {
+            "type": "angryWriter",
+            "count": 4,
+            "interval": 0.4,
+            "level": 56,
+            "startDelay": 6
+          },
+          {
+            "type": "windEye",
+            "count": 12,
+            "interval": 0.4,
+            "level": 62,
+            "startDelay": 9
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 180,
+            "startDelay": 12,
+            "isBoss": true,
+            "bossSpeed": 0.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "windShield",
+            "count": 24,
+            "interval": 0.5,
+            "level": 70,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 12,
+            "interval": 0.8,
+            "level": 72,
+            "startDelay": 6
+          },
+          {
+            "type": "armored",
+            "count": 16,
+            "interval": 0.6,
+            "level": 75,
+            "startDelay": 10
+          },
+          {
+            "type": "healer",
+            "count": 4,
+            "interval": 3,
+            "level": 78,
+            "startDelay": 14
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 260,
+            "startDelay": 17,
+            "isBoss": true,
+            "bossSpeed": 0.45
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 240,
+            "startDelay": 22,
+            "isBoss": true,
+            "bossSpeed": 0.45
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "angryWriter",
+            "count": 20,
+            "interval": 0.6,
+            "level": 82,
+            "startDelay": 3
+          },
+          {
+            "type": "windShield",
+            "count": 30,
+            "interval": 0.4,
+            "level": 86,
+            "startDelay": 7
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 16,
+            "interval": 0.7,
+            "level": 90,
+            "startDelay": 11
+          },
+          {
+            "type": "armorRepairer",
+            "count": 5,
+            "interval": 3,
+            "level": 92,
+            "startDelay": 15
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 4,
+            "interval": 5,
+            "level": 95,
+            "startDelay": 18
+          },
+          {
+            "type": "bunker",
+            "count": 1,
+            "interval": 0.4,
+            "level": 360,
+            "startDelay": 23,
+            "isBoss": true,
+            "bossSpeed": 0.4
+          },
+          {
+            "type": "armored",
+            "count": 1,
+            "interval": 0.4,
+            "level": 330,
+            "startDelay": 28,
+            "isBoss": true,
+            "bossSpeed": 0.5
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "iceShell",
+            "count": 24,
+            "interval": 0.5,
+            "level": 100,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 20,
+            "interval": 0.7,
+            "level": 105,
+            "startDelay": 7
+          },
+          {
+            "type": "taunter",
+            "count": 12,
+            "interval": 1,
+            "level": 108,
+            "startDelay": 12
+          },
+          {
+            "type": "freezer",
+            "count": 5,
+            "interval": 4,
+            "level": 112,
+            "startDelay": 17
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 6,
+            "interval": 5,
+            "level": 115,
+            "startDelay": 21
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 10,
+            "level": 500,
+            "startDelay": 24,
+            "isBoss": true,
+            "bossSpeed": 0.35
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 450,
+            "startDelay": 30,
+            "isBoss": true,
+            "bossSpeed": 0.4
+          }
+        ]
+      },
+      {
+        "groups": [
+          {
+            "type": "armored",
+            "count": 35,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 3
+          },
+          {
+            "type": "jackInTheBox",
+            "count": 24,
+            "interval": 0.6,
+            "level": 125,
+            "startDelay": 7
+          },
+          {
+            "type": "summoner",
+            "count": 12,
+            "interval": 1,
+            "level": 130,
+            "startDelay": 12
+          },
+          {
+            "type": "armorRepairer",
+            "count": 8,
+            "interval": 3,
+            "level": 135,
+            "startDelay": 17
+          },
+          {
+            "type": "balloonSoldier",
+            "count": 8,
+            "interval": 5,
+            "level": 140,
+            "startDelay": 21
+          },
+          {
+            "type": "bunker",
+            "count": 2,
+            "interval": 12,
+            "level": 650,
+            "startDelay": 24,
+            "isBoss": true,
+            "bossSpeed": 0.3
+          },
+          {
+            "type": "windEye",
+            "count": 1,
+            "interval": 0.4,
+            "level": 600,
+            "startDelay": 30,
+            "isBoss": true,
+            "bossSpeed": 0.35
+          },
+          {
+            "type": "tank",
+            "count": 1,
+            "interval": 0.4,
+            "level": 120,
+            "startDelay": 36,
+            "isBoss": true,
+            "bossSpeed": 0.06
+          }
+        ]
+      }
+    ],
+    "atModeConfig": {
+      "type": "conveyor",
+      "conveyor": {
+        "intervalSec": 2,
+        "maxQueue": 10,
+        "pool": [
+          {
+            "kind": "plant",
+            "id": "bottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "puffShroom",
+            "weight": 50
+          },
+          {
+            "kind": "plant",
+            "id": "machineGun",
+            "weight": 30
+          },
+          {
+            "kind": "element",
+            "id": "fire",
+            "weight": 50
+          },
+          {
+            "kind": "element",
+            "id": "ice",
+            "weight": 50
+          },
+          {
+            "kind": "element",
+            "id": "wind",
+            "weight": 50
+          },
+          {
+            "kind": "plant",
+            "id": "doubleBottleGrass",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "fourLeafClover",
+            "weight": 100
+          },
+          {
+            "kind": "plant",
+            "id": "boomerangLeaf",
+            "weight": 60
+          },
+          {
+            "kind": "plant",
+            "id": "sniper",
+            "weight": 30
+          },
+          {
+            "kind": "plant",
+            "id": "rocket",
+            "weight": 80
+          },
+          {
+            "kind": "plant",
+            "id": "antiAirTree",
+            "weight": 40
+          },
+          {
+            "kind": "plant",
+            "id": "dandelion",
+            "weight": 40
+          },
+          {
+            "kind": "plant",
+            "id": "windSailGrass",
+            "weight": 40
+          },
+          {
+            "kind": "plant",
+            "id": "cycloneShroom",
+            "weight": 30
+          },
+          {
+            "kind": "element",
+            "id": "electric",
+            "weight": 50
+          },
+          {
+            "kind": "element",
+            "id": "gold",
+            "weight": 50
+          },
+          {
+            "kind": "plant",
+            "id": "hotPepper",
+            "weight": 20
+          },
+          {
+            "kind": "plant",
+            "id": "electricFlower",
+            "weight": 50
+          }
+        ]
+      }
+    },
+    "specialEnemyConfig": {
+      "enabled": true,
+      "type": "charityAmbassador",
+      "chance": 0.1
+    },
+    "unlockRewards": []
   }
 ];
 

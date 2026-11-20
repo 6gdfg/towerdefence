@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CircleArrowUp, Hammer, Heart, Layers, LogOut, Maximize, Minimize, Pause, Play, RotateCw, Scan, SkipForward, Smartphone, ZoomIn, ZoomOut } from 'lucide-react';
+import { CircleArrowUp, Hammer, Heart, Layers, LogOut, Maximize, Minimize, Pause, Play, RotateCcw, RotateCw, Share, SkipForward, Smartphone, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { getHammerDamage, getHammerUpgradeCost, hasWonLevel, useTDStore } from './store';
 import { CELL_SIZE } from '../config/mapConfig';
 import { Position } from '../types/game';
@@ -8,10 +8,11 @@ import { PlantType, ElementType } from './types';
 import { ELEMENT_SINGLE_USE_COOLDOWN } from './config';
 import { ElementIcon, getMonsterThemeColor, MonsterIcon, PlantIcon, ShovelIcon } from './TowerIcons';
 import { getAtBaseModeType, isPhantomAtMode } from './atMode';
-import { CURRENT_RELEASE } from '../../shared/releaseNotes';
 import BossHealthBars from './BossHealthBars';
 import { useGameViewport } from './useGameViewport';
 import { useMobileMapView } from './useMobileMapView';
+import { enterGameFullscreen, exitGameFullscreen, getGameFullscreenElement, isAppleTouchDevice, isStandaloneWindow } from './gameFullscreen';
+import TowerRange from './TowerRange';
 
 function worldToPx(p: Position) { return { left: p.x * CELL_SIZE, top: p.y * CELL_SIZE }; }
 
@@ -45,9 +46,10 @@ type TDGameProps = {
   tutorialMode?: boolean;
   onTutorialSkip?: () => void;
   difficultyLabel?: string | null;
+  suspended?: boolean;
 };
 
-export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel }: TDGameProps = {}) {
+export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, onTutorialSkip, difficultyLabel, suspended = false }: TDGameProps = {}) {
   const { gold, lives, enemies, towers, plantCovers, projectiles, singleUseCasts, windWalls, damagePopups, sunPickups, elementCooldowns, plantCooldowns, paths, mapWidth, mapHeight, roadWidthCells, plantGrid, activeMapId, activeMapName, waves, isWaveActive, waveIndex, running, startWave, placeTower, placeTowerFromConveyor, applyElement, applyElementFromConveyor, canPlaceTower, removeTower, collectSun, autoCollectSun, setAutoCollectSun, update, togglePause, gameTime, availablePlants, availableElements, manualFireTower, mode, lifeBonusPerWave, labOverrides, atModeConfig, conveyorQueue, hammerLevel, hammerBaseDamage, hitEnemyWithHammer, upgradeHammer } = useTDStore();
   const [selectedPlant, setSelectedPlant] = useState<PlantType | null>(null);
   const [selectedElement, setSelectedElement] = useState<ElementType | null>(null);
@@ -59,9 +61,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const orientationBlocked = isPhone && viewport.isPortrait;
   const [mobileTab, setMobileTab] = useState<'plants' | 'elements'>('plants');
   const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenHelp, setFullscreenHelp] = useState<'apple' | 'unsupported' | 'failed' | null>(null);
+  const [fullscreenBusy, setFullscreenBusy] = useState(false);
+  const fullscreenDialogRef = useRef<HTMLDialogElement>(null);
+  const interactionBlocked = suspended || orientationBlocked || fullscreenHelp !== null;
   const gameShellRef = useRef<HTMLDivElement>(null);
-  const resumeAfterOrientationRef = useRef<boolean | null>(null);
-  const [showAbout, setShowAbout] = useState(false);
+  const resumeAfterBlockRef = useRef<boolean | null>(null);
+  const combo = useTDStore(state => state.combo);
   const announcedWinRef = useRef(false);
   const announcedLoseRef = useRef(false);
   const mapWrapperRef = useRef<HTMLDivElement>(null);
@@ -169,21 +175,30 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   }, [conveyorQueue.length, isConveyorMode, selectedConveyorIndex]);
 
   useLayoutEffect(() => {
-    if (orientationBlocked) {
-      if (resumeAfterOrientationRef.current === null) resumeAfterOrientationRef.current = useTDStore.getState().running;
+    if (interactionBlocked) {
+      if (resumeAfterBlockRef.current === null) resumeAfterBlockRef.current = useTDStore.getState().running;
       useTDStore.setState({ running: false });
-    } else if (resumeAfterOrientationRef.current !== null) {
+    } else if (resumeAfterBlockRef.current !== null) {
       const state = useTDStore.getState();
-      if (resumeAfterOrientationRef.current && state.lives > 0 && !hasWonLevel(state)) useTDStore.setState({ running: true });
-      resumeAfterOrientationRef.current = null;
+      if (resumeAfterBlockRef.current && state.lives > 0 && !hasWonLevel(state)) useTDStore.setState({ running: true });
+      resumeAfterBlockRef.current = null;
     }
-  }, [orientationBlocked]);
+  }, [interactionBlocked]);
 
   useEffect(() => {
-    const updateFullscreen = () => setFullscreen(document.fullscreenElement === gameShellRef.current);
+    const updateFullscreen = () => setFullscreen(getGameFullscreenElement() === gameShellRef.current);
+    updateFullscreen();
     document.addEventListener('fullscreenchange', updateFullscreen);
-    return () => document.removeEventListener('fullscreenchange', updateFullscreen);
+    document.addEventListener('webkitfullscreenchange', updateFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', updateFullscreen);
+      document.removeEventListener('webkitfullscreenchange', updateFullscreen);
+    };
   }, []);
+
+  useEffect(() => {
+    if (fullscreenHelp && fullscreenDialogRef.current && !fullscreenDialogRef.current.open) fullscreenDialogRef.current.showModal();
+  }, [fullscreenHelp]);
 
   useEffect(() => {
     if (!isPhone) return;
@@ -236,10 +251,10 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
       const now = Date.now();
       const dt = (now - last) / 1000;
       last = now;
-      if (!orientationBlocked) update(dt);
+      if (!interactionBlocked) update(dt);
     }, 1000 / 30);
     return () => clearInterval(id);
-  }, [orientationBlocked, update]);
+  }, [interactionBlocked, update]);
 
 
   useEffect(() => {
@@ -337,21 +352,34 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
   const handleExit = () => {
     const message = mode === 'endless' ? '退出本轮无尽挑战？主动退出不会获得奖励，也不会提交排行榜成绩。' : '退出当前对局？本局进度不会保存。';
     if (!window.confirm(message)) return;
-    if (document.fullscreenElement === gameShellRef.current) void document.exitFullscreen().catch(() => {});
+    if (getGameFullscreenElement() === gameShellRef.current) void exitGameFullscreen().catch(() => {});
     onExit?.();
   };
 
   const toggleFullscreen = async () => {
+    if (fullscreenBusy || !gameShellRef.current) return;
+    setFullscreenBusy(true);
     try {
-      if (document.fullscreenElement === gameShellRef.current) {
-        await document.exitFullscreen();
+      if (getGameFullscreenElement() === gameShellRef.current) {
+        await exitGameFullscreen();
       } else {
-        await gameShellRef.current?.requestFullscreen();
-        const orientation = screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> };
-        await orientation?.lock?.('landscape').catch(() => {});
+        const result = await enterGameFullscreen(gameShellRef.current);
+        if (result === 'unsupported') {
+          setFullscreenHelp(isAppleTouchDevice() ? 'apple' : 'unsupported');
+          return;
+        }
+        setFullscreen(true);
+        try {
+          const orientation = screen.orientation as ScreenOrientation & { lock?: (mode: string) => Promise<void> };
+          await orientation?.lock?.('landscape');
+        } catch {
+          // Fullscreen can work even when the browser does not allow orientation locking.
+        }
       }
     } catch {
-      // Some mobile browsers do not support element fullscreen or orientation locking.
+      setFullscreenHelp(isAppleTouchDevice() ? 'apple' : 'failed');
+    } finally {
+      setFullscreenBusy(false);
     }
   };
 
@@ -388,6 +416,27 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
 
   return (
     <div ref={gameShellRef} className={`game-shell${isPhone ? ' game-phone' : ''}`}>
+      {fullscreenHelp && (
+        <dialog ref={fullscreenDialogRef} className="game-fullscreen-dialog" aria-labelledby="game-fullscreen-title" onCancel={event => { event.preventDefault(); setFullscreenHelp(null); }}>
+          <header>
+            <h2 id="game-fullscreen-title">{fullscreenHelp === 'apple' ? 'iPhone / iPad 全屏游玩' : '无法开启全屏'}</h2>
+            <button type="button" title="关闭" aria-label="关闭全屏提示" onClick={() => setFullscreenHelp(null)}><X size={20} /></button>
+          </header>
+          {fullscreenHelp === 'apple' ? (
+            <>
+              <p>此浏览器未能开启网页全屏。可以添加到主屏幕，以无浏览器工具栏的独立窗口游玩。</p>
+              <ol>
+                <li>在 Safari 中点分享 <Share size={16} aria-label="分享" />。</li>
+                <li>选择“添加到主屏幕”；若有“作为 Web App 打开”选项，请开启。</li>
+                <li>从主屏幕图标进入游戏，并横屏游玩。</li>
+              </ol>
+            </>
+          ) : (
+            <p>{fullscreenHelp === 'unsupported' ? '此浏览器不支持网页全屏，请使用支持全屏的浏览器。' : '浏览器拒绝了全屏请求，请检查浏览器权限后重试。'}</p>
+          )}
+          <footer><button type="button" className="action-button" onClick={() => setFullscreenHelp(null)}>确定</button></footer>
+        </dialog>
+      )}
       {orientationBlocked && (
         <div className="game-orientation-gate" role="dialog" aria-modal="true" aria-label="请横屏游玩">
           <div className="game-rotate-icon" aria-hidden="true"><Smartphone size={56} /><RotateCw size={24} /></div>
@@ -396,7 +445,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           <button type="button" className="action-button" onClick={handleExit}><LogOut size={18} />退出</button>
         </div>
       )}
-      <div className="game-content" {...(orientationBlocked ? { inert: '' } : {})} aria-hidden={orientationBlocked || undefined}>
+      <div className="game-content" {...(interactionBlocked ? { inert: '' } : {})} aria-hidden={interactionBlocked || undefined}>
       <header className="glass-panel game-topbar">
         <div className="game-stats">
           <div className="game-stat" aria-label={`阳光 ${gold}`} style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
@@ -416,25 +465,19 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             </div>
           )}
         </div>
+        <div className="game-combo" hidden={combo < 3} role="group" aria-label={`Combo ${combo}`}>
+          <span key={combo} className="game-combo-number" style={{ '--combo-digits': Math.max(4, String(combo).length) } as React.CSSProperties}>{combo}</span>
+          <span className="game-combo-label">COMBO</span>
+        </div>
           <div className="game-actions">
-            {!isPhone && <>
-            <a className="icon-button" href="https://github.com/6gdfg/towerdefence" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub">
-              <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-              </svg>
-            </a>
-            <button onClick={() => setShowAbout(true)} className="action-button">
-              关于
-            </button>
-            </>}
             <button onClick={togglePause} className="action-button game-control" title={running ? '暂停' : '继续'} aria-label={running ? '暂停' : '继续'}>
               {running ? <Pause size={18} /> : <Play size={18} />}{!isPhone && (running ? '暂停' : '继续')}
             </button>
             <button onClick={handleExit} className="action-button danger game-control" title="退出" aria-label="退出">
               <LogOut size={18} />{!isPhone && '退出'}
             </button>
-            {isPhone && typeof document !== 'undefined' && document.fullscreenEnabled && (
-              <button type="button" className="action-button game-control" onClick={() => void toggleFullscreen()} title={fullscreen ? '退出全屏' : '全屏'} aria-label={fullscreen ? '退出全屏' : '全屏'}>
+            {isPhone && !isStandaloneWindow() && (
+              <button type="button" className="action-button game-control" disabled={fullscreenBusy} onClick={() => void toggleFullscreen()} title={fullscreen ? '退出全屏' : '全屏'} aria-label={fullscreen ? '退出全屏' : '全屏'}>
                 {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
               </button>
             )}
@@ -812,7 +855,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
           {isPhone && (
             <div className="game-map-zoom-controls" aria-label="地图缩放">
               <button type="button" title="缩小地图" aria-label="缩小地图" disabled={mobileMapView.zoom <= 1} onClick={() => mobileMapView.changeZoom(-0.5)}><ZoomOut size={18} /></button>
-              <button type="button" title="显示完整地图" aria-label="显示完整地图" onClick={mobileMapView.reset}><Scan size={18} /></button>
+              <button type="button" title="重置地图视野" aria-label="重置地图视野" disabled={mobileMapView.zoom <= 1} onClick={mobileMapView.reset}><RotateCcw size={18} /></button>
               <button type="button" title="放大地图" aria-label="放大地图" disabled={mobileMapView.zoom >= 3} onClick={() => mobileMapView.changeZoom(0.5)}><ZoomIn size={18} /></button>
             </div>
           )}
@@ -1039,23 +1082,13 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
               <g
                 key={t.id}
                 onClick={(e) => handleTowerClick(t, e)}
-                style={{
-                  cursor: shovelActive || t.type === 'sunlightFlower' ? 'pointer' : 'default',
-                  filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none',
-                }}
+                data-tower-id={t.id}
+                style={{ cursor: shovelActive || t.type === 'sunlightFlower' ? 'pointer' : 'default' }}
               >
-                {t.range > 0 && (
-                  <circle
-                    cx={left}
-                    cy={top}
-                    r={t.range * CELL_SIZE}
-                    fill={antiAirField && !towerFrozen ? 'rgba(22,163,74,0.035)' : 'none'}
-                    stroke={antiAirField ? (towerFrozen ? 'rgba(37,99,235,0.25)' : 'rgba(22,163,74,0.38)') : 'rgba(17,24,39,0.15)'}
-                    strokeWidth={1}
-                    strokeDasharray="4 4"
-                    pointerEvents="none"
-                  />
-                )}
+                <TowerRange pos={t.pos} range={t.range} mapWidth={mapWidth} mapHeight={mapHeight}
+                  fill={antiAirField && !towerFrozen ? 'rgba(22,163,74,0.035)' : 'none'}
+                  stroke={antiAirField ? (towerFrozen ? 'rgba(37,99,235,0.25)' : 'rgba(22,163,74,0.38)') : 'rgba(17,24,39,0.15)'}
+                />
                 <rect
                   x={left - tileSize / 2}
                   y={top - tileSize / 2}
@@ -1090,7 +1123,8 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                     />
                   </g>
                 )}
-                <g transform={`translate(${left - iconSize / 2} ${top - iconSize / 2})`} opacity={lifetimeOpacity}>
+                <g transform={`translate(${left - iconSize / 2} ${top - iconSize / 2})`} opacity={lifetimeOpacity}
+                  style={{ filter: t.element?.type === 'light' ? `drop-shadow(0 0 5px ${t.element.color})` : 'none' }}>
                   <PlantIcon type={t.type} color={iconStroke} size={iconSize} />
                 </g>
                 {towerFrozen && (
@@ -1194,10 +1228,14 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             const strokeWidth = 2.2;
             const angryWriterStunned = e.shape === 'angryWriter' && !!e.newspaperStunUntil && gameTime < e.newspaperStunUntil;
             const angryWriterEnraged = e.shape === 'angryWriter' && !!e.newspaperEnraged && !angryWriterStunned;
+            const jackWarning = e.shape === 'jackInTheBox' && e.explosionAt != null;
+            if (jackWarning) enemyColor = '#dc2626';
             const shapeNode = (() => {
               switch (e.shape) {
                 case 'tank':
                   return <MonsterIcon type="tank" color={enemyColor} size={shapeSize} />;
+                case 'jackInTheBox':
+                  return <MonsterIcon type="jackInTheBox" color={enemyColor} size={shapeSize} />;
                 case 'triangle':
                 case 'healer':
                   return (
@@ -1350,10 +1388,17 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
             return (
               <g
                 key={e.id}
+                data-enemy-id={e.id}
                 pointerEvents={isWhackAMoleMode ? 'all' : 'none'}
                 onClick={isWhackAMoleMode ? event => handleEnemyClick(e.id, event) : undefined}
                 style={{ cursor: isWhackAMoleMode ? 'crosshair' : 'default' }}
               >
+                {jackWarning && (
+                  <circle className="jack-explosion-warning" cx={left} cy={top} r={2 * CELL_SIZE}
+                    fill="rgba(239,68,68,0.08)" stroke="#dc2626" strokeWidth={1.5}
+                    style={{ animationPlayState: !running || gameTime < (e.freezeUntil ?? 0) ? 'paused' : 'running' }}
+                    strokeDasharray="4 4" pointerEvents="none" />
+                )}
                 {isWhackAMoleMode && (
                   <circle cx={left} cy={top} r={shapeSize * 0.7} fill="transparent" />
                 )}
@@ -1368,6 +1413,7 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
                   />
                 )}
                 <g transform={`translate(${left - shapeSize / 2} ${top - shapeSize / 2})`}>
+                  {jackWarning && <text x={shapeSize / 2} y={-5} textAnchor="middle" fontSize={14} fontWeight={700} fill="#dc2626">!</text>}
                   {shapeNode}
                 </g>
                 <text
@@ -1495,22 +1541,6 @@ export default function TDGame({ onWin, onLose, onExit, tutorialMode = false, on
 
       {wonLevel && (
         <div style={{ padding:'12px 18px', color:'#059669', flexShrink:0, fontWeight:700 }}>全部波次完成！🎉</div>
-      )}
-      {showAbout && (
-        <div className="modal-backdrop" style={{ zIndex: 100 }}>
-          <div className="glass-panel modal-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <h2>关于</h2>
-            <p>{CURRENT_RELEASE.title}</p>
-            <h2>鸣谢</h2>
-            <p>总策划:hebscyf</p>
-            <p>代码:6gdfg</p>
-            <p>测试员&贡献者:hebscyf,windymu,mountain,even zao</p>
-            <p>特别鸣谢:DeepSeek Harness Agent</p>
-            <button onClick={() => setShowAbout(false)} className="action-button" style={{ alignSelf: 'flex-end' }}>
-              关闭
-            </button>
-          </div>
-        </div>
       )}
       </div>
     </div>

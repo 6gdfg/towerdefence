@@ -1,0 +1,39 @@
+html, body, #root { height: 100%; overflow: hidden; }
+.intro-demo-app select, .intro-demo-app textarea { font-family: inherit; }
+
+.intro-demo-app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #34383e;
+  font-family: inherit;
+}
+
+.intro-demo-game { position: absolute; inset: 0; }
+.intro-demo-game.is-revealing { animation: intro-game-reveal 0.6s ease-in-out both; }
+.intro-demo-tools { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); z-index: 80; display: flex; gap: 6px; }
+.intro-demo-tools button, .intro-demo-settings header button { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; border: 1px solid #cbd0d7; border-radius: 6px; background: #fff; color: #303641; }
+.intro-demo-settings { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 22px; overflow-y: auto; color: #23262c; background: #fff; border: 1px solid #cbd0d7; border-radius: 8px; }
+.intro-demo-settings::backdrop { background: rgba(18, 21, 26, 0.6); }
+.intro-demo-settings form { display: flex; flex-direction: column; gap: 16px; }
+.intro-demo-settings header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.intro-demo-settings h2 { font-size: 18px; }
+.intro-demo-settings header button { width: 36px; height: 36px; border: 0; }
+.intro-demo-settings label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #525760; }
+.intro-demo-settings select, .intro-demo-settings input:not([type="range"]) { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid #cbd0d7; border-radius: 4px; font-size: 14px; color: #23262c; background: #fff; }
+.intro-demo-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.intro-demo-settings .intro-demo-duration { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.intro-demo-duration input { grid-column: 1 / -1; width: 100%; accent-color: #3d515b; }
+.intro-demo-settings footer { display: flex; justify-content: flex-end; }
+.intro-demo-settings footer button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 18px; border: 0; border-radius: 4px; color: #fff; background: #303b42; font-size: 13px; }
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .intro-demo-settings { padding: 16px; }
+  .intro-demo-settings form { gap: 10px; }
+}
+
+@media (min-width: 761px) and (max-width: 900px) and (max-height: 600px) {
+  .intro-demo-game .game-shell:not(.game-phone) .game-body { flex-direction: row !important; }
+  .intro-demo-game .game-shell:not(.game-phone) .game-sidepanel { width: 180px !important; padding: 8px !important; overflow-y: auto !important; }
+  .intro-demo-game .game-shell:not(.game-phone) .game-card-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

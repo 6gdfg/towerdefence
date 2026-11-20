@@ -228,7 +228,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     id: 'boomerangLeaf',
     name: '回旋叶',
     icon: '<',
-    cost: 120,
+    cost: 180,
     range: 4.5,
     damage: 26,
     fireRate: 1.2,

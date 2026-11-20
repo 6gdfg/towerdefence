@@ -1,3 +1,9 @@
+@import './styles/game-font.css';
+
+html {
+  font-family: 'Tower Defence', system-ui, sans-serif;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,9 +11,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: inherit;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
@@ -21,7 +25,7 @@ body {
   min-height: 100vh;
 }
 
-button {
+button, input, select, textarea, pre, code, kbd, samp {
   font-family: inherit;
 }
 
@@ -1070,7 +1074,7 @@ input {
   border-radius: 6px;
   background: #1e293b;
   color: #dbeafe;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family: inherit;
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1579,7 +1583,7 @@ input {
   padding: 12px;
   background: rgba(15, 23, 42, 0.92);
   color: #dbeafe;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-family: inherit;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1881,12 +1885,24 @@ input {
   flex-shrink: 0;
   margin: 14px 16px 10px;
   padding: 12px 14px;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
+
+.game-topbar > .game-stats, .game-topbar > .game-actions { min-width: 0; }
+.game-topbar > .game-actions { justify-content: flex-end; }
+.game-combo { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 62px; color: #172033; pointer-events: none; }
+.game-combo[hidden] { visibility: hidden; }
+.jack-explosion-warning { animation: jack-warning 350ms ease-in-out infinite alternate; }
+@keyframes jack-warning { from { opacity: 0.35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .jack-explosion-warning { animation: none; } }
+.game-combo-number { display: block; max-width: 100%; height: 44px; font-size: min(42px, calc(168px / var(--combo-digits, 4))); line-height: 44px; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; animation: combo-hit 160ms ease-out; }
+.game-combo-label { font-size: 12px; line-height: 16px; font-weight: 400; }
+@keyframes combo-hit { from { opacity: 0.65; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .game-combo-number { animation: none; } }
 
 .game-content {
   display: flex;
@@ -1928,6 +1944,18 @@ input {
 .game-orientation-gate button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .game-rotate-icon { display: flex; align-items: center; gap: 10px; color: #059669; }
 
+.game-fullscreen-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 24px); padding: 18px 20px; overflow-y: auto; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #172033; }
+.game-fullscreen-dialog::backdrop { background: rgba(17, 24, 39, 0.6); }
+.game-fullscreen-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.game-fullscreen-dialog h2 { font-size: 17px; line-height: 1.3; }
+.game-fullscreen-dialog header button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 6px; background: #f3f4f6; color: #4b5563; }
+.game-fullscreen-dialog p, .game-fullscreen-dialog li { font-size: 13px; line-height: 1.6; }
+.game-fullscreen-dialog ol { padding-left: 20px; margin-top: 10px; }
+.game-fullscreen-dialog li + li { margin-top: 5px; }
+.game-fullscreen-dialog li svg { vertical-align: middle; }
+.game-fullscreen-dialog footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+.game-fullscreen-dialog footer button { min-height: 40px; }
+
 .game-phone {
   position: fixed;
   inset: 0;
@@ -1950,9 +1978,13 @@ input {
   background: #fff;
   box-shadow: none;
   backdrop-filter: none;
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
 }
 
-.game-phone .game-stats { gap: 8px; flex-wrap: nowrap; }
+.game-phone .game-stats { gap: 4px 8px; flex-wrap: wrap; }
+.game-phone .game-combo { height: 40px; }
+.game-phone .game-combo-number { height: 28px; line-height: 28px; font-size: min(28px, calc(100px / var(--combo-digits, 4))); }
+.game-phone .game-combo-label { font-size: 9px; line-height: 12px; }
 .game-phone .game-stat { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; border-radius: 0; background: none; font-size: 12px; white-space: nowrap; }
 .game-phone .difficulty-stat { color: #6b7280; font-size: 11px; }
 .game-phone .game-actions { gap: 4px; }

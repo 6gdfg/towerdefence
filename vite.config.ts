@@ -262,5 +262,8 @@ function balanceLabSavePlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), balanceLabSavePlugin()],
+  build: {
+    assetsInlineLimit: filePath => /\.woff2$/i.test(filePath) ? false : undefined,
+  },
 })
 

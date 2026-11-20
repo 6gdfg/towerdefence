@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 
-export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye' | 'balloonSoldier' | 'armorRepairer' | 'tank';
+export type ShapeType = 'circle' | 'triangle' | 'square' | 'healer' | 'evilSniper' | 'rager' | 'summoner' | 'igniter' | 'armored' | 'iceShell' | 'freezer' | 'taunter' | 'purifier' | 'angryWriter' | 'bunker' | 'windShield' | 'windEye' | 'balloonSoldier' | 'armorRepairer' | 'tank' | 'jackInTheBox';
 
 export interface Enemy {
   id: string;
@@ -34,8 +34,10 @@ export interface Enemy {
   knockbackUntil?: number;
   windProjectileKnockbackUntil?: number;
   rewardGiven?: boolean;
+  comboCounted?: boolean;
   deathEffectTriggered?: boolean;
   specialTimer?: number;
+  explosionAt?: number;
   immobilizedUntil?: number;
   speedBoostMultiplier?: number;
   speedBoostUntil?: number;
@@ -252,6 +254,7 @@ export interface SpawnCursor {
 export interface TDState {
   running: boolean;
   gameTime: number;
+  combo: number;
   gold: number;
   lives: number;
   maxLives: number;

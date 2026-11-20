@@ -1,0 +1,83 @@
+.level-start-transition { position: fixed; inset: 0; z-index: 1250; overflow: hidden; }
+
+.level-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  overflow: hidden;
+  color: #f7f7f8;
+  background: linear-gradient(115deg, #292d33, #45474f 57%, #303a40);
+  font-family: inherit;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+.intro-viewport { position: absolute; top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px); bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px); }
+.intro-canvas { position: absolute; left: 50%; top: 50%; transform-origin: center; }
+.intro-composition { position: absolute; inset: 0; }
+.intro-title-strip { position: absolute; left: 93.6px; top: 270.05px; width: 552.96px; height: 107.9px; }
+.intro-title-strip::before { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); clip-path: polygon(5.108% 0, 100% 0, 94.892% 100%, 0 100%); }
+.intro-title-copy { position: absolute; left: 8%; right: 24%; top: 50%; transform: translateY(-50%); min-width: 0; }
+.intro-title-copy h1 { font-size: 34px; font-weight: 400; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.intro-title-copy p { margin-top: 6px; font-size: 16px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.intro-difficulty { position: absolute; left: 72.4%; top: -4%; height: 108%; width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #fff; color: #202226; clip-path: polygon(22.067% 0, 100% 0, 77.933% 100%, 0 100%); }
+.intro-rating { font-size: 42px; font-weight: 400; line-height: 1; }
+.intro-rating-wide { font-size: 30px; }
+.intro-difficulty-label { font-size: 15px; font-weight: 400; line-height: 1.2; }
+.intro-credit { position: absolute; left: 184.25px; top: 412.48px; width: 417.6px; }
+.intro-credit span { display: block; font-size: 12px; line-height: 1.3; }
+.intro-credit p { margin-top: 2.81px; font-size: 18px; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* The second credit is offset left by 0.031 renderer units, not column-aligned. */
+.intro-illustration { margin-left: -22.32px; margin-top: 21.6px; }
+.intro-illustration p { margin-left: -1.44px; }
+.intro-cover { position: absolute; top: 165.83px; left: 627.25px; width: 732.7px; height: 383.04px; background: rgba(245, 245, 247, 0.045); clip-path: polygon(13.687% 0, 100% 0, 86.313% 100%, 0 100%); }
+.intro-monster-grid { position: absolute; top: 24px; left: 0; display: flex; flex-direction: column; gap: 8px; }
+.intro-monster-row { display: grid; grid-template-columns: repeat(4, 140px); height: 104px; margin-left: 108px; }
+.intro-monster-row:nth-child(2) { margin-left: 76px; }
+.intro-monster-row:nth-child(3) { margin-left: 44px; }
+.intro-monster { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-width: 0; }
+.intro-monster svg { flex-shrink: 0; width: 52px; height: 52px; }
+.intro-monster span { max-width: 120px; min-height: 20px; font-size: 16px; line-height: 20px; text-align: center; overflow-wrap: anywhere; }
+.intro-tip { position: absolute; left: 48.96px; right: 331.2px; bottom: 25.92px; font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.intro-loading { position: absolute; right: 67.68px; bottom: 22.68px; width: 132px; height: 36px; font-size: 19px; line-height: 36px; }
+.intro-loading-label, .intro-loading-wipe { position: absolute; inset: 0; display: block; text-align: center; white-space: nowrap; font-weight: 400; }
+.intro-loading-wipe { color: #15171a; background: #fff; clip-path: inset(0 100% 0 0); animation: intro-loading-wipe 1.4s 0.3s infinite; }
+
+@keyframes intro-loading-wipe {
+  0% { clip-path: inset(0 100% 0 0); animation-timing-function: cubic-bezier(0.333333, 1, 0.666667, 1); }
+  42.857143% { clip-path: inset(0 0 0 0); animation-timing-function: cubic-bezier(0.333333, 0, 0.666667, 0); }
+  85.714286%, 100% { clip-path: inset(0 0 0 100%); }
+}
+
+.level-intro.phase-covering { animation: intro-cover-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes intro-cover-enter { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.phase-exiting .intro-composition { animation: intro-composition-exit 1.4s linear both; }
+
+/* Renderer displacement translated from world units into viewport widths. */
+@keyframes intro-composition-exit {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(1.5055%); }
+  20% { transform: translateX(6.176%); }
+  30% { transform: translateX(14.8365%); }
+  40% { transform: translateX(29.632%); }
+  50% { transform: translateX(54.6875%); }
+  60% { transform: translateX(96.768%); }
+  70% { transform: translateX(165.9385%); }
+  80% { transform: translateX(276.224%); }
+  90% { transform: translateX(446.2695%); }
+  100% { transform: translateX(700%); }
+}
+
+.level-intro.phase-revealing { pointer-events: none; animation: intro-backdrop-fade 0.6s ease-in-out both; }
+.phase-revealing .intro-composition { visibility: hidden; }
+@keyframes intro-backdrop-fade { from { opacity: 1; } to { opacity: 0; } }
+.level-game-reveal { animation: intro-game-reveal 0.6s ease-in-out both; }
+@keyframes intro-game-reveal { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .level-intro.phase-covering { animation-name: intro-cover-fade; }
+  .phase-exiting .intro-composition { animation-name: intro-composition-fade; }
+  .intro-loading-wipe { animation-timing-function: linear; }
+}
+@keyframes intro-cover-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes intro-composition-fade { from { opacity: 1; } to { opacity: 0; } }

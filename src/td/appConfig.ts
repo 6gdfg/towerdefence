@@ -27,4 +27,5 @@ export const MONSTER_LABELS: Record<keyof typeof MONSTER_BASE_STATS, string> = {
   balloonSoldier: '气球兵',
   armorRepairer: '修甲匠',
   tank: '坦克',
+  jackInTheBox: '玩偶匣怪',
 };

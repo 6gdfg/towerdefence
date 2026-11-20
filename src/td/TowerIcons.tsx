@@ -309,6 +309,16 @@ export function MonsterIcon({ type, color, size = 28, style }: MonsterIconProps)
           <path d="M15.5 14.5 L18.5 17.5" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} strokeLinecap="round" />
         </svg>
       );
+    case 'jackInTheBox':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">
+          <rect x="4" y="12" width="14" height="9" rx="1" fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+          <path d="M4 15 H18 M11 12 V21 M18 16 H21 V13" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} strokeLinejoin="round" />
+          <path d="M7 6 L5 3 L10 4 L14 2 L16 6" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.7} strokeLinejoin="round" />
+          <circle cx="11" cy="8" r="4" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} />
+          <path d="M9 8 H9.1 M13 8 H13.1 M9.5 10 Q11 11 12.5 10" fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.6} strokeLinecap="round" />
+        </svg>
+      );
     case 'tank':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" style={style} aria-hidden="true">

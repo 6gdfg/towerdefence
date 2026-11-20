@@ -15,7 +15,10 @@ import FunModePage from './td/FunModePage';
 import HubPage from './td/HubPage';
 import LevelSelectPage from './td/LevelSelectPage';
 import ResultModal from './td/ResultModal';
-import LevelStartModal from './td/LevelStartModal';
+import LevelStartTransition, { type LevelIntroPhase } from './td/LevelStartTransition';
+import type { IntroMetadata } from './td/LevelIntro';
+import { getIntroMonsters } from './td/introLayout';
+import { INTRO_TIPS } from './td/introTips';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
 import UpdateAnnouncementModal from './td/UpdateAnnouncementModal';
 import SubmissionRewardModal from './td/SubmissionRewardModal';
@@ -26,8 +29,8 @@ import { MAPS, getPlantGrid, SPIRAL_MAP_ID } from './td/maps';
 import { fetchCloudProgress, getToken, clearAuth, markTutorialSeen, shouldShowTutorial } from './td/authProgress';
 import { clearCloudProgressCache, getUnlocked, setUnlocked as setUnlockedPersist, setStarCleared, hydrateCloudProgressCache, getUnlockedItems } from './td/progress';
 import { BASE_PLANTS_CONFIG, ELEMENT_PLANT_CONFIG } from './td/plants';
-import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap, WaveDef } from './td/types';
-import { DEFAULT_WHACK_A_MOLE_PLANTS, getAtBaseModeType } from './td/atMode';
+import { AtModeConfig, ElementType, PlantType, ShapeType, TowerLevelMap } from './td/types';
+import { DEFAULT_WHACK_A_MOLE_PLANTS, getAtBaseModeType, getConveyorItemLevel } from './td/atMode';
 import { abandonEndlessModeRun, acknowledgeReleaseAnnouncement, claimEndlessModeReward, craftLegendaryChest, deleteCloudAccount, getNextUnreadNotification, hasReadReleaseAnnouncement, markNotificationRead, openAllReadyChests, openChestReward, skipChestUnlock, startChestUnlock, startEndlessModeRun, unlockLevelWithKey, upgradeCloudTower } from './td/cloudApi';
 import { ELEMENT_TYPES, PLANT_TYPES } from './td/appConfig';
 import { buildInitialEndlessWaves, buildInitialFunWaves, buildRandomModeWaves, createEndlessModeWave, createFunModeWave, ENDLESS_MODE_FIRST_WAVE_DELAY, ENDLESS_MODE_LIVES, ENDLESS_MODE_MAX_ELEMENTS, ENDLESS_MODE_MAX_PLANTS, ENDLESS_MODE_SPECIAL_ENEMY_CHANCE, ENDLESS_MODE_START_GOLD, FUN_MODE_LABELS, getRandomInt, pickRandomUnique, RANDOM_MODE_ELEMENT_COUNT, RANDOM_MODE_LEVEL_RANGE, RANDOM_MODE_LIVES_RANGE, RANDOM_MODE_PLANT_COUNT, RANDOM_MODE_START_GOLD_RANGE, type FunModeType } from './td/funModes';
@@ -38,7 +41,7 @@ import { resolveChestTypeName } from './td/labels';
 import { DEFAULT_UNLOCKED_ITEMS } from '../shared/unlocks';
 import { CURRENT_RELEASE } from '../shared/releaseNotes';
 import { ENDLESS_CHAMPION_COINS, ENDLESS_CHAMPION_EXPERIENCE } from '../shared/ranking';
-import { getChapterForLevelIndex } from './td/chapters';
+import { getChapterForLevelIndex, getChapterLevelLabel } from './td/chapters';
 import { getLevelDifficultyRatings, type DifficultyCode } from './td/levelRatings';
 import { getPlayableDifficulty } from './td/levelUnlockLogic';
 import StudyPage from './study/StudyPage';
@@ -64,9 +67,12 @@ type PendingCardSelect = {
 };
 
 type PendingLevelStart = {
+  id: number;
   levelIndex: number;
   difficulty: DifficultyCode;
   challenges: ChallengeId[];
+  metadata: IntroMetadata;
+  monsters: ShapeType[];
 };
 
 type AtUnlockNotice = {
@@ -100,14 +106,6 @@ function getWhackAMolePlants(config: AtModeConfig): PlantType[] {
 
 function hasChallenge(challenges: ChallengeId[], id: ChallengeId) {
   return challenges.includes(id);
-}
-
-function getLevelMonsterTypes(waves: WaveDef[]) {
-  const seen = new Set<ShapeType>();
-  waves.forEach(wave => {
-    wave.groups.forEach(group => seen.add(group.type));
-  });
-  return Array.from(seen);
 }
 
 function App() {
@@ -189,6 +187,15 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       if (typeof window === 'undefined') return;
+      if (levelStartBusyRef.current) {
+        levelStartBusyRef.current = false;
+        setPendingLevelStart(null);
+        useTDStore.setState({ running: false });
+        clearTransitionTimers();
+        setPageTransition('idle');
+        setStage('select');
+        return;
+      }
       if (window.location.pathname === '/book') {
         setStage('book');
       } else if (window.location.pathname === '/ranking') {
@@ -212,6 +219,9 @@ function App() {
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
   const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
   const [pendingLevelStart, setPendingLevelStart] = useState<PendingLevelStart | null>(null);
+  const [levelIntroPhase, setLevelIntroPhase] = useState<LevelIntroPhase>('covering');
+  const levelStartBusyRef = useRef(false);
+  const levelStartIdRef = useRef(0);
   const [challengeConfigLevelIndex, setChallengeConfigLevelIndex] = useState<number | null>(null);
   const [activeChallengeRun, setActiveChallengeRun] = useState<ActiveChallengeRun | null>(null);
   const [atUnlockNotice, setAtUnlockNotice] = useState<AtUnlockNotice | null>(null);
@@ -229,6 +239,8 @@ function App() {
   }, [stage]);
 
   const [hub, setHub] = useState<HubData | null>(null);
+  const [localPlaytest, setLocalPlaytest] = useState(false);
+  const localPlaytestRef = useRef(false);
   const [hubLoadError, setHubLoadError] = useState<string | null>(null);
   const [showUpdateAnnouncement, setShowUpdateAnnouncement] = useState(false);
   const [confirmingUpdateAnnouncement, setConfirmingUpdateAnnouncement] = useState(false);
@@ -258,11 +270,13 @@ function App() {
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
   const loadHub = useCallback(async () => {
     try {
+      if (localPlaytestRef.current) return;
       const token = getToken();
       if (!token) {
         return;
       }
       const d = await fetchCloudProgress();
+      if (localPlaytestRef.current) return;
       hydrateCloudProgressCache(d);
       const unlockedItems = Array.isArray(d.unlockedItems) && d.unlockedItems.length > 0 ? d.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS];
       setHub({
@@ -286,6 +300,7 @@ function App() {
         setUnlockedState(1);
       }
     } catch (e) {
+      if (localPlaytestRef.current) return;
       console.error('Failed to load hub data', e);
       setHubLoadError(getErrorMessage(e, '云端存档加载失败，请检查网络后重试。'));
     } finally {
@@ -321,7 +336,7 @@ function App() {
 
     let cancelled = false;
     void hasReadReleaseAnnouncement(CURRENT_RELEASE.version).then(seen => {
-      if (!cancelled && seen === false) {
+      if (!cancelled && !localPlaytestRef.current && seen === false) {
         setUpdateAnnouncementError(null);
         setShowUpdateAnnouncement(true);
       }
@@ -331,9 +346,10 @@ function App() {
 
   const loadSubmissionApprovalNotice = useCallback(async () => {
     try {
+      if (localPlaytestRef.current) return;
       const token = getToken();
       const notification = await getNextUnreadNotification();
-      if (getToken() !== token) return;
+      if (localPlaytestRef.current || getToken() !== token) return;
       if (!notification) {
         setSubmissionApprovalNotice(null);
         return;
@@ -544,7 +560,6 @@ function App() {
     setActiveFunMode(null);
     setActiveLabConfig(null);
     setPendingCardSelect(null);
-    setPendingLevelStart(null);
     setWinReward(null);
     setActiveChallengeRun(null);
     const L = LEVELS[idx];
@@ -555,7 +570,7 @@ function App() {
     const M = MAPS.find(m => m.id === selectedLevel.mapId);
     if (!M) { console.warn('Map not found for level', selectedLevel.mapId); return; }
     const plantGrid = getPlantGrid(M); // 获取可种植格子点
-    const unlockedItems = getUnlockedItems();
+    const unlockedItems = localPlaytest ? (hub?.unlockedItems ?? []) : getUnlockedItems();
     const allowedPlantsRaw = unlockedItems.filter((item): item is PlantType => Object.prototype.hasOwnProperty.call(BASE_PLANTS_CONFIG, item));
     let allowedPlants = Array.from(new Set(allowedPlantsRaw.length > 0 ? allowedPlantsRaw : [...DEFAULT_UNLOCKED_ITEMS])) as PlantType[];
     let allowedElements = Array.from(new Set(unlockedItems
@@ -600,7 +615,9 @@ function App() {
       setCurrentDifficulty(difficulty);
       setLevelIndex(idx);
       setActiveChallengeRun({ selected: challenges, startLives: challengeStartLives });
-      navigateWithTransition('playing');
+      clearTransitionTimers();
+      setPageTransition('idle');
+      setStage('playing');
     };
 
     if (atModeConfig && atBaseModeType === 'conveyor') {
@@ -611,13 +628,15 @@ function App() {
         allowedPlants = Array.from(new Set(poolPlants));
         allowedElements = Array.from(new Set(poolElements));
       }
+      const unlockedSet = new Set(unlockedItems);
+      const rating = getLevelDifficultyRatings(L.id, idx + 1)[difficulty];
       allowedPlants.forEach(plant => {
         if (BASE_PLANTS_CONFIG[plant]?.upgradeable === false) return;
-        towerLevels[plant] = Math.max(1, Math.floor(towerLevels[plant] || 1));
+        towerLevels[plant] = getConveyorItemLevel(rating, unlockedSet.has(plant), towerLevels[plant]);
       });
       allowedElements.forEach(element => {
         const key = `element:${element}` as const;
-        towerLevels[key] = Math.max(1, Math.floor(towerLevels[key] || 1));
+        towerLevels[key] = getConveyorItemLevel(rating, unlockedSet.has(key), towerLevels[key]);
       });
     } else if (atModeConfig && atBaseModeType === 'lastStand') {
       const bannedPlants = new Set<PlantType>([...(atModeConfig.lastStand?.bannedPlants ?? []), 'sunflower']);
@@ -641,26 +660,43 @@ function App() {
   };
 
   const startLevel = (idx: number, difficultyOverride?: DifficultyCode | 1 | 2 | 3) => {
+    if (levelStartBusyRef.current) return;
     const L = LEVELS[idx];
     if (!L) return;
     const requestedDifficulty = typeof difficultyOverride === 'number'
       ? DIFFICULTY_BY_STAR[difficultyOverride]
       : difficultyOverride ?? starSel[idx] ?? 'EZ';
-    const difficulty = getPlayableDifficulty(LEVELS, idx, requestedDifficulty);
+    const difficulty = getPlayableDifficulty(LEVELS, idx, requestedDifficulty, localPlaytest);
     if (!hasLevelDifficultyDraft(L, difficulty)) return;
-    setPendingLevelStart({ levelIndex: idx, difficulty, challenges: challengeSel[idx] ?? [] });
+    const selectedLevel = getLevelSpecForDifficulty(L, difficulty);
+    if (!MAPS.some(map => map.id === selectedLevel.mapId)) return;
+    const rating = getLevelDifficultyRatings(L.id, idx + 1)[difficulty];
+    if (typeof rating !== 'number') return;
+    clearTransitionTimers();
+    setPageTransition('idle');
+    setChallengeConfigLevelIndex(null);
+    levelStartBusyRef.current = true;
+    setLevelIntroPhase('covering');
+    setPendingLevelStart({
+      id: ++levelStartIdRef.current, levelIndex: idx, difficulty, challenges: [...(challengeSel[idx] ?? [])],
+      metadata: {
+        title: selectedLevel.name, subtitle: getChapterLevelLabel(idx),
+        contributor: selectedLevel.contributor?.trim() || 'admin', difficulty, rating,
+        tip: INTRO_TIPS[Math.floor(Math.random() * INTRO_TIPS.length)],
+      },
+      monsters: getIntroMonsters(selectedLevel.waves),
+    });
   };
 
   const confirmPendingLevelStart = () => {
     if (!pendingLevelStart) return;
     const pending = pendingLevelStart;
-    setPendingLevelStart(null);
     beginLevelWithChallenges(pending.levelIndex, pending.difficulty, pending.challenges);
   };
 
-  const openBookFromLevelStart = () => {
+  const completeLevelStart = () => {
+    levelStartBusyRef.current = false;
     setPendingLevelStart(null);
-    goToBook();
   };
 
   const toggleLevelChallenge = (idx: number, challenge: ChallengeId) => {
@@ -946,26 +982,12 @@ function App() {
     return `${currentDifficulty} Lv.${rating ?? '-'}`;
   }, [currentDifficulty, levelIndex]);
 
-  const pendingLevelPreview = useMemo(() => {
-    if (!pendingLevelStart) return null;
-    const level = LEVELS[pendingLevelStart.levelIndex];
-    if (!level) return null;
-    const selectedLevel = getLevelSpecForDifficulty(level, pendingLevelStart.difficulty);
-    if (!hasLevelDifficultyDraft(level, pendingLevelStart.difficulty)) return null;
-    const ratings = getLevelDifficultyRatings(level.id, pendingLevelStart.levelIndex + 1);
-    return {
-      levelName: selectedLevel.name,
-      difficultyLabel: `${pendingLevelStart.difficulty} Lv.${ratings[pendingLevelStart.difficulty] ?? '-'}`,
-      monsters: getLevelMonsterTypes(selectedLevel.waves),
-    };
-  }, [pendingLevelStart]);
-
   const challengeConfigPreview = useMemo(() => {
     if (challengeConfigLevelIndex == null) return null;
     const level = LEVELS[challengeConfigLevelIndex];
     if (!level) return null;
     const requestedDifficulty = starSel[challengeConfigLevelIndex] ?? 'EZ';
-    const difficulty = getPlayableDifficulty(LEVELS, challengeConfigLevelIndex, requestedDifficulty);
+    const difficulty = getPlayableDifficulty(LEVELS, challengeConfigLevelIndex, requestedDifficulty, localPlaytest);
     if (!hasLevelDifficultyDraft(level, difficulty)) return null;
     const selectedLevel = getLevelSpecForDifficulty(level, difficulty);
     const ratings = getLevelDifficultyRatings(level.id, challengeConfigLevelIndex + 1);
@@ -975,9 +997,15 @@ function App() {
       difficultyLabel: `${difficulty} Lv.${ratings[difficulty] ?? '-'}`,
       selected: challengeSel[challengeConfigLevelIndex] ?? [],
     };
-  }, [challengeConfigLevelIndex, challengeSel, starSel]);
+  }, [challengeConfigLevelIndex, challengeSel, starSel, localPlaytest]);
 
   const handleGameWin = useCallback(async () => {
+    if (localPlaytest) {
+      setWinReward({ coins: 0, message: '本地试玩完成，不保存进度或发放奖励。' });
+      setActiveChallengeRun(null);
+      navigateWithTransition('won');
+      return;
+    }
     if (levelIndex != null) {
       const L = LEVELS[levelIndex];
       const selectedLevel = getLevelSpecForDifficulty(L, currentDifficulty);
@@ -1057,7 +1085,7 @@ function App() {
     }
     setActiveChallengeRun(null);
     navigateWithTransition('won');
-  }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId]);
+  }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId, localPlaytest]);
 
   const settleEndlessReward = useCallback(async () => {
     if (endlessRewardBusyRef.current) return;
@@ -1112,6 +1140,38 @@ function App() {
     });
   }, [loadHub, navigateWithTransition]);
 
+  const enterLocalPlaytest = () => {
+    if (!import.meta.env.DEV) return;
+    localPlaytestRef.current = true;
+    setLocalPlaytest(true);
+    const items = [...PLANT_TYPES, ...ELEMENT_TYPES.map(element => `element:${element}`)];
+    setHub({
+      coins: 0, diamonds: 0, experience: 0, magicKeys: 0, shards: {}, plantShards: {}, elementShards: {}, chests: [],
+      unlockedItems: items,
+      towerLevels: Object.fromEntries(items.map(item => [item, 10])),
+    });
+    setHubLoadError(null);
+    setShowUpdateAnnouncement(false);
+    setSubmissionApprovalNotice(null);
+    setActiveFunMode(null);
+    setActiveLabConfig(null);
+    navigateWithTransition('chapters');
+  };
+
+  const exitLocalPlaytest = () => {
+    localPlaytestRef.current = false;
+    setLocalPlaytest(false);
+    useTDStore.setState({ running: false });
+    setHub(null);
+    setLevelIndex(null);
+    setWinReward(null);
+    setActiveChallengeRun(null);
+    setActiveLabConfig(null);
+    setStarSel({});
+    setChallengeSel({});
+    navigateWithTransition('auth');
+  };
+
   const handleTutorialComplete = useCallback(() => {
     markTutorialSeen();
     navigateWithTransition('hub');
@@ -1123,10 +1183,16 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div key={stage} className={`stage-container stage-container-${pageTransition}`}>
+      <div key={stage}
+        className={`stage-container stage-container-${pageTransition}${pendingLevelStart && levelIntroPhase === 'revealing' ? ' level-game-reveal' : ''}`}
+        {...(pendingLevelStart ? { inert: '' } : {})}
+        aria-hidden={Boolean(pendingLevelStart) || undefined}
+        style={{ visibility: pendingLevelStart && stage === 'playing' && levelIntroPhase !== 'revealing' ? 'hidden' : undefined }}
+      >
         {stage === 'auth' && (
           <AuthPage
             onAuthed={handleAuth}
+            onEnterPlaytest={enterLocalPlaytest}
             onEnterLab={() => {
               setActiveFunMode(null);
               setActiveLabConfig(null);
@@ -1140,10 +1206,11 @@ function App() {
             {/* 简易登录/注册栏 - 游戏进行时不显示 */}
             {stage !== 'playing' && stage !== 'tutorial' && (
               <AuthBar
+                onExitPlaytest={localPlaytest ? exitLocalPlaytest : undefined}
                 wallet={hub ?? undefined}
                 onShowAbout={() => setShowAbout(true)}
                 onNavigateBook={stage === 'book' || stage === 'ranking' ? undefined : goToBook}
-                onNavigateRanking={stage === 'ranking' || stage === 'book' ? undefined : goToRanking}
+                onNavigateRanking={localPlaytest || stage === 'ranking' || stage === 'book' ? undefined : goToRanking}
                 onNavigateTasks={stage === 'hub' ? () => {
                   window.history.pushState({}, '', '/tasks');
                   window.dispatchEvent(new PopStateEvent('popstate'));
@@ -1209,15 +1276,15 @@ function App() {
 
             {stage === 'lab' && (
               <BalanceLabPage
-                onBack={() => { setActiveLabConfig(null); navigateWithTransition(getToken() ? 'fun' : 'auth'); }}
+                onBack={() => { setActiveLabConfig(null); navigateWithTransition(localPlaytest ? 'chapters' : getToken() ? 'fun' : 'auth'); }}
                 onStartTest={startLabTest}
               />
             )}
 
             {stage === 'chapters' && (
               <ChapterSelectPage
-                unlocked={unlocked}
-                onBack={() => navigateWithTransition('hub')}
+                unlocked={localPlaytest ? LEVELS.length : unlocked}
+                onBack={localPlaytest ? exitLocalPlaytest : () => navigateWithTransition('hub')}
                 onSelectChapter={(chapterId) => {
                   setSelectedChapterId(chapterId);
                   navigateWithTransition('select');
@@ -1227,7 +1294,8 @@ function App() {
 
             {stage === 'select' && (
               <LevelSelectPage
-                unlocked={unlocked}
+                localPlaytest={localPlaytest}
+                unlocked={localPlaytest ? LEVELS.length : unlocked}
                 magicKeys={hub?.magicKeys ?? 0}
                 starSel={starSel}
                 challengeSel={challengeSel}
@@ -1287,6 +1355,7 @@ function App() {
 
             {stage === 'playing' && (
               <TDGame
+                suspended={Boolean(pendingLevelStart)}
                 difficultyLabel={activeLabConfig ? `${activeLabConfig.targetDifficulty} Lv.${activeLabConfig.difficultyRatings[activeLabConfig.targetDifficulty] ?? ''}` : currentDifficultyLabel}
                 onWin={activeLabConfig ? () => navigateWithTransition('lab') : handleGameWin}
                 onLose={activeLabConfig ? () => navigateWithTransition('lab') : handleGameLose}
@@ -1333,7 +1402,7 @@ function App() {
               onNextLevel={() => { setWinReward(null); toNextLevel(); }}
               onRestartLevel={() => { setWinReward(null); restartLevel(); }}
               onBackToSelect={() => { setWinReward(null); navigateWithTransition('select'); setLevelIndex(null); }}
-              onBackToHub={() => { setWinReward(null); setActiveFunMode(null); navigateWithTransition('hub'); setLevelIndex(null); }}
+              onBackToHub={localPlaytest ? exitLocalPlaytest : () => { setWinReward(null); setActiveFunMode(null); navigateWithTransition('hub'); setLevelIndex(null); }}
               onRestartFunMode={() => { if (activeFunMode) { setWinReward(null); startFunMode(activeFunMode); } }}
               onBackToFunMode={() => { setWinReward(null); navigateWithTransition('fun'); }}
             />
@@ -1347,13 +1416,14 @@ function App() {
       )}
       </div>
 
-      {pendingLevelPreview && (
-        <LevelStartModal
-          levelName={pendingLevelPreview.levelName}
-          difficultyLabel={pendingLevelPreview.difficultyLabel}
-          monsters={pendingLevelPreview.monsters}
-          onStart={confirmPendingLevelStart}
-          onOpenBook={openBookFromLevelStart}
+      {pendingLevelStart && (
+        <LevelStartTransition
+          key={pendingLevelStart.id}
+          metadata={pendingLevelStart.metadata}
+          monsters={pendingLevelStart.monsters}
+          onCovered={confirmPendingLevelStart}
+          onPhaseChange={setLevelIntroPhase}
+          onComplete={completeLevelStart}
         />
       )}
 

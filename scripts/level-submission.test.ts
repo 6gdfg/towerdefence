@@ -103,13 +103,22 @@ test('all 1348 configured monsters spawn with valid positions, statistics and bo
   assert.equal(total, 1348);
 });
 
-test('release 0.5.15 announces mobile play and endless balance changes', () => {
-  assert.equal(CURRENT_RELEASE.version, '0.5.15');
+test('release 0.6 preserves earlier notes and announces the new map, enemies, levels and conveyor rules', () => {
+  assert.equal(CURRENT_RELEASE.version, '0.6');
   assert.ok(CURRENT_RELEASE.title.endsWith(CURRENT_RELEASE.version));
   const notes = CURRENT_RELEASE.notes.join('\n');
-  for (const text of ['手机', '横屏', '每2波', '击退波数×50', '主动退出']) {
+  for (const text of ['启动动画', '字体', 'Combo', '满3次', '漏怪归零', '全屏', '回旋叶', '180阳光', '狙击手', '实际攻击数值不变']) {
     assert.ok(notes.includes(text), text);
   }
+  assert.deepEqual(CURRENT_RELEASE.notes.slice(0, 6), [
+    '新增关卡启动动画，展示本关怪物与关卡信息。',
+    '全局更换字体，优化字体加载。',
+    '新增 Combo 连杀显示：满3次击杀后显示，漏怪归零。',
+    '优化手机全屏操作与 iPhone / iPad 全屏提示。',
+    '回旋叶价格调整为180阳光。',
+    '修复高等级狙击手与大射程植物的渲染性能问题，实际攻击数值不变。',
+  ]);
+  for (const text of ['Z 地图', '玩偶匣怪', '冻结暂停', '2-8', '传送带', '497阳光', '向下取整']) assert.ok(notes.includes(text), text);
   assert.equal(notes.includes('选卡'), false);
 });
 

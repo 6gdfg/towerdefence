@@ -7,6 +7,7 @@ export interface MapSpec {
   desc?: string;
   size: { w: number; h: number };
   roadWidthCells: number;
+  allowDiagonal?: boolean;
   path: MapPath;
   plantGrid?: Position[];
 }
@@ -19,6 +20,7 @@ type GridMapDef = {
   desc?: string;
   size?: { w: number; h: number };
   roadWidthCells?: number;
+  allowDiagonal?: boolean;
   path: GridPath | readonly GridPath[];
 };
 
@@ -62,7 +64,7 @@ function isCellCenter(point: Position): boolean {
   return Number.isInteger(col) && Number.isInteger(row);
 }
 
-function expandSegmentCells(a: Position, b: Position): string[] {
+function expandSegmentCells(a: Position, b: Position, allowDiagonal = false): string[] {
   const start = toCellPoint(a);
   const end = toCellPoint(b);
   const cells: string[] = [];
@@ -85,7 +87,14 @@ function expandSegmentCells(a: Position, b: Position): string[] {
     return cells;
   }
 
-  throw new Error(`Map path segment must be horizontal or vertical: (${a.x},${a.y}) -> (${b.x},${b.y})`);
+  if (!allowDiagonal) throw new Error(`Map path segment must be horizontal or vertical: (${a.x},${a.y}) -> (${b.x},${b.y})`);
+  // Rasterize only the new diagonal roads; existing orthogonal planting grids stay unchanged.
+  for (let row = Math.min(start.row, end.row) - 1; row <= Math.max(start.row, end.row) + 1; row++) {
+    for (let col = Math.min(start.col, end.col) - 1; col <= Math.max(start.col, end.col) + 1; col++) {
+      if (distancePointToSegment(toCenter([col, row]), a, b) <= 0.5) cells.push(keyOf(col, row));
+    }
+  }
+  return cells;
 }
 
 function collectRoadCells(map: MapSpec): Set<string> {
@@ -93,7 +102,7 @@ function collectRoadCells(map: MapSpec): Set<string> {
 
   for (const path of normalizeMapPaths(map.path)) {
     for (let i = 0; i < path.length - 1; i++) {
-      for (const key of expandSegmentCells(path[i], path[i + 1])) {
+      for (const key of expandSegmentCells(path[i], path[i + 1], map.allowDiagonal)) {
         cells.add(key);
       }
     }
@@ -113,6 +122,22 @@ function collectBlockedPlantCells(map: MapSpec): Set<string> {
     for (let dy = -PLANT_ROAD_PADDING_CELLS; dy <= PLANT_ROAD_PADDING_CELLS; dy++) {
       for (let dx = -PLANT_ROAD_PADDING_CELLS; dx <= PLANT_ROAD_PADDING_CELLS; dx++) {
         blocked.add(keyOf(col + dx, row + dy));
+      }
+    }
+  }
+
+  if (map.allowDiagonal) {
+    for (const path of normalizeMapPaths(map.path)) {
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i], b = path[i + 1];
+        if (a.x === b.x || a.y === b.y) continue;
+        for (let row = 0; row < map.size.h; row++) {
+          for (let col = 0; col < map.size.w; col++) {
+            if (distancePointToSegment(toCenter([col, row]), a, b) <= map.roadWidthCells / 2 + 0.5) {
+              blocked.add(keyOf(col, row));
+            }
+          }
+        }
       }
     }
   }
@@ -166,6 +191,7 @@ function createMap(def: GridMapDef): MapSpec {
     desc: def.desc,
     size: def.size ?? DEFAULT_MAP_SIZE,
     roadWidthCells: def.roadWidthCells ?? DEFAULT_ROAD_WIDTH_CELLS,
+    allowDiagonal: def.allowDiagonal,
     path: toMapPath(def.path),
   };
 
@@ -212,7 +238,7 @@ function validateMap(map: MapSpec): void {
       if (a.x === b.x && a.y === b.y) {
         throw new Error(`Map ${map.id} path ${pathIndex} has a zero-length segment at index ${i}`);
       }
-      if (a.x !== b.x && a.y !== b.y) {
+      if (a.x !== b.x && a.y !== b.y && !map.allowDiagonal) {
         throw new Error(`Map ${map.id} path ${pathIndex} has a diagonal segment at index ${i}`);
       }
     }
@@ -384,6 +410,13 @@ export const MAPS: MapSpec[] = [
       [[34, 3], [34, 10], [20, 10]],
       [[34, 17], [34, 10], [20, 10]],
     ],
+  }),
+  createMap({
+    id: 18,
+    name: 'Z',
+    desc: '单入口沿上横、斜线、下横前进；上方和下方各留一行种植空间',
+    allowDiagonal: true,
+    path: [[2, 3], [37, 3], [2, 16], [37, 16]],
   }),
   createMap({
     id: SPIRAL_MAP_ID,

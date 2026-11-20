@@ -1,0 +1,10 @@
+{
+  "id": "/",
+  "name": "Tower Defense",
+  "short_name": "Tower Defense",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#f3f4f6"
+}

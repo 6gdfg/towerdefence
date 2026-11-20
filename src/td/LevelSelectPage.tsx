@@ -10,6 +10,7 @@ import type { ChallengeId } from './ChallengeSelectPage';
 import { getCoreDifficultyUnlockStar, getPlayableDifficulty, isAtDifficultyUnlocked } from './levelUnlockLogic';
 
 type LevelSelectPageProps = {
+  localPlaytest?: boolean;
   unlocked: number;
   magicKeys: number;
   starSel: Record<number, DifficultyCode>;
@@ -30,6 +31,7 @@ const CORE_DIFFICULTIES = [
 ] as const;
 
 export default function LevelSelectPage({
+  localPlaytest = false,
   unlocked,
   magicKeys,
   starSel,
@@ -81,10 +83,10 @@ export default function LevelSelectPage({
           const displayLabel = getChapterLevelLabel(i);
           const ratings = getLevelDifficultyRatings(L.id, levelNumber);
           const hasAt = Boolean(hasLevelDifficultyDraft(L, 'AT') && typeof ratings.AT === 'number');
-          const showAt = hasAt && isAtDifficultyUnlocked(LEVELS, i);
+          const showAt = hasAt && isAtDifficultyUnlocked(LEVELS, i, localPlaytest);
           const rawSelectedDifficulty = starSel[i] ?? 'EZ';
-          const unlockedCoreStar = getCoreDifficultyUnlockStar(LEVELS, i);
-          const selectedDifficulty = getPlayableDifficulty(LEVELS, i, rawSelectedDifficulty);
+          const unlockedCoreStar = getCoreDifficultyUnlockStar(LEVELS, i, localPlaytest);
+          const selectedDifficulty = getPlayableDifficulty(LEVELS, i, rawSelectedDifficulty, localPlaytest);
           const selectedChallenges = challengeSel[i] ?? [];
           const selectedLevel = getLevelSpecForDifficulty(L, selectedDifficulty);
           const selectedConfigured = hasLevelDifficultyDraft(L, selectedDifficulty);

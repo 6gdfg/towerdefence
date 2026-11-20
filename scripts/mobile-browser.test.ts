@@ -23,7 +23,7 @@ import BalanceLabPage from '/src/td/BalanceLabPage.tsx';
 import { MAPS, getPlantGrid } from '/src/td/maps.ts';
 import { PLANT_TYPES, ELEMENT_TYPES } from '/src/td/appConfig.ts';
 import { CELL_SIZE } from '/src/config/mapConfig.ts';
-const map = MAPS.find(map => map.id === 10);
+const map = MAPS.find(map => map.id === (window.__fixtureMode === 'Z' ? 18 : 10));
 const levels = Object.fromEntries([...PLANT_TYPES, ...ELEMENT_TYPES.map(id=>'element:'+id)].map(id=>[id,10]));
 const atModeConfig = window.__fixtureMode === 'conveyor' ? {type:'conveyor',conveyor:{intervalSec:100,maxQueue:25,pool:[{kind:'plant',id:'bottleGrass',weight:100}]}}
   : window.__fixtureMode === 'whackAMole' ? {type:'whackAMole',whackAMole:{plants:['bottleGrass'],hammerBaseDamage:30}} : null;
@@ -52,6 +52,26 @@ async function openFixture(width: number, height: number, phone = true, mode?: s
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const errors: string[] = [];
+  if (mode?.includes('fullscreen') || mode === 'safari-standalone') await page.addInitScript({ content: `
+    const mode = ${JSON.stringify(mode)};
+    Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, value: false });
+    Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', { configurable: true, value: undefined });
+    Object.defineProperty(HTMLElement.prototype, 'webkitRequestFullscreen', { configurable: true, value: undefined });
+    if (mode === 'safari-standalone') Object.defineProperty(navigator, 'standalone', { configurable: true, value: true });
+    if (mode === 'webkit-fullscreen') {
+      let active = null;
+      Object.defineProperty(document, 'webkitFullscreenElement', { configurable: true, get: () => active });
+      Object.defineProperty(document, 'webkitFullscreenEnabled', { configurable: true, value: true });
+      Object.defineProperty(HTMLElement.prototype, 'webkitRequestFullscreen', { configurable: true, value: function () {
+        active = this;
+        document.dispatchEvent(new Event('webkitfullscreenchange'));
+      } });
+      Object.defineProperty(document, 'webkitExitFullscreen', { configurable: true, value: () => {
+        active = null;
+        document.dispatchEvent(new Event('webkitfullscreenchange'));
+      } });
+    }
+  ` });
   if (mode) await page.addInitScript((mode: string) => {
     (window as any).__fixtureMode = mode;
     if (mode.startsWith('lab')) localStorage.setItem('td-balance-lab-config-v2', JSON.stringify({
@@ -88,11 +108,181 @@ async function openFixture(width: number, height: number, phone = true, mode?: s
   return { context, page, errors };
 }
 
+for (const [width, height, phone] of [[1797, 900, false], [1024, 768, false], [844, 390, true], [568, 320, true]] as const) {
+  test(`combo is centered and does not overlap stats or controls at ${width}x${height}`, options, async () => {
+    const { context, page, errors } = await openFixture(width, height, phone);
+    try {
+      assert.equal(await page.getByRole('button', { name: '关于', exact: true }).count(), 0);
+      assert.equal(await page.getByRole('link', { name: 'GitHub' }).count(), 0);
+      const comboBox = await page.locator('.game-combo').evaluate((node: HTMLElement) => node.getBoundingClientRect().toJSON());
+      for (const combo of [0, 1, 2]) {
+        await page.evaluate((combo: number) => (window as any).__tdStore.setState({ combo }), combo);
+        assert.equal(await page.locator('.game-combo').isVisible(), false);
+      }
+      await page.evaluate(() => (window as any).__tdStore.setState({ combo: 3 }));
+      assert.equal(await page.getByRole('group', { name: 'Combo 3', exact: true }).isVisible(), true);
+      const visibleBox = await page.locator('.game-combo').boundingBox();
+      assert.equal(visibleBox.width, comboBox.width);
+      for (const combo of [775, 123456789]) {
+        await page.evaluate((combo: number) => (window as any).__tdStore.setState({ combo }), combo);
+        await page.waitForTimeout(200);
+        const badge = await page.locator('.game-combo').boundingBox();
+        const header = await page.locator('.game-topbar').boundingBox();
+        const stats = await page.locator('.game-stats').boundingBox();
+        const controls = await page.locator('.game-actions').boundingBox();
+        assert.ok(Math.abs(badge.x + badge.width / 2 - (header.x + header.width / 2)) < 1);
+        assert.ok(stats.x + stats.width <= badge.x && badge.x + badge.width <= controls.x);
+        assert.equal(await page.locator('.game-combo-number').textContent(), String(combo));
+        const text = await page.locator('.game-combo-number').evaluate((node: HTMLElement) => ({ width: node.clientWidth, scroll: node.scrollWidth }));
+        assert.ok(text.scroll <= text.width + 1);
+        for (const control of await page.locator('.game-actions > *').all()) {
+          const rect = await control.boundingBox();
+          assert.ok(rect.x >= controls.x - 1 && rect.x + rect.width <= controls.x + controls.width + 1);
+          assert.ok(rect.y + rect.height <= header.y + header.height + 1);
+        }
+      }
+      await page.evaluate(() => (window as any).__tdStore.setState({ combo: 775 }));
+      await page.waitForTimeout(200);
+      const map = await page.locator('.game-map-svg').boundingBox();
+      assert.ok(map.width > width * 0.5 && map.height > height * 0.4);
+      await page.screenshot({ path: `node_modules/.mobile-screenshots/combo-${width}.png` });
+      await page.evaluate(() => (window as any).__tdStore.setState({ combo: 0 }));
+      assert.equal(await page.locator('.game-combo').isVisible(), false);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+}
+
+for (const [width, height, phone] of [[1440, 900, false], [844, 390, true]] as const) {
+  test(`level 5000 sniper keeps SVG geometry bounded and remains playable at ${width}x${height}`, options, async t => {
+    const { context, page, errors } = await openFixture(width, height, phone);
+    try {
+      const snapshot = await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        const state = store.getState();
+        store.setState({ towerLevelMap: { sniper: 5000, holyFlower: 5000 }, availablePlants: ['sniper', 'holyFlower'] });
+        const center = state.plantGrid.reduce((best: any, point: any) =>
+          Math.hypot(point.x - state.mapWidth / 2, point.y - state.mapHeight / 2)
+          < Math.hypot(best.x - state.mapWidth / 2, best.y - state.mapHeight / 2) ? point : best);
+        store.getState().placeTower('sniper', center);
+        store.getState().applyElement('light', center);
+        const tower = store.getState().towers[0];
+        store.setState({ enemies: Array.from({ length: 60 }, (_, index) => ({
+          id: `stress-${index}`, shape: 'circle', pos: { x: 10 + index * 0.05, y: 8 },
+          hp: 1e10, maxHp: 1e10, speed: 0, leakDamage: 1, pathId: 0, pathIndex: 0, t: 0.1, progress: index / 100,
+        })) });
+        return { id: tower.id, range: tower.range, damage: tower.damage, fireRate: tower.fireRate,
+          legacyDiameter: tower.range * (window as any).__tdCellSize * 2 };
+      });
+      assert.equal(snapshot.range, 5048.01);
+      assert.ok(snapshot.legacyDiameter > 300000);
+      assert.ok(snapshot.damage > 60000 && snapshot.fireRate > 30);
+      const tower = page.locator(`[data-tower-id="${snapshot.id}"]`);
+      await tower.waitFor();
+      const bounds = await tower.evaluate((node: SVGGraphicsElement) => {
+        const box = node.getBBox();
+        return { width: box.width, height: box.height, filter: getComputedStyle(node).filter,
+          largeCircles: [...node.querySelectorAll('circle')].filter(circle => circle.r.baseVal.value > 1000).length };
+      });
+      assert.ok(bounds.width < 120 && bounds.height < 120, JSON.stringify(bounds));
+      assert.equal(bounds.filter, 'none');
+      assert.equal(bounds.largeCircles, 0);
+      assert.equal(await tower.locator('.tower-range').count(), 0);
+      const frames = await page.evaluate(`new Promise(resolve => {
+        let frames = 0;
+        const start = performance.now();
+        const tick = () => { frames++; if (performance.now() - start >= 1200) resolve(frames); else requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+      })`);
+      assert.ok(frames > 5, `Browser stopped responding: ${frames} frames`);
+      t.diagnostic(`Level 5000 with light / 60 enemies: ${frames} frames in 1.2s; tower bounds ${bounds.width}x${bounds.height}px`);
+      assert.ok(await page.evaluate(() => (window as any).__tdStore.getState().projectiles.length) > 0);
+      assert.ok(await page.evaluate(() => (window as any).__tdStore.getState().gameTime) > 1);
+      assert.ok(await page.locator('.game-map-svg').isVisible());
+      await page.screenshot({ path: `node_modules/.mobile-screenshots/sniper-5000-${width}.png` });
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+}
+
+for (const [width, height, phone] of [[1440, 900, false], [844, 390, true]] as const) {
+  test(`Z map and normal/boss jack warnings render correctly at ${width}x${height}`, options, async () => {
+    const { context, page, errors } = await openFixture(width, height, phone, 'Z');
+    try {
+      await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        store.setState({ running: false });
+        store.getState().placeTower('bottleGrass', { x: 20.5, y: 1.5 });
+        store.getState().placeTower('pumpkinHead', { x: 20.5, y: 1.5 });
+        const state = store.getState();
+        store.setState({ gameTime: 8, running: true, nextSkySunAt: null,
+          towers: state.towers.map((t: any) => ({ ...t, frozenUntil: 100 })),
+          enemies: [
+            { id: 'jack-warning', shape: 'jackInTheBox', pos: { x: 20.5, y: 3.5 }, hp: 80, maxHp: 80,
+              speed: 2.5, leakDamage: 1, pathId: 0, pathIndex: 0, t: 18 / 35, progress: 0.1, specialTimer: 8 },
+            { id: 'boss-warning', shape: 'jackInTheBox', pos: { x: 6.5, y: 16.5 }, hp: 8072, maxHp: 8072,
+              speed: 0.6, leakDamage: 1, isBoss: true, level: 1000, pathId: 0, pathIndex: 2, t: 4 / 35, progress: 0.7, specialTimer: 8 },
+          ] });
+        store.getState().update(0.1);
+        store.setState({ running: false });
+      });
+      await page.locator('.jack-explosion-warning').first().waitFor();
+      assert.equal(await page.locator('.jack-explosion-warning').count(), 2);
+      const warnings = await page.locator('.jack-explosion-warning').evaluateAll((nodes: SVGCircleElement[]) => nodes.map(node => ({
+        radius: node.r.baseVal.value, pointerEvents: getComputedStyle(node).pointerEvents,
+        animation: getComputedStyle(node).animationName, fill: node.getAttribute('fill'),
+      })));
+      for (const warning of warnings) {
+        assert.equal(warning.radius, 60);
+        assert.equal(warning.pointerEvents, 'none');
+        assert.equal(warning.animation, 'jack-warning');
+      }
+      assert.equal(await page.locator('[data-enemy-id="jack-warning"] text').first().textContent(), '!');
+      assert.equal(await page.locator('[data-enemy-id="boss-warning"] > g svg').getAttribute('width'), '48');
+      const lines = await page.locator('.map-switch-layer polyline').evaluateAll((nodes: SVGPolylineElement[]) => nodes.map(n => n.getAttribute('points')));
+      assert.ok(lines.includes('75,105 1125,105 75,495 1125,495'));
+      const snapshot = await page.evaluate(() => {
+        const state = (window as any).__tdStore.getState();
+        return { width: state.mapWidth, height: state.mapHeight, towers: state.towers.length, covers: state.plantCovers.length };
+      });
+      assert.deepEqual(snapshot, { width: 40, height: 20, towers: 1, covers: 1 });
+      await page.screenshot({ path: `node_modules/.mobile-screenshots/Z-jack-${width}.png` });
+      const frozen = await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        const state = store.getState();
+        store.setState({ running: true, enemies: state.enemies.map((e: any) => ({ ...e, freezeUntil: state.gameTime + 2 })) });
+        store.getState().update(1);
+        store.setState({ running: false });
+        return store.getState().enemies.map((e: any) => e.explosionAt);
+      });
+      assert.deepEqual(frozen, [10.5, 10.5]);
+      assert.equal(await page.locator('.jack-explosion-warning').count(), 2);
+      assert.equal(await page.locator('.jack-explosion-warning').first().evaluate((node: SVGCircleElement) => getComputedStyle(node).animationPlayState), 'paused');
+      await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        store.setState({ running: true, enemies: store.getState().enemies.map((e: any) => ({ ...e, freezeUntil: undefined })) });
+        store.getState().update(1.5);
+        store.setState({ running: false });
+      });
+      assert.equal(await page.locator('.jack-explosion-warning').count(), 0);
+      const after = await page.evaluate(() => {
+        const state = (window as any).__tdStore.getState();
+        return { towers: state.towers.length, covers: state.plantCovers.length, enemies: state.enemies.length, combo: state.combo };
+      });
+      assert.deepEqual(after, { towers: 1, covers: 0, enemies: 0, combo: 2 });
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+}
+
 for (const [width, height] of [[568, 320], [667, 375], [844, 390], [915, 412]]) {
   test(`landscape phone ${width}x${height} keeps the map visible and places plants at the touched grid`, options, async () => {
     const { context, page, errors } = await openFixture(width, height);
     try {
       assert.equal(await page.locator('.game-phone').count(), 1);
+      const resetView = page.getByRole('button', { name: '重置地图视野', exact: true });
+      assert.equal(await resetView.isDisabled(), true);
+      assert.equal(await resetView.locator('.lucide-rotate-ccw').count(), 1);
       assert.equal(await page.getByRole('button', { name: '关于', exact: true }).count(), 0);
       assert.equal(await page.getByRole('link', { name: 'GitHub' }).count(), 0);
       const map = await page.locator('.game-map-svg').boundingBox();
@@ -123,7 +313,8 @@ for (const [width, height] of [[568, 320], [667, 375], [844, 390], [915, 412]]) 
       await page.getByRole('button', { name: '铲子', exact: true }).click();
       await page.touchscreen.tap(target.x, target.y);
       assert.equal(await page.evaluate(() => (window as any).__tdStore.getState().towers.length), 0);
-      await page.getByRole('button', { name: '显示完整地图', exact: true }).click();
+      await page.getByRole('button', { name: '重置地图视野', exact: true }).click();
+      assert.equal(await resetView.isDisabled(), true);
       await page.screenshot({ path: `node_modules/.mobile-screenshots/phone-${width}.png` });
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
@@ -185,7 +376,8 @@ for (const [width, height] of [[1440, 900], [1024, 768]]) {
     const { context, page, errors } = await openFixture(width, height, false, undefined, width === 1024);
     try {
       assert.equal(await page.locator('.game-phone').count(), 0);
-      assert.equal(await page.getByRole('button', { name: '关于', exact: true }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: '关于', exact: true }).count(), 0);
+      assert.equal(await page.getByRole('link', { name: 'GitHub' }).count(), 0);
       const map = await page.locator('.game-map-svg').boundingBox();
       assert.ok(map.width > 600 && map.height > 250);
       await page.screenshot({ path: `node_modules/.mobile-screenshots/desktop-${width}.png` });
@@ -302,3 +494,64 @@ for (const mode of ['lab', 'labPhantom']) {
     } finally { await context.close(); }
   });
 }
+
+test('unsupported iPhone fullscreen explains the home-screen option and pauses safely across rotation', options, async () => {
+  const { context, page, errors } = await openFixture(844, 390, true, 'safari-no-fullscreen');
+  try {
+    await page.getByRole('button', { name: '全屏', exact: true }).click();
+    await page.getByRole('dialog', { name: 'iPhone / iPad 全屏游玩' }).waitFor();
+    assert.match(await page.locator('.game-fullscreen-dialog').textContent(), /添加到主屏幕/);
+    assert.equal(await page.evaluate(() => (window as any).__tdStore.getState().running), false);
+    const time = await page.evaluate(() => (window as any).__tdStore.getState().gameTime);
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => (window as any).__tdStore.getState().gameTime), time);
+    await page.screenshot({ path: 'node_modules/.mobile-screenshots/safari-fullscreen-help.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: '确定', exact: true }).click();
+    assert.equal(await page.evaluate(() => (window as any).__tdStore.getState().running), false);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.getByRole('button', { name: '暂停', exact: true }).waitFor();
+    await page.getByRole('button', { name: '暂停', exact: true }).click();
+    await page.getByRole('button', { name: '全屏', exact: true }).click();
+    await page.getByRole('button', { name: '确定', exact: true }).click();
+    assert.equal(await page.evaluate(() => (window as any).__tdStore.getState().running), false);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('WebKit fullscreen updates the button and exits through the prefixed API', options, async () => {
+  const { context, page, errors } = await openFixture(844, 390, true, 'webkit-fullscreen');
+  try {
+    await page.getByRole('button', { name: '全屏', exact: true }).click();
+    await page.getByRole('button', { name: '退出全屏', exact: true }).waitFor();
+    assert.equal(await page.locator('.game-fullscreen-dialog').count(), 0);
+    await page.getByRole('button', { name: '退出全屏', exact: true }).click();
+    await page.getByRole('button', { name: '全屏', exact: true }).waitFor();
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('installed iPhone standalone windows do not show an unusable fullscreen toggle', options, async () => {
+  const { context, page, errors } = await openFixture(844, 390, true, 'safari-standalone');
+  try {
+    assert.equal(await page.getByRole('button', { name: '全屏', exact: true }).count(), 0);
+    assert.equal(await page.locator('.game-fullscreen-dialog').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('native fullscreen keeps its exit control and restores the normal phone layout', options, async () => {
+  const { context, page, errors } = await openFixture(844, 390);
+  try {
+    await page.getByRole('button', { name: '全屏', exact: true }).click();
+    await page.getByRole('button', { name: '退出全屏', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.fullscreenElement?.classList.contains('game-shell')), true);
+    assert.equal(await page.locator('.game-fullscreen-dialog').count(), 0);
+    await page.getByRole('button', { name: '退出全屏', exact: true }).click();
+    await page.getByRole('button', { name: '全屏', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.fullscreenElement), null);
+    const map = await page.locator('.game-map-svg').boundingBox();
+    assert.ok(map.x >= 0 && map.x + map.width <= 845 && map.y + map.height <= 391);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});

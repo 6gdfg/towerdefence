@@ -61,6 +61,11 @@ const ARMOR_REPAIR_MAX_RATIO = 0.12;
 const ARMOR_REPAIR_MIN_AMOUNT = 10;
 const WIND_PROJECTILE_KNOCKBACK_COOLDOWN = 1.5;
 const TANK_CLEAR_INTERVAL = 20;
+const JACK_FUSE_MIN = 8;
+const JACK_FUSE_MAX = 20;
+const JACK_WARNING_DURATION = 1.5;
+const JACK_EXPLOSION_RADIUS = 2;
+const JACK_EXPLOSION_DAMAGE = 2000;
 
 // Path demo (fallback)
 export const TD_PATH: Position[] = [
@@ -915,6 +920,12 @@ export function hasWonLevel(state: Pick<TDState, 'mode' | 'lives' | 'isWaveActiv
   return state.mode !== 'endless' && state.lives > 0 && !state.isWaveActive && state.waveIndex >= state.waves.length;
 }
 
+function countComboKill(enemy: Enemy): number {
+  if (enemy.hp > 0 || enemy.comboCounted) return 0;
+  enemy.comboCounted = true;
+  return 1;
+}
+
 export interface TDStore extends TDState {
   startWave: () => void;
   placeTower: (type: PlantType, pos: Position) => void;
@@ -937,6 +948,7 @@ export interface TDStore extends TDState {
 const INITIAL_TD_STATE: TDState = {
   running: true,
   gameTime: 0,
+  combo: 0,
   gold: 100,
   lives: 20,
   maxLives: 20,
@@ -1057,6 +1069,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     set({
       enemies,
       gold,
+      combo: state.combo + countComboKill(enemy),
       damagePopups: [...state.damagePopups, {
         id: `hammer-${Date.now()}-${Math.random()}`,
         pos: { ...enemy.pos },
@@ -1085,6 +1098,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     set({
       running: true,
       gameTime: 0,
+      combo: 0,
       gold: level.startGold,
       lives: level.lives,
       maxLives: Math.max(level.lives, opts?.maxLives ?? level.lives),
@@ -1439,6 +1453,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
     let plantCooldowns: Partial<Record<PlantType, number>> = { ...state.plantCooldowns };
     let gold = state.gold;
     let lives = state.lives;
+    let combo = state.combo;
     let tankLeaked = false;
     const maxLives = Math.max(1, state.maxLives ?? state.lives);
     let waveIndex = state.waveIndex;
@@ -1462,6 +1477,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       ?? ((state.disableKillRewards ?? false) ? 0 : null);
     const triggerEnemyDeathEffects = () => {
       enemies.forEach(enemy => {
+        combo += countComboKill(enemy);
         if (enemy.hp > 0 || enemy.deathEffectTriggered) return;
         enemy.deathEffectTriggered = true;
         if (enemy.specialType === 'charityAmbassador') {
@@ -1768,6 +1784,8 @@ export const useTDStore = create<TDStore>((set, get) => ({
             enemy.specialTimer = gameTime + ARMOR_REPAIR_INTERVAL;
           } else if (enemy.shape === 'tank') {
             enemy.specialTimer = gameTime + TANK_CLEAR_INTERVAL;
+          } else if (enemy.shape === 'jackInTheBox') {
+            enemy.specialTimer = gameTime + JACK_FUSE_MIN + Math.random() * (JACK_FUSE_MAX - JACK_FUSE_MIN);
           }
           enemies.push(enemy);
           nextCursor = {
@@ -1796,6 +1814,17 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
       spawnCursor = nextSpawnCursors.length > 0 ? nextSpawnCursors : null;
     }
+
+    enemies.forEach(enemy => {
+      if (enemy.shape !== 'jackInTheBox' || enemy.hp <= 0) return;
+      enemy.specialTimer ??= gameTime + JACK_FUSE_MIN + Math.random() * (JACK_FUSE_MAX - JACK_FUSE_MIN);
+      const pausedSeconds = Math.max(0, Math.min(gameTime, enemy.freezeUntil ?? 0) - prevGameTime);
+      enemy.specialTimer += pausedSeconds;
+      if (enemy.explosionAt != null) enemy.explosionAt += pausedSeconds;
+      if (enemy.explosionAt == null && gameTime >= enemy.specialTimer && gameTime >= (enemy.freezeUntil ?? 0)) {
+        enemy.explosionAt = enemy.specialTimer + JACK_WARNING_DURATION;
+      }
+    });
 
     const previousEnemyProgress = new Map(enemies.map(enemy => [enemy.id, enemy.progress]));
     let antiAirFields = towers.filter(tower => (
@@ -1887,15 +1916,17 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const slowFactor = frozen ? 0 : slowed ? (1 - (e.slowPct || 0)) : 1;
         const boostMultiplier = e.speedBoostUntil && gameTime < e.speedBoostUntil ? (e.speedBoostMultiplier || 1) : 1;
         const pressureMultiplier = getWindPressureEnemySpeedMultiplier(e, enemies);
-        const speed = newspaperStunned ? 0 : baseSpeed * slowFactor * boostMultiplier * pressureMultiplier;
+        const speed = newspaperStunned || e.explosionAt != null ? 0 : baseSpeed * slowFactor * boostMultiplier * pressureMultiplier;
         let i = e.pathIndex;
-        let t = e.t + (speed * dt) / Math.max(0.0001, segmentLength(path[i], path[i + 1]));
+        let distance = e.t * segmentLength(path[i], path[i + 1]) + speed * dt;
         let reached = false;
         let pos = e.pos;
-        while (t >= 1 && i < path.length - 2) {
+        // Carry world distance across turns, including unequal-length Z segments.
+        while (distance >= segmentLength(path[i], path[i + 1]) && i < path.length - 2) {
+          distance -= segmentLength(path[i], path[i + 1]);
           i += 1;
-          t -= 1;
         }
+        const t = distance / Math.max(0.0001, segmentLength(path[i], path[i + 1]));
         if (i >= path.length - 2 && t >= 1) {
           reached = true;
         }
@@ -1915,6 +1946,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
         const path = paths[e.pathId]; // 使用敌人自己的路径
         const atEnd = e.pathIndex >= path.length - 2 && e.t >= 1;
         if (atEnd && e.hp > 0) {
+          combo = 0;
           if (e.shape === 'tank') tankLeaked = true;
           lives -= e.leakDamage ?? 1;
           if ((e.shape === 'tank' || lives <= 0) && e.endlessWaveNumber != null) {
@@ -2094,7 +2126,29 @@ export const useTDStore = create<TDStore>((set, get) => ({
     const consumedPlantIds = new Set<string>();
     enemies.forEach(enemy => {
       if (enemy.hp <= 0) return;
-      if (enemy.shape === 'tank') {
+      if (enemy.shape === 'jackInTheBox') {
+        if (gameTime < (enemy.freezeUntil ?? 0)) return;
+        if (enemy.explosionAt != null && gameTime >= enemy.explosionAt) {
+          const affectedTowerIds = new Set(towers.filter(tower => (
+            getDistance(tower.pos.x, tower.pos.y, enemy.pos.x, enemy.pos.y) <= JACK_EXPLOSION_RADIUS
+          )).map(tower => tower.id));
+          const coveredIds = new Set(plantCovers.map(cover => cover.towerId));
+          towers = towers.filter(tower => !affectedTowerIds.has(tower.id) || coveredIds.has(tower.id));
+          plantCovers = plantCovers.filter(cover => !affectedTowerIds.has(cover.towerId));
+          towersModified = true;
+          // Self-destruction is a normal death, independent of armor or maximum HP.
+          enemy.hp = 0;
+          if (!enemy.rewardGiven) {
+            enemy.rewardGiven = true;
+            gold += rewardForEnemy(enemy, killRewardOverride);
+          }
+          enemies.forEach(target => {
+            if (target.hp <= 0 || target.id === enemy.id) return;
+            if (getDistance(target.pos.x, target.pos.y, enemy.pos.x, enemy.pos.y) > JACK_EXPLOSION_RADIUS) return;
+            dealDamage(target, JACK_EXPLOSION_DAMAGE, '#ef4444');
+          });
+        }
+      } else if (enemy.shape === 'tank') {
         if (gameTime < Math.max(enemy.freezeUntil ?? 0, enemy.immobilizedUntil ?? 0)) return;
         if ((enemy.specialTimer ?? gameTime + TANK_CLEAR_INTERVAL) <= gameTime) {
           if (towers.length > 0) {
@@ -2114,7 +2168,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
           const healRadius = 2.8;
           const healAmount = Math.max(18, Math.ceil(enemy.maxHp * 0.06));
           enemies.forEach(target => {
-            if (target.id === enemy.id) return;
+            if (target.id === enemy.id || target.hp <= 0) return;
             if (getDistance(target.pos.x, target.pos.y, enemy.pos.x, enemy.pos.y) <= healRadius) {
               target.hp = Math.min(target.maxHp, target.hp + healAmount);
             }
@@ -2683,6 +2737,7 @@ export const useTDStore = create<TDStore>((set, get) => ({
       nextSkySunAt,
       gold,
       lives,
+      combo,
       isWaveActive,
       waveIndex,
       spawnCursor,
@@ -2701,49 +2756,49 @@ export const useTDStore = create<TDStore>((set, get) => ({
 
 function rewardForEnemy(e: Enemy, override: number | null = null): number {
   if (override != null) return Math.max(0, Math.floor(override));
-  if (e.isBoss) return 500;
+  if (e.isBoss) return 497;
   return rewardForShape(e.shape);
 }
 
 function rewardForShape(shape: Enemy['shape']): number {
   switch (shape) {
     case 'circle':
-      return 10;
-    case 'triangle':
       return 7;
+    case 'triangle':
+      return 5;
     case 'square':
-      return 13;
+      return 10;
     case 'healer':
-      return 15;
-    case 'evilSniper':
-      return 18;
-    case 'rager':
-      return 15;
-    case 'summoner':
-      return 18;
-    case 'igniter':
-      return 6;
-    case 'armored':
-      return 18;
-    case 'iceShell':
-      return 16;
-    case 'freezer':
-      return 10;
-    case 'taunter':
-      return 15;
-    case 'purifier':
       return 12;
+    case 'evilSniper':
+      return 15;
+    case 'rager':
+      return 12;
+    case 'summoner':
+      return 15;
+    case 'igniter':
+      return 4;
+    case 'armored':
+      return 15;
+    case 'iceShell':
+      return 13;
+    case 'freezer':
+      return 7;
+    case 'taunter':
+      return 12;
+    case 'purifier':
+      return 9;
     case 'angryWriter':
-      return 20;
-    case 'bunker':
-      return 30;
-    case 'windEye':
       return 17;
-    case 'balloonSoldier':
-      return 10;
-    case 'armorRepairer':
+    case 'bunker':
+      return 20;
+    case 'windEye':
       return 14;
+    case 'balloonSoldier':
+      return 7;
+    case 'armorRepairer':
+      return 11;
     default:
-      return 10;
+      return 7;
   }
 }

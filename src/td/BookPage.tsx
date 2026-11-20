@@ -281,6 +281,9 @@ function monsterTags(id: MonsterEntry[0], stats: MonsterEntry[1]) {
     case 'tank':
       tags.push('风元素子弹免疫', '电击花伤害 x0.25（含风光环）', '免疫所有击退', '火元素主动伤害 x2', '每30s 随机清除 3x3 植物', '冻结/静止暂停清除计时', '漏怪直接失败', '南瓜头可保护');
       break;
+    case 'jackInTheBox':
+      tags.push('出生抽取8–20s固定计时', '预警1.5s停下', '半径2清除植物', '南瓜头替植物承受', '范围内怪物受2000伤害（含空中）', '自爆计入Combo', '提前击杀不爆炸', '冻结暂停引信及预警');
+      break;
     default:
       tags.push('标准怪');
   }
