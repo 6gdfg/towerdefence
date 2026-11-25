@@ -22,7 +22,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function openApp(width = 1440, height = 900, phone = false, reducedMotion = false, fontGate?: Promise<void>, progressOverrides: Record<string, unknown> = {}) {
+async function openApp(width = 1440, height = 900, phone = false, reducedMotion = false, fontGate?: Promise<void>, progressOverrides: Record<string, unknown> = {}, selectLevels = true) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: phone, isMobile: phone,
     reducedMotion: reducedMotion ? 'reduce' : 'no-preference',
     ...(phone ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' } : {}) });
@@ -56,15 +56,18 @@ async function openApp(width = 1440, height = 900, phone = false, reducedMotion 
     if (action) actions.push(action);
     const body = pathname === '/api/announcement' ? { seen: true }
       : action?.action === 'getNextNotification' ? { notification: null }
+      : action?.action === 'startCampaignRun' ? { ok: true, runId: `campaign_${String(actions.filter(action=>action.action==='startCampaignRun').length).padStart(8,'0')}-0000-4000-8000-000000000000` }
       : action?.action === 'setStar' ? { ok: true, star: action.star, rewardCoins: 0, newRecord: false }
       : progress;
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
   });
   page.on('dialog', (dialog: any) => dialog.accept());
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: '开始游戏', exact: true }).click();
-  await page.getByRole('button', { name: /疾风凌云/ }).click();
-  await page.locator('.level-select-page').waitFor();
+  if (selectLevels) {
+    await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: /疾风凌云/ }).click();
+    await page.locator('.level-select-page').waitFor();
+  }
   return { context, page, errors, actions };
 }
 
@@ -72,10 +75,147 @@ function levelCard(page: any, name: string) {
   return page.locator('.phigros-level-card').filter({ has: page.locator('.phigros-level-number', { hasText: name }) }).first();
 }
 
+test('the intro waits for a server-issued run; a failed start returns to selection', options, async () => {
+  const { context,page,errors }=await openApp(1024,768,false,true);
+  let release: () => void=()=>{};
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  let fail=true;
+  await page.route('**/api/progress',async(route:any)=>{
+    const request=route.request();
+    if(request.method()!=='POST' || request.postDataJSON().action!=='startCampaignRun') return route.fallback();
+    await gate;
+    return route.fulfill({status:fail ? 503 : 200,contentType:'application/json',body:JSON.stringify(fail
+      ? {error:'start temporarily unavailable'} : {ok:true,runId:'campaign_00000000-0000-4000-8000-000000000000'})});
+  });
+  try {
+    await levelCard(page,'2-7').getByRole('button',{name:'START EZ',exact:true}).click();
+    await page.locator('.level-start-transition[data-phase="loading"]').waitFor();
+    await page.waitForTimeout(2000);
+    assert.equal(await page.locator('.game-map-svg').count(),0);
+    assert.equal(await page.locator('.level-start-transition').getAttribute('data-phase'),'loading');
+    release();
+    await page.locator('.level-start-transition').waitFor({state:'detached'});
+    assert.equal(await page.locator('.level-select-page').isVisible(),true);
+    fail=false;
+    await levelCard(page,'2-7').getByRole('button',{name:'START EZ',exact:true}).click();
+    await waitForPlay(page);
+    assert.deepEqual(errors,[]);
+  } finally {release();await context.close();}
+});
+
 async function waitForPlay(page: any) {
   await page.locator('.level-start-transition').waitFor({ state: 'detached' });
   await page.locator('.game-map-svg').waitFor();
 }
+
+test('2-7 EZ HD IN enter the result screen before a delayed settlement responds', options, async () => {
+  for (const difficulty of ['EZ', 'HD', 'IN']) {
+    const { context, page, errors } = await openApp(1024, 768, false, true);
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const calls: any[] = [];
+    await page.route('**/api/progress', async (route: any) => {
+      const request = route.request();
+      if (request.method() !== 'POST' || request.postDataJSON().action !== 'setStar') return route.fallback();
+      calls.push(request.postDataJSON());
+      await gate;
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, star: calls[0].star, rewardCoins: 700, newRecord: true, chestTypes: ['common'] }) });
+    });
+    try {
+      const card = levelCard(page, '2-7');
+      await card.locator(`.diff-${difficulty.toLowerCase()}`).click();
+      await card.getByRole('button', { name: `START ${difficulty}`, exact: true }).click();
+      await waitForPlay(page);
+      await page.evaluate(() => {
+        const store = (window as any).__introAppStore;
+        store.setState({ waveIndex: store.getState().waves.length, wavesCleared: store.getState().waves.length, isWaveActive: false, enemies: [], running: false });
+      });
+      await page.getByText('关卡完成', { exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: '结算中...', exact: true }).isDisabled(), true);
+      assert.equal(await page.getByRole('button', { name: '下一关', exact: true }).isDisabled(), true);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].levelId, 'L15');
+      assert.equal(calls[0].difficulty, difficulty);
+      assert.ok(calls[0].runId.startsWith('campaign_'));
+      release();
+      await page.getByText('+700', { exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: '下一关', exact: true }).isEnabled(), true);
+      assert.deepEqual(errors, []);
+    } finally { release(); await context.close(); }
+  }
+});
+
+test('campaign failure retries the issued run and retains both full-health challenges', options, async () => {
+  const { context, page, errors, actions } = await openApp(1024, 768, false, true);
+  const calls: any[] = [];
+  await page.route('**/api/progress', async (route: any) => {
+    const request = route.request();
+    if (request.method() !== 'POST' || request.postDataJSON().action !== 'setStar') return route.fallback();
+    calls.push(request.postDataJSON());
+    await route.fulfill({ status: calls.length === 1 ? 503 : 200, contentType: 'application/json', body: JSON.stringify(calls.length === 1
+      ? { error: 'temporary settlement failure' }
+      : { ok: true, star: 3, rewardCoins: 777, diamondReward: 1, newRecord: true, fullHealthClear: true }) });
+  });
+  try {
+    const card = levelCard(page, '2-7');
+    await card.locator('.diff-in').click();
+    await card.getByRole('button', { name: '挑战', exact: true }).click();
+    for (const name of ['完美防守', '半血开局']) await page.getByRole('button', { name: new RegExp(name) }).click();
+    await page.getByRole('button', { name: '确定', exact: true }).click();
+    await card.getByRole('button', { name: 'START IN', exact: true }).click();
+    await waitForPlay(page);
+    await page.evaluate(() => {
+      const store = (window as any).__introAppStore;
+      store.setState({ waveIndex: store.getState().waves.length, wavesCleared: store.getState().waves.length, isWaveActive: false, enemies: [], running: false });
+    });
+    await page.getByText(/结算失败：temporary settlement failure/).waitFor();
+    assert.equal(await page.getByRole('button', { name: '下一关', exact: true }).isDisabled(), true);
+    await page.getByRole('button', { name: '重试结算', exact: true }).click();
+    await page.getByText('+777', { exact: true }).waitFor();
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0], calls[1]);
+    assert.deepEqual(actions.find(action=>action.action==='startCampaignRun').challenges,['fullHealth','halfHealth']);
+    assert.equal(calls[0].endLives,Math.ceil(getLevelSpecForDifficulty(LEVELS[14],'IN').lives/2));
+    assert.equal(calls[0].challengeDiamonds,undefined);
+    assert.equal(await page.getByRole('button', { name: '下一关', exact: true }).isEnabled(), true);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('endless settlement failure offers a retry and preserves the finished run and waves', options, async () => {
+  const { context, page, errors } = await openApp(1024, 768, false, true, undefined, {}, false);
+  const claims: any[] = [];
+  const runId = 'endless_00000000-0000-4000-8000-000000000000';
+  await page.route('**/api/progress', async (route: any) => {
+    const request = route.request();
+    if (request.method() !== 'POST') return route.fallback();
+    const body = request.postDataJSON();
+    if (body.action === 'startEndlessRun') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, runId }) });
+    if (body.action !== 'claimEndlessReward') return route.fallback();
+    claims.push(body);
+    await route.fulfill({ status: claims.length === 1 ? 503 : 200, contentType: 'application/json', body: JSON.stringify(claims.length === 1
+      ? { error: 'temporary endless failure' }
+      : { ok: true, wavesCleared: 20, rewardCoins: 1000, chestTypes: ['common'] }) });
+  });
+  try {
+    await page.getByRole('button', { name: '趣味模式', exact: true }).click();
+    await page.getByRole('button', { name: '选择卡组', exact: true }).click();
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await page.locator('.game-map-svg').waitFor();
+    await page.evaluate(() => (window as any).__introAppStore.setState({ lives: 0, wavesCleared: 20, running: false }));
+    await page.getByText(/结算失败：temporary endless failure/).waitFor();
+    assert.ok(await page.evaluate(() => localStorage.getItem('td_endless_pending:intro-test-player')));
+    await page.getByRole('button', { name: '重试结算', exact: true }).click();
+    await page.getByText('+1000', { exact: true }).waitFor();
+    assert.equal(claims.length, 2);
+    assert.deepEqual(claims[0], claims[1]);
+    assert.equal(claims[0].runId, runId);
+    assert.equal(claims[0].wavesCleared, 20);
+    assert.equal(await page.evaluate(() => localStorage.getItem('td_endless_pending:intro-test-player')), null);
+    assert.equal(await page.getByRole('button', { name: '返回主界面', exact: true }).isEnabled(), true);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
 
 test('AT17 conveyor derives missing plant/element levels from rating and keeps unlocked account levels', options, async () => {
   const { context, page, errors } = await openApp(1440, 900, false, true, undefined, {
@@ -138,7 +278,7 @@ test('local guest can play configured difficulties without any API or account wr
     assert.equal(game.mode, 'at');
     await page.evaluate(() => {
       const store = (window as any).__introAppStore;
-      store.setState({ waveIndex: store.getState().waves.length, isWaveActive: false, enemies: [], running: false });
+      store.setState({ waveIndex: store.getState().waves.length, wavesCleared: store.getState().waves.length, isWaveActive: false, enemies: [], running: false });
     });
     await page.getByText('本地试玩完成，不保存进度或发放奖励。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '返回关卡', exact: true }).click();
@@ -256,7 +396,10 @@ test('multiple campaign challenges survive the intro, and retries and next level
     await page.getByRole('button', { name: '下一关', exact: true }).waitFor();
     const rewards = actions.filter(action => action.action === 'setStar');
     assert.equal(rewards.length, 1);
-    assert.equal(rewards[0].challengeDiamonds, 3);
+    assert.equal(rewards[0].challengeDiamonds, undefined);
+    const starts=actions.filter(action=>action.action==='startCampaignRun');
+    assert.equal(starts.length,2);
+    assert.deepEqual(starts[1].challenges,['fullHealth','halfHealth','elementless','twilightForest']);
     await page.getByRole('button', { name: '下一关', exact: true }).click();
     await page.locator('.level-start-transition[data-phase="covering"]').waitFor();
     assert.equal(await page.locator('.intro-title-copy p').textContent(), '2-2');

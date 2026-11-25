@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { extname, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { after, before, test } from 'node:test';
 
@@ -17,7 +19,147 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-test('auth preloads two small subsets and a rare character loads only its own additional subset', options, async () => {
+async function withProductionPage(run: (page: any, origin: string) => Promise<void>, phone = false) {
+  const root = resolve('dist');
+  const server = createServer(async (request, response) => {
+    try {
+      const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+      const file = resolve(root, `.${pathname === '/' ? '/index.html' : pathname}`);
+      if (!file.startsWith(`${root}${sep}`)) { response.writeHead(403); response.end(); return; }
+      const mime: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
+      response.setHeader('Content-Type', mime[extname(file)] ?? 'application/octet-stream');
+      response.end(await readFile(file));
+    } catch { response.writeHead(404); response.end(); }
+  });
+  await new Promise<void>(done => server.listen(0, '127.0.0.1', done));
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const context = await browser.newContext({ viewport: phone ? { width: 844, height: 390 } : { width: 1024, height: 768 }, hasTouch: phone, isMobile: phone });
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(30_000);
+    await run(page, `http://127.0.0.1:${address.port}`);
+  } finally {
+    await context.close();
+    await new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done()));
+  }
+}
+
+test('production login really renders the supplied font from two same-origin WOFF2 assets', options, async () => {
+  await withProductionPage(async (page, origin) => {
+    const fontResponses: { url: string; status: number }[] = [];
+    const fontErrors: string[] = [];
+    page.on('response', (response: any) => { if (response.url().includes('.woff2')) fontResponses.push({ url: response.url(), status: response.status() }); });
+    page.on('console', (message: any) => { if (/font|OTS parsing/i.test(message.text()) && message.type() === 'error') fontErrors.push(message.text()); });
+    const html = await (await page.request.get(origin)).text();
+    assert.doesNotMatch(html, /as="font"|game-font.*\.css/);
+    await page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: '登录 / 注册', exact: true }).waitFor();
+    await page.waitForFunction(() => Array.from(document.fonts).some(font => font.family.includes('Tower Defence') && font.status === 'loaded'));
+    await page.evaluate(() => document.fonts.ready);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('DOM.enable');
+    await cdp.send('CSS.enable');
+    const { root: documentNode } = await cdp.send('DOM.getDocument');
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: documentNode.nodeId, selector: 'h1' });
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+    assert.equal(fontResponses.length, 2);
+    assert.ok(fontResponses.every(response => response.status === 200 && response.url.startsWith(`${origin}/assets/game-`)));
+    assert.deepEqual(fontErrors, []);
+    assert.ok(fonts.length > 0 && fonts.every((font: any) => font.isCustomFont), 'The production heading must use the supplied webfont, not a system fallback');
+    await page.screenshot({ path: `${screenshots}/production-auth-tablet.png` });
+  });
+});
+
+test('production login stays usable when the optional font stylesheet fails', options, async () => {
+  await withProductionPage(async (page, origin) => {
+    const errors: string[] = [];
+    let failedFontStyles = 0;
+    page.on('pageerror', (error: Error) => errors.push(error.message));
+    await page.route('**/assets/game-font-*.css', (route: any) => { failedFontStyles++; return route.abort(); });
+    await page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: '登录 / 注册', exact: true }).waitFor();
+    assert.equal(await page.getByPlaceholder('用户名', { exact: true }).isVisible(), true);
+    assert.equal(failedFontStyles, 1);
+    assert.deepEqual(errors, []);
+    await page.screenshot({ path: `${screenshots}/production-font-css-fallback.png` });
+  });
+});
+
+test('production login renders before a stalled optional font stylesheet finishes', options, async () => {
+  await withProductionPage(async (page, origin) => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let fontStyleRequested = false;
+    await page.route('**/assets/game-font-*.css', async (route: any) => { fontStyleRequested = true; await gate; await route.continue(); });
+    try {
+      await page.goto(origin, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', { name: '登录 / 注册', exact: true }).waitFor();
+      assert.equal(fontStyleRequested, true);
+      assert.equal(await page.evaluate(() => document.fonts.size), 0);
+      assert.equal(await page.getByPlaceholder('用户名', { exact: true }).isVisible(), true);
+    } finally { release(); }
+    await page.waitForFunction(() => Array.from(document.fonts).some(font => font.family.includes('Tower Defence') && font.status === 'loaded'));
+  });
+});
+
+test('production phone login appears while every WOFF2 request is still stalled', options, async () => {
+  await withProductionPage(async (page, origin) => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let fontRequests = 0;
+    const errors: string[] = [];
+    page.on('pageerror', (error: Error) => errors.push(error.message));
+    await page.route('**/*.woff2', async (route: any) => { fontRequests++; await gate; await route.abort(); });
+    try {
+      await page.goto(origin, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', { name: '登录 / 注册', exact: true }).waitFor();
+      assert.equal(fontRequests, 2);
+      assert.equal(await page.getByPlaceholder('用户名', { exact: true }).isVisible(), true);
+      assert.equal(await page.evaluate(() => Array.from(document.fonts).some(font => font.status === 'loaded')), false);
+      await page.getByPlaceholder('用户名', { exact: true }).fill('slow-network');
+      assert.equal(await page.getByPlaceholder('用户名', { exact: true }).inputValue(), 'slow-network');
+      assert.deepEqual(errors, []);
+      release();
+      await page.screenshot({ path: `${screenshots}/production-font-stalled-phone.png` });
+    } finally { release(); }
+  }, true);
+});
+
+test('production stalled progress times out without losing the account and reconnect recovers the cloud save', options, async () => {
+  await withProductionPage(async (page, origin) => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let progressReads = 0;
+    const errors: string[] = [];
+    page.on('pageerror', (error: Error) => errors.push(error.message));
+    await page.addInitScript(() => { localStorage.setItem('td_token', 'slow-progress-token'); localStorage.setItem('td_username', 'slow-progress-player'); });
+    await page.route('**/api/**', async (route: any) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname === '/api/progress' && ++progressReads === 1) {
+        await gate;
+        try { await route.abort(); } catch { /* The timeout already canceled this request. */ }
+        return;
+      }
+      const body = pathname === '/api/announcement' ? { seen: true }
+        : pathname === '/api/progress' ? { coins: 7773, unlocked: 1, towerLevels: { bottleGrass: 27 }, unlockedItems: ['sunflower', 'bottleGrass'], chests: [] }
+        : { notification: null };
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    try {
+      await page.goto(origin, { waitUntil: 'domcontentloaded' });
+      await page.getByText('云端存档加载超时，请检查网络后点击重新连接。', { exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => localStorage.getItem('td_token')), 'slow-progress-token');
+      await page.getByRole('button', { name: '重新连接', exact: true }).click();
+      await page.getByRole('heading', { name: '主界面', exact: true }).waitFor();
+      await page.getByText('7773', { exact: true }).first().waitFor();
+      assert.equal(await page.getByText(/lv\.27 植物碎片/).count(), 1);
+      assert.deepEqual(errors, []);
+    } finally { release(); }
+  });
+});
+
+test('auth loads two small subsets and a rare character loads only its own additional subset', options, async () => {
   const context = await browser.newContext({ viewport: { width: 1024, height: 768 } });
   const page = await context.newPage();
   const requested = new Set<string>();
@@ -30,6 +172,14 @@ test('auth preloads two small subsets and a rare character loads only its own ad
     await page.evaluate(() => document.fonts.ready);
     assert.deepEqual([...requested].sort(), ['/src/assets/fonts/game-latin.woff2', '/src/assets/fonts/game-ui.woff2']);
     assert.equal(await page.evaluate(() => document.fonts.check('16px "Tower Defence"', '登录 / 注册 Tower Defence')), true);
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('DOM.enable');
+    await cdp.send('CSS.enable');
+    const { root: documentNode } = await cdp.send('DOM.getDocument');
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: documentNode.nodeId, selector: 'h1' });
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+    console.log('Local heading fonts:', JSON.stringify(fonts));
+    assert.ok(fonts.length > 0 && fonts.every((font: any) => font.isCustomFont && font.familyName === 'cmdysj'));
     for (const selector of ['body', 'h1', 'button', 'input']) {
       assert.match(await page.locator(selector).first().evaluate((element: HTMLElement) => getComputedStyle(element).fontFamily), /Tower Defence/);
     }
@@ -47,6 +197,39 @@ test('auth preloads two small subsets and a rare character loads only its own ad
     assert.ok(requested.has(`/src/assets/fonts/${rare.file}`));
     await page.screenshot({ path: `${screenshots}/auth-tablet.png` });
     assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('local subset glyphs render identically to the supplied original Phigros font', options, async () => {
+  const context = await browser.newContext({ viewport: { width: 1024, height: 768 } });
+  try {
+    const page = await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('heading', { name: '登录 / 注册', exact: true }).waitFor();
+    const result = await page.evaluate(async () => {
+      const original = await new FontFace('Original Phigros', 'url("/cmdysj.ttf")').load();
+      document.fonts.add(original);
+      const samples = ['Chart Illustration admin Loading Combo 1234567890', '登录 注册 主界面 不要忘记元素可以单独放置'];
+      const comparisons = [];
+      for (const text of samples) {
+        await document.fonts.load('32px "Tower Defence"', text);
+        const renders = [];
+        for (const family of ['Tower Defence', 'Original Phigros']) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1200;
+          canvas.height = 60;
+          const ctx = canvas.getContext('2d')!;
+          ctx.font = `32px "${family}"`;
+          ctx.fillText(text, 0, 40);
+          renders.push({ pixels: canvas.toDataURL(), width: ctx.measureText(text).width });
+        }
+        const [subset, source] = renders;
+        comparisons.push({ text, samePixels: subset.pixels === source.pixels, subsetWidth: subset.width, sourceWidth: source.width });
+      }
+      return comparisons;
+    });
+    console.log('Original versus optimized font:', JSON.stringify(result));
+    assert.ok(result.every((comparison: any) => comparison.samePixels && comparison.subsetWidth === comparison.sourceWidth));
   } finally { await context.close(); }
 });
 
@@ -87,7 +270,7 @@ test('all companion pages, selectors and laboratory code surfaces inherit the gl
       const body = pathname === '/api/tasks'
         ? { daily: [], weekly: [], dailyPracticeRuns: 0, wallet }
         : pathname === '/api/shop'
-          ? { ...wallet, buyerId: 'font-test', username: 'font-test', purchases: [] }
+          ? { ...wallet, dayKey: '2026-11-25', refreshAt: '2099-01-01T16:00:00.000Z', products: [] }
           : wallet;
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
     });

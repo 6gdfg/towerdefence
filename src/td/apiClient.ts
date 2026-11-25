@@ -37,3 +37,22 @@ export async function readApiJson<T>(response: Response, fallback: string): Prom
 
   return (payload ?? {}) as T;
 }
+
+export async function requestApiJson<T>(url: string, init: RequestInit, fallback: string): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    try {
+      return await readApiJson<T>(response, fallback);
+    } catch (error) {
+      if (error instanceof Error) Object.assign(error, { status: response.status });
+      throw error;
+    }
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`${fallback}：请求超时，请检查网络后重试。`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}

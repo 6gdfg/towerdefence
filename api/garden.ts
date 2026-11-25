@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
-import { getErrorMessage } from './_errors.js';
+import { ApiError, getErrorMessage } from './_errors.js';
 import { getChestRewardConfig, MAX_CHEST_INVENTORY, type ChestType } from '../shared/rewards.js';
 import { NON_UPGRADEABLE_PLANT_ITEMS, PLANT_ITEM_IDS } from '../shared/unlocks.js';
 
@@ -109,6 +109,83 @@ async function gardenPayload(playerId: string) {
   };
 }
 
+async function harvestPlots(playerId: string, plotIndex: number | null) {
+  const sql = getSql();
+  const [readyRows, gardenRows, chestCountRows] = await Promise.all([
+    sql`SELECT plot_index,seed_type,target_item,planted_at::text AS planted_at,ready_at FROM garden_plots
+      WHERE player_id=${playerId} AND ready_at<=NOW() AND (${plotIndex}::integer IS NULL OR plot_index=${plotIndex}::integer)
+      ORDER BY plot_index`,
+    sql`SELECT luck_level FROM player_garden WHERE player_id=${playerId}`,
+    sql`SELECT COUNT(*)::integer AS count FROM chests WHERE player_id=${playerId}`,
+  ]);
+  const ready = readyRows as PlotRow[];
+  const plants = ready.filter(plot => plot.seed_type === 'plant');
+  const chestPlots = ready.filter(plot => plot.seed_type === 'chest');
+  const selectedChests = chestPlots.slice(0, Math.max(0, MAX_CHEST_INVENTORY - Number(chestCountRows[0]?.count ?? 0)));
+  const selected = [...plants, ...selectedChests];
+  if (!selected.length) throw new ApiError(400, chestPlots.length ? 'CHEST_INVENTORY_FULL' : 'NO_READY_PLOTS');
+  const luck = Math.max(1, Math.min(MAX_LUCK_LEVEL, Number(gardenRows[0]?.luck_level ?? 1)));
+  const shards: Record<string, number> = {};
+  let recycledSeeds = 0;
+  const chestTypes: Record<ChestType, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  const rewards = selected.map(plot => {
+    const base = { index: Number(plot.plot_index), plantedAt: String(plot.planted_at) };
+    if (plot.seed_type === 'plant') {
+      const targetItem = plot.target_item || randomItem(UPGRADEABLE_PLANTS);
+      const amount = rollPlantShardCount(luck);
+      const recycled = Math.random() < (49 + luck) / 100 ? 1 : 0;
+      shards[targetItem] = (shards[targetItem] ?? 0) + amount;
+      recycledSeeds += recycled;
+      return { ...base, seedType: 'plant' as const, targetItem, amount, recycled };
+    }
+    const chestType = randomChestType();
+    const config = getChestRewardConfig(chestType);
+    chestTypes[chestType] += 1;
+    return { ...base, seedType: 'chest' as const, chestType, chestId: createId('c'), seconds: config.unlockSeconds,
+      coins: Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min };
+  });
+  const results = await sql.transaction(tx => [
+    tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+    tx`SELECT player_id FROM player_garden WHERE player_id=${playerId} FOR UPDATE`,
+    tx.query(`WITH offers AS (
+        SELECT value FROM jsonb_array_elements($2::jsonb)
+      ), eligible AS (
+        SELECT plot.plot_index FROM garden_plots plot JOIN offers ON plot.plot_index=(value->>'index')::integer
+          AND plot.planted_at=(value->>'plantedAt')::timestamptz AND plot.seed_type=value->>'seedType'
+        WHERE plot.player_id=$1::text AND plot.ready_at<=NOW()
+      ), consumed AS (
+        DELETE FROM garden_plots WHERE player_id=$1::text AND plot_index IN (SELECT plot_index FROM eligible)
+          AND (SELECT COUNT(*) FROM eligible)=$3::integer
+          AND (SELECT COUNT(*) FROM chests WHERE player_id=$1::text)+$4::integer<=$5::integer
+        RETURNING plot_index
+      ), shards_saved AS (
+        INSERT INTO inventory_shards(player_id,tower_type,shards)
+        SELECT $1::text,value->>'targetItem',SUM((value->>'amount')::integer)::integer FROM offers
+          JOIN consumed ON consumed.plot_index=(value->>'index')::integer WHERE value->>'seedType'='plant'
+        GROUP BY value->>'targetItem'
+        ON CONFLICT(player_id,tower_type) DO UPDATE SET shards=inventory_shards.shards+EXCLUDED.shards RETURNING tower_type
+      ), recycled AS (
+        UPDATE player_garden SET plant_seeds=plant_seeds+COALESCE((SELECT SUM((value->>'recycled')::integer)
+          FROM offers JOIN consumed ON consumed.plot_index=(value->>'index')::integer WHERE value->>'seedType'='plant'),0),updated_at=NOW()
+        WHERE player_id=$1::text AND EXISTS (SELECT 1 FROM consumed) RETURNING player_id
+      ), awarded AS (
+        INSERT INTO chests(chest_id,player_id,status,duration_seconds,chest_type,coin_reward)
+        SELECT value->>'chestId',$1::text,'locked',(value->>'seconds')::integer,value->>'chestType',(value->>'coins')::bigint
+        FROM offers JOIN consumed ON consumed.plot_index=(value->>'index')::integer WHERE value->>'seedType'='chest'
+        RETURNING chest_id
+      ) SELECT plot_index FROM consumed`,
+    [playerId, JSON.stringify(rewards), selected.length, selectedChests.length, MAX_CHEST_INVENTORY]),
+  ]) as unknown[][];
+  if (results[2].length !== selected.length) throw new ApiError(409, '田地或宝箱库存已变化，请刷新后重试。');
+  const first = rewards[0];
+  return { ...(await gardenPayload(playerId)),
+    harvest: first.seedType === 'plant'
+      ? { seedType: 'plant', targetItem: first.targetItem, shards: first.amount, recycledSeed: first.recycled }
+      : { seedType: 'chest', chestType: first.chestType, chestId: first.chestId },
+    harvestSummary: { harvestedCount: selected.length, plantCount: plants.length, chestCount: selectedChests.length,
+      shards, recycledSeeds, chestTypes, skippedChestCount: chestPlots.length-selectedChests.length } };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await ensureTables();
@@ -123,10 +200,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const action = req.body?.action;
     if (action === 'unlockPlot') {
-      const spent = await sql`UPDATE player_wallet SET coins=coins - ${PLOT_UNLOCK_COST}, updated_at=NOW()
-        WHERE player_id=${playerId} AND coins >= ${PLOT_UNLOCK_COST} RETURNING coins`;
+      const spent = await sql`WITH paid AS (
+          UPDATE player_wallet SET coins=coins - ${PLOT_UNLOCK_COST}, updated_at=NOW()
+          WHERE player_id=${playerId} AND coins >= ${PLOT_UNLOCK_COST} RETURNING player_id
+        ) UPDATE player_garden SET unlocked_plots=unlocked_plots + 1,updated_at=NOW()
+          FROM paid WHERE player_garden.player_id=paid.player_id RETURNING paid.player_id`;
       if (spent.length === 0) return res.status(400).json({ error: 'COINS_NOT_ENOUGH' });
-      await sql`UPDATE player_garden SET unlocked_plots=unlocked_plots + 1, updated_at=NOW() WHERE player_id=${playerId}`;
       return res.json(await gardenPayload(playerId));
     }
 
@@ -135,7 +214,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (upgradeType !== 'efficiency' && upgradeType !== 'luck') return res.status(400).json({ error: 'invalid upgrade' });
       const column = upgradeType === 'efficiency' ? 'efficiency_level' : 'luck_level';
       const maxLevel = upgradeType === 'efficiency' ? MAX_EFFICIENCY_LEVEL : MAX_LUCK_LEVEL;
-      const upgraded = await sql.query(`WITH current_level AS (
+      const results = await sql.transaction(tx => [
+        tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+        tx`SELECT player_id FROM player_garden WHERE player_id=${playerId} FOR UPDATE`,
+        tx.query(`WITH current_level AS (
           SELECT player_id, ${column} AS level FROM player_garden WHERE player_id=$1
         ), paid AS (
           UPDATE player_wallet wallet
@@ -150,7 +232,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         SET ${column}=garden.${column} + 1, updated_at=NOW()
         FROM current_level, paid
         WHERE garden.player_id=current_level.player_id
-        RETURNING garden.${column} AS level`, [playerId, maxLevel]);
+        RETURNING garden.${column} AS level`, [playerId, maxLevel]),
+      ]) as Array<Array<Record<string, unknown>>>;
+      const upgraded = results[2];
       if (upgraded.length === 0) {
         const statusRows = await sql.query(`SELECT garden.${column} AS level, wallet.experience
           FROM player_garden garden JOIN player_wallet wallet ON wallet.player_id=garden.player_id
@@ -205,117 +289,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ ...(await gardenPayload(playerId)), plantingSummary: { seedType, plantedCount: results[1].length } });
     }
 
-    if (action === 'harvestAll') {
-      const [readyRows, gardenRows, chestCountRows] = await Promise.all([
-        sql`SELECT plot_index, seed_type, target_item, planted_at, ready_at FROM garden_plots
-          WHERE player_id=${playerId} AND ready_at <= NOW() ORDER BY plot_index`,
-        sql`SELECT luck_level FROM player_garden WHERE player_id=${playerId}`,
-        sql`SELECT COUNT(*)::int AS count FROM chests WHERE player_id=${playerId}`,
-      ]);
-      const readyPlots = readyRows as PlotRow[];
-      const plantPlots = readyPlots.filter(plot => plot.seed_type === 'plant');
-      const chestPlots = readyPlots.filter(plot => plot.seed_type === 'chest');
-      const chestCount = Number(chestCountRows[0]?.count ?? 0);
-      const availableChestSlots = Math.max(0, MAX_CHEST_INVENTORY - chestCount);
-      const harvestableChestPlots = chestPlots.slice(0, availableChestSlots);
-      const selectedPlots = [...plantPlots, ...harvestableChestPlots];
-      if (selectedPlots.length === 0) {
-        return res.status(400).json({ error: chestPlots.length > 0 ? 'CHEST_INVENTORY_FULL' : 'NO_READY_PLOTS' });
-      }
-
-      const luckLevel = Math.max(1, Math.min(MAX_LUCK_LEVEL, Number(gardenRows[0]?.luck_level ?? 1)));
-      const shardTotals: Record<string, number> = {};
-      let recycledSeeds = 0;
-      for (const plot of plantPlots) {
-        const targetItem = String(plot.target_item || randomItem(UPGRADEABLE_PLANTS));
-        shardTotals[targetItem] = (shardTotals[targetItem] ?? 0) + rollPlantShardCount(luckLevel);
-        recycledSeeds += Math.random() < (49 + luckLevel) / 100 ? 1 : 0;
-      }
-
-      const chestTypes: Record<ChestType, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
-      const chestRewards = harvestableChestPlots.map(() => {
-        const chestType = randomChestType();
-        const config = getChestRewardConfig(chestType);
-        chestTypes[chestType] += 1;
-        return {
-          chestId: createId('c'),
-          chestType,
-          unlockSeconds: config.unlockSeconds,
-          coinReward: Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min,
-        };
-      });
-
-      await sql.transaction(tx => [
-        ...selectedPlots.map(plot => tx`DELETE FROM garden_plots
-          WHERE player_id=${playerId} AND plot_index=${Number(plot.plot_index)} AND ready_at <= NOW()`),
-        ...Object.entries(shardTotals).map(([targetItem, shards]) => tx`
-          INSERT INTO inventory_shards (player_id, tower_type, shards) VALUES (${playerId}, ${targetItem}, ${shards})
-          ON CONFLICT (player_id, tower_type) DO UPDATE SET shards=inventory_shards.shards + EXCLUDED.shards`),
-        ...(recycledSeeds > 0 ? [tx`UPDATE player_garden
-          SET plant_seeds=plant_seeds + ${recycledSeeds}, updated_at=NOW() WHERE player_id=${playerId}`] : []),
-        ...chestRewards.map(reward => tx`INSERT INTO chests
-          (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-          VALUES (${reward.chestId}, ${playerId}, 'locked', ${reward.unlockSeconds}, ${reward.chestType}, ${reward.coinReward})`),
-      ]);
-
-      return res.json({
-        ...(await gardenPayload(playerId)),
-        harvestSummary: {
-          harvestedCount: selectedPlots.length,
-          plantCount: plantPlots.length,
-          chestCount: harvestableChestPlots.length,
-          shards: shardTotals,
-          recycledSeeds,
-          chestTypes,
-          skippedChestCount: chestPlots.length - harvestableChestPlots.length,
-        },
-      });
-    }
-
+    if (action === 'harvestAll') return res.json(await harvestPlots(playerId, null));
     if (action === 'harvest') {
       const plotIndex = Math.floor(Number(req.body?.plotIndex));
       if (!Number.isFinite(plotIndex) || plotIndex < 0) return res.status(400).json({ error: 'invalid plot' });
-      const readyPlots = await sql`SELECT seed_type FROM garden_plots
-        WHERE player_id=${playerId} AND plot_index=${plotIndex} AND ready_at <= NOW()`;
-      if (readyPlots.length === 0) return res.status(400).json({ error: 'plot not ready' });
-      if (readyPlots[0].seed_type === 'chest') {
-        const chestCountRows = await sql`SELECT COUNT(*)::int AS count FROM chests WHERE player_id=${playerId}`;
-        if (Number(chestCountRows[0]?.count ?? 0) >= MAX_CHEST_INVENTORY) {
-          return res.status(400).json({ error: 'CHEST_INVENTORY_FULL' });
-        }
-      }
-      const harvested = await sql`DELETE FROM garden_plots
-        WHERE player_id=${playerId} AND plot_index=${plotIndex} AND ready_at <= NOW()
-        RETURNING seed_type, target_item`;
-      if (harvested.length === 0) return res.status(400).json({ error: 'plot not ready' });
-
-      const seedType = harvested[0].seed_type;
-      if (seedType === 'plant') {
-        const gardenRows = await sql`SELECT luck_level FROM player_garden WHERE player_id=${playerId}`;
-        const luckLevel = Math.max(1, Math.min(MAX_LUCK_LEVEL, Number(gardenRows[0]?.luck_level ?? 1)));
-        const shardCount = rollPlantShardCount(luckLevel);
-        const targetItem = String(harvested[0].target_item || randomItem(UPGRADEABLE_PLANTS));
-        await sql`INSERT INTO inventory_shards (player_id, tower_type, shards) VALUES (${playerId}, ${targetItem}, ${shardCount})
-          ON CONFLICT (player_id, tower_type) DO UPDATE SET shards=inventory_shards.shards + ${shardCount}`;
-        const recycledSeed = Math.random() < (49 + luckLevel) / 100 ? 1 : 0;
-        if (recycledSeed > 0) {
-          await sql`UPDATE player_garden SET plant_seeds=plant_seeds + 1, updated_at=NOW() WHERE player_id=${playerId}`;
-        }
-        return res.json({ ...(await gardenPayload(playerId)), harvest: { seedType, targetItem, shards: shardCount, recycledSeed } });
-      }
-
-      const chestType = randomChestType();
-      const chestConfig = getChestRewardConfig(chestType);
-      const coinReward = Math.floor(Math.random() * (chestConfig.coins.max - chestConfig.coins.min + 1)) + chestConfig.coins.min;
-      const chestId = createId('c');
-      await sql`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-        VALUES (${chestId}, ${playerId}, 'locked', ${chestConfig.unlockSeconds}, ${chestType}, ${coinReward})`;
-      return res.json({ ...(await gardenPayload(playerId)), harvest: { seedType, chestType, chestId } });
+      return res.json(await harvestPlots(playerId, plotIndex));
     }
 
     return res.status(400).json({ error: 'bad action' });
   } catch (error: unknown) {
-    console.error(error);
-    return res.status(500).json({ error: getErrorMessage(error) });
+    if (!(error instanceof ApiError)) console.error(error);
+    return res.status(error instanceof ApiError ? error.status : 500).json({ error: getErrorMessage(error) });
   }
 }

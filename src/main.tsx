@@ -9,3 +9,10 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+// Keep optional webfonts out of the render-blocking stylesheet and initial requests.
+requestAnimationFrame(() => {
+  void import('./styles/game-font.css').catch(error => {
+    console.warn('Webfont styles could not be loaded; using system fonts.', error)
+  })
+})
+

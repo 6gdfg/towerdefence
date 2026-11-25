@@ -451,6 +451,59 @@ test('conveyor cards remain scrollable and preserve account levels and free plac
   } finally { await context.close(); }
 });
 
+for (const [width, height, phone] of [[1797, 900, false], [1024, 768, false], [844, 390, true], [568, 320, true]] as const) {
+  test(`boss health numbers overlay the bar without changing layout at ${width}x${height}`, options, async () => {
+    const { context, page, errors } = await openFixture(width, height, phone);
+    try {
+      await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        const base = { isBoss: true, pos: { x: 6.5, y: 16.5 }, hp: 5374, maxHp: 10000, speed: 0,
+          leakDamage: 1, level: 1, pathId: 0, pathIndex: 0, t: 0, progress: 0 };
+        store.setState({ running: false, enemies: [
+          { ...base, id: 'health', shape: 'bunker' },
+          { ...base, id: 'armor', shape: 'armored', hp: 4000, armorHp: 1374, maxArmorHp: 5000 },
+        ] });
+      });
+      const values = page.locator('.boss-health-value');
+      await values.first().waitFor();
+      assert.deepEqual(await values.allTextContents(), ['5374/10000', '5374/15000']);
+      await page.waitForTimeout(350);
+      const bars = await page.locator('.boss-health-area').boundingBox();
+      const map = await page.locator('.game-map-svg').boundingBox();
+      assert.ok(bars.y + bars.height <= map.y + 1, JSON.stringify({ bars, map }));
+      for (const value of await values.all()) {
+        const layout = await value.evaluate((node: HTMLElement) => {
+          const track = node.parentElement!;
+          const name = track.previousElementSibling!;
+          const textRange = document.createRange();
+          textRange.selectNodeContents(node);
+          return {
+            track: track.getBoundingClientRect().toJSON(), text: textRange.getBoundingClientRect().toJSON(),
+            name: name.getBoundingClientRect().toJSON(), layer: getComputedStyle(node).zIndex,
+          };
+        });
+        assert.ok(Number(layout.layer) > 0);
+        assert.ok(layout.text.x >= layout.track.x - 1 && layout.text.x + layout.text.width <= layout.track.x + layout.track.width + 1);
+        assert.ok(layout.text.y >= layout.track.y - 1 && layout.text.y + layout.text.height <= layout.track.y + layout.track.height + 1);
+        assert.ok(layout.name.y + layout.name.height <= layout.track.y + 1);
+      }
+      await page.screenshot({ path: `node_modules/.mobile-screenshots/boss-health-numbers-${width}.png` });
+      await page.evaluate(() => {
+        const store = (window as any).__tdStore;
+        store.setState({ enemies: store.getState().enemies.map((enemy: any) => (
+          enemy.id === 'health' ? { ...enemy, hp: 0.2 } : { ...enemy, armorHp: 0 }
+        )) });
+      });
+      await page.waitForFunction(() => document.querySelector('.boss-health-value')?.textContent === '1/10000');
+      assert.deepEqual(await values.allTextContents(), ['1/10000', '4000/15000']);
+      const updatedBars = await page.locator('.boss-health-area').boundingBox();
+      assert.equal(updatedBars.height, bars.height);
+      assert.equal(updatedBars.width, bars.width);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+}
+
 test('small-phone hammer controls and multiple boss bars stay outside the map', options, async () => {
   const { context, page, errors } = await openFixture(568, 320, true, 'whackAMole');
   try {

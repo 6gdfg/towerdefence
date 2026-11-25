@@ -1,7 +1,7 @@
 import { fetchCloudProgress, getToken } from './authProgress';
 import type { CloudProgress } from './appTypes';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
-import { readApiJson } from './apiClient';
+import { requestApiJson } from './apiClient';
 import type { DifficultyCode } from './levelRatings';
 
 type CloudDataCache = {
@@ -151,48 +151,36 @@ export function getAtClearSync(levelId: string): boolean {
 export async function setStarCleared(
   levelId: string,
   star: 1 | 2 | 3,
-  opts?: { fullHealth?: boolean; difficulty?: DifficultyCode; challengeDiamonds?: number },
+  opts: { difficulty: DifficultyCode; runId: string; endLives: number; wavesCleared: number },
 ): Promise<SetStarResult | null> {
-  try {
-    const token = getToken();
-    const resp = await fetch('/api/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({
-        action: 'setStar',
-        levelId,
-        star,
-        fullHealth: Boolean(opts?.fullHealth),
-        difficulty: opts?.difficulty,
-        challengeDiamonds: Math.round(Math.max(0, Math.min(3, Number(opts?.challengeDiamonds) || 0)) * 2) / 2,
-      }),
-    });
-    if (resp.ok) {
-      const data = await readApiJson<SetStarResult>(resp, 'Failed to save progress');
+  const token = getToken();
+  if (!token) throw new Error('登录状态已失效，请重新登录后结算。');
+  const data = await requestApiJson<SetStarResult>('/api/progress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      action: 'setStar',
+      levelId,
+      star,
+      difficulty: opts.difficulty,
+      runId: opts.runId,
+      endLives: opts.endLives,
+      wavesCleared: opts.wavesCleared,
+    }),
+  }, '通关结算失败');
+  if (!data.ok) throw new Error('通关结算失败：服务器未确认保存成功。');
 
-      const cache = getActiveCache();
-      if (cache) {
-        const currentStar = cache.stars[levelId] ?? 0;
-        if (data.star > currentStar) {
-          cache.stars[levelId] = data.star;
-        }
-        if (data.fullHealthClear) {
-          cache.fullHealthClears[levelId] = true;
-        }
-        if (data.atCleared) {
-          cache.atClears[levelId] = true;
-        }
-      }
-      if (Array.isArray(data.newUnlocks) && data.newUnlocks.length > 0) {
-        updateUnlockedItems(data.newUnlocks);
-      }
-
-      return data;
-    }
-    return null;
-  } catch {
-    return null;
+  const cache = getActiveCache();
+  if (cache && getToken() === token) {
+    const currentStar = cache.stars[levelId] ?? 0;
+    if (data.star > currentStar) cache.stars[levelId] = data.star;
+    if (data.fullHealthClear) cache.fullHealthClears[levelId] = true;
+    if (data.atCleared) cache.atClears[levelId] = true;
   }
+  if (getToken() === token && Array.isArray(data.newUnlocks) && data.newUnlocks.length > 0) {
+    updateUnlockedItems(data.newUnlocks);
+  }
+  return data;
 }
 
 export function getAllStars(): Record<string, number> {

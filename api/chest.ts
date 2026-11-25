@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
-import { getErrorMessage } from './_errors.js';
+import { ApiError, getErrorMessage } from './_errors.js';
 import { recordPlayerTaskEvent } from './tasks.js';
 import { getChestRewardConfig, isChestType, pickChestShardReward, type ChestType } from '../shared/rewards.js';
 import { splitShardInventory } from '../shared/shards.js';
@@ -110,26 +110,37 @@ async function grantChestRewards(playerId: string, chests: ChestStatusRow[]) {
     }
   }
 
-  await sql.transaction(tx => [
-    ...Object.entries(shards).map(([tower, amount]) => tx`
-      INSERT INTO inventory_shards (player_id, tower_type, shards) VALUES (${playerId}, ${tower}, ${amount})
-      ON CONFLICT (player_id, tower_type) DO UPDATE SET shards=inventory_shards.shards + EXCLUDED.shards`),
-    ...newUnlocks.map(itemId => tx`
-      INSERT INTO unlocked_items (player_id, item_id, unlocked, unlocked_at)
-      VALUES (${playerId}, ${itemId}, TRUE, NOW())
-      ON CONFLICT (player_id, item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW()`),
-    tx`UPDATE player_wallet
-      SET coins=coins + ${coins}, magic_keys=magic_keys + ${magicKeys}, updated_at=NOW()
-      WHERE player_id=${playerId}`,
-    ...(plantSeeds > 0 || chestSeeds > 0 ? [tx`
-      INSERT INTO player_garden (player_id, plant_seeds, chest_seeds, unlocked_plots)
-      VALUES (${playerId}, ${plantSeeds}, ${chestSeeds}, 8)
-      ON CONFLICT (player_id) DO UPDATE SET
-        plant_seeds=player_garden.plant_seeds + EXCLUDED.plant_seeds,
-        chest_seeds=player_garden.chest_seeds + EXCLUDED.chest_seeds,
-        updated_at=NOW()`] : []),
-    ...chests.map(chest => tx`DELETE FROM chests WHERE chest_id=${chest.chest_id} AND player_id=${playerId}`),
-  ]);
+  // All rewards depend on actually consuming the same ready chests. A stale
+  // pre-read (including overlapping open/openAll requests) grants nothing.
+  const results = await sql.transaction(tx => [
+    tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+    tx.query(`WITH eligible AS (
+        SELECT chest_id FROM chests WHERE player_id=$1::text AND chest_id IN (SELECT jsonb_array_elements_text($2::jsonb))
+          AND (status='ready' OR (status='unlocking' AND unlock_ready_at <= NOW()))
+      ), consumed AS (
+        DELETE FROM chests WHERE player_id=$1::text AND chest_id IN (SELECT chest_id FROM eligible)
+          AND (SELECT COUNT(*) FROM eligible)=$3::integer RETURNING chest_id
+      ), credited AS (
+        UPDATE player_wallet SET coins=coins+$4::bigint, magic_keys=magic_keys+$5::integer, updated_at=NOW()
+        WHERE player_id=$1::text AND EXISTS (SELECT 1 FROM consumed) RETURNING player_id
+      ), shards_saved AS (
+        INSERT INTO inventory_shards(player_id,tower_type,shards)
+        SELECT $1::text, key, value::integer FROM jsonb_each_text($6::jsonb), credited
+        ON CONFLICT(player_id,tower_type) DO UPDATE SET shards=inventory_shards.shards+EXCLUDED.shards RETURNING tower_type
+      ), unlocked AS (
+        INSERT INTO unlocked_items(player_id,item_id,unlocked,unlocked_at)
+        SELECT $1::text, value, TRUE, NOW() FROM jsonb_array_elements_text($7::jsonb), credited
+        ON CONFLICT(player_id,item_id) DO UPDATE SET unlocked=TRUE, unlocked_at=NOW() RETURNING item_id
+      ), seeds_saved AS (
+        INSERT INTO player_garden(player_id,plant_seeds,chest_seeds,unlocked_plots)
+        SELECT player_id,$8::integer,$9::integer,8 FROM credited WHERE $8::integer>0 OR $9::integer>0
+        ON CONFLICT(player_id) DO UPDATE SET plant_seeds=player_garden.plant_seeds+EXCLUDED.plant_seeds,
+          chest_seeds=player_garden.chest_seeds+EXCLUDED.chest_seeds,updated_at=NOW() RETURNING player_id
+      ) SELECT chest_id FROM consumed`,
+    [playerId, JSON.stringify(chests.map(chest => chest.chest_id)), chests.length, coins, magicKeys,
+      JSON.stringify(shards), JSON.stringify(newUnlocks), plantSeeds, chestSeeds]),
+  ]) as unknown[][];
+  if (results[1].length !== chests.length) throw new ApiError(409, '宝箱状态已变化，请刷新后重试。');
 
   try {
     await recordPlayerTaskEvent(playerId, 'chestOpen');
@@ -204,11 +215,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const chestCoinReward = randInt(chestConfig.coins.min, chestConfig.coins.max);
       const legendaryChestId = createId('c');
 
-      await sql.transaction(tx => [
-        ...consumedIds.map(id => tx`DELETE FROM chests WHERE chest_id=${id} AND player_id=${playerId}`),
-        tx`INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
-          VALUES (${legendaryChestId}, ${playerId}, 'locked', ${chestConfig.unlockSeconds}, 'legendary', ${chestCoinReward})`,
-      ]);
+      const results = await sql.transaction(tx => [
+        tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+        tx`WITH eligible AS (
+            SELECT chest_id FROM chests WHERE player_id=${playerId}
+              AND chest_id IN (SELECT jsonb_array_elements_text(${JSON.stringify(consumedIds)}::jsonb))
+          ), consumed AS (
+            DELETE FROM chests WHERE player_id=${playerId} AND chest_id IN (SELECT chest_id FROM eligible)
+              AND (SELECT COUNT(*) FROM eligible)=${consumedIds.length} RETURNING chest_id
+          ) INSERT INTO chests (chest_id, player_id, status, duration_seconds, chest_type, coin_reward)
+            SELECT ${legendaryChestId}, ${playerId}, 'locked', ${chestConfig.unlockSeconds}, 'legendary', ${chestCoinReward}
+            WHERE (SELECT COUNT(*) FROM consumed)=${consumedIds.length} RETURNING chest_id`,
+      ]) as unknown[][];
+      if (!results[1].length) return res.status(409).json({ error: '宝箱材料已变化，请刷新后重试。' });
 
       return res.json({ ok: true, chestId: legendaryChestId, chestType: 'legendary', counts, required: LEGENDARY_CRAFT_COST });
     }
@@ -260,30 +279,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? Math.max(1, Math.ceil(remainingMs / 60000)) * 20
         : Math.max(1, Math.ceil(remainingMs / (30 * 60 * 1000)));
 
-      if (skipCurrency === 'coins') {
-        const spent = await sql`UPDATE player_wallet
-          SET coins = coins - ${cost}, updated_at=NOW()
-          WHERE player_id=${playerId} AND coins >= ${cost}
-          RETURNING coins`;
-        if (spent.length === 0) {
-          const walletRows = await sql`SELECT coins FROM player_wallet WHERE player_id=${playerId}`;
-          return res.status(400).json({ error: 'COINS_NOT_ENOUGH', need: cost, have: Number(walletRows[0]?.coins ?? 0) });
-        }
-      } else {
-        const spent = await sql`UPDATE player_wallet
-          SET diamonds = diamonds - ${cost}, updated_at=NOW()
-          WHERE player_id=${playerId} AND diamonds >= ${cost}
-          RETURNING diamonds`;
-        if (spent.length === 0) {
-          const walletRows = await sql`SELECT diamonds FROM player_wallet WHERE player_id=${playerId}`;
-          return res.status(400).json({ error: 'DIAMONDS_NOT_ENOUGH', need: cost, have: Number(walletRows[0]?.diamonds ?? 0) });
-        }
-      }
-
-      const nowIso = new Date().toISOString();
-      await sql`UPDATE chests SET unlock_ready_at=${nowIso}, unlock_start_at=${nowIso} WHERE chest_id=${chestId} AND player_id=${playerId}`;
-
-      return res.json({ ok: true, cost, currency: skipCurrency, readyAt: nowIso });
+      const results = await sql.transaction(tx => [
+        tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+        tx.query(`WITH current_chest AS (
+            SELECT chest_id, GREATEST(0,CEIL(EXTRACT(EPOCH FROM (unlock_ready_at-NOW()))/$3::numeric))::integer*$4::integer AS cost
+            FROM chests WHERE player_id=$1::text AND chest_id=$2::text AND status='unlocking'
+          ), paid AS (
+            UPDATE player_wallet SET ${skipCurrency}=${skipCurrency}-current_chest.cost,updated_at=NOW()
+            FROM current_chest WHERE player_id=$1::text AND ${skipCurrency}>=current_chest.cost RETURNING current_chest.cost
+          ) UPDATE chests SET status='ready',unlock_ready_at=NOW()
+            FROM paid WHERE player_id=$1::text AND chest_id=$2::text RETURNING paid.cost,unlock_ready_at`,
+        [playerId, chestId, skipCurrency === 'coins' ? 60 : 1800, skipCurrency === 'coins' ? 20 : 1]),
+      ]) as Array<Array<Record<string, unknown>>>;
+      const skipped = results[1][0];
+      if (!skipped) return res.status(409).json({ error: '余额不足或宝箱已被处理，请刷新后重试。', need: cost });
+      return res.json({ ok: true, cost: Number(skipped.cost), currency: skipCurrency, readyAt: skipped.unlock_ready_at });
     }
 
     if (action === 'open') {
@@ -301,7 +311,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(400).json({ error: 'bad action' });
   } catch (e: unknown) {
-    console.error(e);
-    return res.status(500).json({ error: getErrorMessage(e) });
+    if (!(e instanceof ApiError)) console.error(e);
+    return res.status(e instanceof ApiError ? e.status : 500).json({ error: getErrorMessage(e) });
   }
 }

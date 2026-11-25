@@ -1,259 +1,167 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, Coins, Diamond, LoaderCircle, RefreshCw, ShoppingCart } from 'lucide-react';
 import AuthBar from '../td/AuthBar';
 import { getToken } from '../td/authProgress';
 import { getErrorMessage } from '../td/errors';
-import { resolveShardLabel } from '../td/labels';
-import { fetchShopWallet, purchaseShopProduct, SHOP_PRODUCT_VIEWS, type ShopProductView, type ShopReceipt, type ShopWallet } from './shopApi';
+import { resolveUnlockItemLabel } from '../td/labels';
+import { ElementIcon, PlantIcon } from '../td/TowerIcons';
+import { ELEMENT_PLANT_CONFIG } from '../td/plants';
+import type { ElementType, PlantType } from '../td/types';
+import { fetchDailyShop, purchaseShopProduct, type DailyShopState, type ShopProductView } from './shopApi';
 
 type ShopPageProps = { onBack: () => void };
-
-function formatCoins(amount: number) {
-  return Number(amount || 0).toLocaleString('zh-CN');
-}
-
-function formatPurchaseTime(value: string) {
-  const timestamp = new Date(value);
-  if (Number.isNaN(timestamp.getTime())) return value;
-  const formatted = new Intl.DateTimeFormat('zh-CN', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(timestamp);
-  return `${formatted}（北京时间）`;
-}
-
-function buildReceiptText(receipt: ShopReceipt) {
-  return [
-    '【兑换凭据】',
-    `凭据编号：${receipt.id}`,
-    `购买者ID：${receipt.buyerId}`,
-    `用户名：${receipt.username || '未记录'}`,
-    `商品：${receipt.productName}`,
-    `金额：${formatCoins(receipt.priceCoins)} 金币`,
-    `购买形式：${receipt.channelLabel}`,
-    `购买时间：${formatPurchaseTime(receipt.purchasedAt)}`,
-  ].join('\n');
-}
+const formatAmount = (amount: number) => amount.toLocaleString('zh-CN');
 
 export default function ShopPage({ onBack }: ShopPageProps) {
-  const [wallet, setWallet] = useState<ShopWallet | null>(null);
-  const [receipt, setReceipt] = useState<ShopReceipt | null>(null);
-  const [grantedShards, setGrantedShards] = useState<{ productName: string; shards: Record<string, number> } | null>(null);
-  const [busyProductId, setBusyProductId] = useState<string | null>(null);
+  const [shop, setShop] = useState<DailyShopState | null>(null);
+  const [pending, setPending] = useState<ShopProductView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const operation = useRef(false);
+  const mounted = useRef(true);
   const authed = Boolean(getToken());
 
-  const loadWallet = useCallback(async () => {
+  const load = useCallback(async () => {
+    if (operation.current) return;
+    operation.current = true;
+    setLoading(true);
     try {
-      setWallet(await fetchShopWallet());
-    } catch (reason: unknown) {
-      setError(getErrorMessage(reason, '商店加载失败'));
+      const result = await fetchDailyShop();
+      if (mounted.current) { setShop(result); setError(''); }
+    } catch (reason) {
+      if (mounted.current) setError(getErrorMessage(reason, '商店加载失败'));
+    } finally {
+      operation.current = false;
+      if (mounted.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
+    if (authed) void load();
+    return () => { mounted.current = false; };
+  }, [authed, load]);
+
+  useEffect(() => {
     if (!authed) return;
-    void loadWallet();
-  }, [authed, loadWallet]);
+    const tick = () => setNow(Date.now());
+    const timer = window.setInterval(tick, 1000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', tick);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [authed]);
 
-  const handlePurchase = async (product: ShopProductView) => {
-    if (busyProductId) return;
-    if (!window.confirm(`确认消耗 ${formatCoins(product.priceCoins)} 金币兑换「${product.name}」吗？兑换后金币不予退还。`)) return;
+  const expired = shop !== null && now >= Date.parse(shop.refreshAt);
+  useEffect(() => {
+    if (!expired) return;
+    setPending(null);
+    setMessage('');
+    void load();
+  }, [expired, load]);
 
-    setBusyProductId(product.id);
+  useEffect(() => {
+    if (!pending || busy) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setPending(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pending, busy]);
+
+  const buy = async () => {
+    if (!shop || !pending || operation.current || expired) return;
+    operation.current = true;
+    setBusy(true);
     setError('');
     setMessage('');
     try {
-      const result = await purchaseShopProduct(product.id);
-      setWallet(current => {
-        if (!current) return current;
-        if (result.kind === 'redemption') {
-          return { ...current, coins: result.coins, purchases: [result.purchase, ...current.purchases] };
-        }
-        return { ...current, coins: result.coins };
-      });
-
-      if (result.kind === 'instant') {
-        setGrantedShards({ productName: product.name, shards: result.shards });
-      } else {
-        setCopied(false);
-        setReceipt(result.purchase);
+      const result = await purchaseShopProduct(pending.id, shop.dayKey);
+      if (mounted.current) {
+        setShop(result);
+        setMessage(`${resolveUnlockItemLabel(pending.itemId)}碎片 x${pending.amount} 已到账。`);
       }
-    } catch (reason: unknown) {
-      const rawMessage = getErrorMessage(reason, '兑换失败，请稍后重试');
-      setError(rawMessage.includes('COINS_NOT_ENOUGH') ? '金币不足，无法兑换该商品' : rawMessage);
+    } catch (reason) {
+      if (mounted.current) setError(getErrorMessage(reason, '购买失败，请稍后重试'));
+      // Re-read after ambiguous network failures or a purchase made on another device.
+      try { const result = await fetchDailyShop(); if (mounted.current) setShop(result); } catch { /* Keep the original error. */ }
     } finally {
-      setBusyProductId(null);
+      operation.current = false;
+      if (mounted.current) { setBusy(false); setPending(null); }
     }
   };
 
-  const copyReceipt = async () => {
-    if (!receipt) return;
-    try {
-      await navigator.clipboard.writeText(buildReceiptText(receipt));
-      setCopied(true);
-    } catch {
-      setMessage('复制失败，请直接截屏。');
-    }
-  };
+  if (!authed) return <>
+    <AuthBar onAuthed={() => window.location.reload()} />
+    <main className="shop-shell"><div className="shop-empty">
+      <strong>登录后可进入商店</strong>
+      <button className="action-button" onClick={onBack}><ArrowLeft size={16} />返回主页</button>
+    </div></main>
+  </>;
 
-  if (!authed) {
-    return (
-      <>
-        <AuthBar onAuthed={() => window.location.reload()} />
-        <main className="page-wrap">
-          <section className="soft-card shop-empty">
-            <strong>登录后可进入商店</strong>
-            <button className="action-button" onClick={onBack}>返回主界面</button>
-          </section>
-        </main>
-      </>
-    );
-  }
+  const remaining = shop ? Math.max(0, Math.ceil((Date.parse(shop.refreshAt) - now) / 1000)) : 0;
+  const countdown = [Math.floor(remaining / 3600), Math.floor(remaining / 60) % 60, remaining % 60]
+    .map(value => String(value).padStart(2, '0')).join(':');
 
-  return (
-    <>
-      <AuthBar wallet={wallet ?? undefined} />
-      <main className="page-wrap">
-        <section className="glass-panel hero-panel card-enter" style={{ opacity: 0, animationDelay: '0s' }}>
-          <div className="page-title-row">
-            <div>
-              <div className="eyebrow">SHOP</div>
-              <h1>商店</h1>
-              <p>？！富富？！</p>
-            </div>
-            <div className="button-row">
-              <button onClick={onBack} className="action-button">返回主界面</button>
-            </div>
+  return <>
+    <AuthBar wallet={shop ?? undefined} />
+    <main className="shop-shell">
+      <header className="shop-header">
+        <div><span className="study-kicker">SHOP</span><h1>商店</h1></div>
+        <button className="action-button" onClick={onBack}><ArrowLeft size={16} />返回主页</button>
+      </header>
+      {error && <div className="shop-error" role="alert">{error}</div>}
+      {message && <div className="shop-message" role="status">{message}</div>}
+      <section className="shop-section" aria-labelledby="daily-shop-title">
+        <div className="shop-section-heading">
+          <div><h2 id="daily-shop-title">每日商店</h2><span className="muted">北京时间 00:00 刷新</span></div>
+          <div className="shop-refresh">
+            {shop && <span>{expired ? '待刷新' : `${countdown} 后刷新`}</span>}
+            <button className="shop-icon-button" onClick={() => void load()} disabled={loading || busy}
+              title="刷新商店" aria-label="刷新商店"><RefreshCw size={16} className={loading ? 'shop-spinner' : ''} /></button>
           </div>
-
-          <div className="stats-row">
-            <div className="metric-pill">
-              <span>金币</span>
-              <strong>{wallet ? formatCoins(wallet.coins) : '-'}</strong>
-            </div>
-            <div className="metric-pill">
-              <span>钻石</span>
-              <strong>{wallet?.diamonds ?? '-'}</strong>
-            </div>
-            <div className="metric-pill">
-              <span>购买者ID</span>
-              <strong style={{ fontSize: 14, wordBreak: 'break-all' }}>{wallet?.buyerId ?? '-'}</strong>
-            </div>
-          </div>
-        </section>
-
-        {error && <p className="shop-error">{error}</p>}
-        {message && <p className="shop-message">{message}</p>}
-
-        <div className="dashboard-grid">
-          <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.08s', padding: 16 }}>
-            <div className="section-title">商品</div>
-            <div className="item-list">
-              {SHOP_PRODUCT_VIEWS.map(product => {
-                const affordable = (wallet?.coins ?? 0) >= product.priceCoins;
-                const busy = busyProductId === product.id;
-                const can = affordable && wallet !== null && busyProductId === null;
-                return (
-                  <div key={product.id} className="item-row">
-                    <div>
-                      <div className="item-name">
-                        {product.kind === 'instant' ? '📦' : '🥛'} {product.name}
-                        <span className="shop-tag">{product.kind === 'instant' ? '立即到账' : '需凭据'}</span>
-                      </div>
-                      <div className="muted">
-                        {formatCoins(product.priceCoins)} 金币 · {product.description}
-                        {wallet !== null && !affordable && <span className="warning-text">（金币不足）</span>}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => void handlePurchase(product)}
-                      disabled={!can}
-                      className="action-button primary"
-                      style={{ opacity: can ? 1 : 0.52 }}
-                    >
-                      {busy ? '兑换中...' : '兑换'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="soft-card card-enter" style={{ opacity: 0, animationDelay: '0.14s', padding: 16 }}>
-            <div className="section-title">兑换凭据记录</div>
-            <div className="muted" style={{ marginBottom: 10 }}>立即到账的商品不会留下记录。</div>
-            {!wallet ? (
-              <div className="muted">正在读取凭据记录...</div>
-            ) : wallet.purchases.length === 0 ? (
-              <div className="muted">还没有需要凭据的兑换记录。</div>
-            ) : (
-              <div className="item-list">
-                {wallet.purchases.map(purchase => (
-                  <div key={purchase.id} className="item-row">
-                    <div>
-                      <div className="item-name">{purchase.productName}</div>
-                      <div className="muted">{purchase.channelLabel} · {formatPurchaseTime(purchase.purchasedAt)}</div>
-                    </div>
-                    <span className="muted">{formatCoins(purchase.priceCoins)} 金币</span>
-                  </div>
-                ))}
+        </div>
+        {!shop ? <div className="shop-empty"><strong>{loading ? '正在读取商品...' : '暂时无法读取商品'}</strong></div>
+          : <div className="shop-product-grid">{shop.products.map(product => {
+            const affordable = shop[product.currency] >= product.price;
+            const label = resolveUnlockItemLabel(product.itemId);
+            const CurrencyIcon = product.currency === 'coins' ? Coins : Diamond;
+            return <article key={`${shop.dayKey}-${product.id}`} className={`shop-product${product.purchased ? ' is-purchased' : ''}`}>
+              <div className={`shop-product-icon ${product.currency === 'coins' ? 'is-plant' : 'is-element'}`}>
+                {product.currency === 'coins' ? <PlantIcon type={product.itemId as PlantType} color="#15803d" size={40} />
+                  : <ElementIcon color={ELEMENT_PLANT_CONFIG[product.itemId.split(':')[1] as ElementType].color} size={40} />}
               </div>
-            )}
-          </section>
+              <h3>{label}碎片</h3>
+              <span className="shop-product-quantity">x{product.amount}</span>
+              <div className="shop-product-price"><CurrencyIcon size={16} /><strong>{formatAmount(product.price)}</strong>
+                <span>{product.currency === 'coins' ? '金币' : '钻石'}</span></div>
+              <button className={`action-button${product.purchased ? '' : ' primary'}`}
+                disabled={product.purchased || !affordable || busy || loading || expired}
+                onClick={() => { setError(''); setMessage(''); setPending(product); }}>
+                {product.purchased ? <Check size={16} /> : <ShoppingCart size={16} />}
+                {product.purchased ? '已购买' : affordable ? '购买' : product.currency === 'coins' ? '金币不足' : '钻石不足'}
+              </button>
+            </article>;
+          })}</div>}
+      </section>
+    </main>
+    {pending && <div className="modal-backdrop" onClick={() => { if (!busy) setPending(null); }}>
+      <div className="glass-panel modal-panel shop-confirm" role="dialog" aria-modal="true" aria-labelledby="shop-confirm-title"
+        onClick={event => event.stopPropagation()}>
+        <h2 id="shop-confirm-title">确认购买</h2>
+        <p>{resolveUnlockItemLabel(pending.itemId)}碎片 x{pending.amount}</p>
+        <strong>{formatAmount(pending.price)} {pending.currency === 'coins' ? '金币' : '钻石'}</strong>
+        <div className="button-row">
+          <button className="action-button" disabled={busy} onClick={() => setPending(null)}>取消</button>
+          <button className="action-button primary" disabled={busy || expired} onClick={() => void buy()} autoFocus>
+            {busy ? <LoaderCircle size={16} className="shop-spinner" /> : <ShoppingCart size={16} />}{busy ? '购买中...' : '确认购买'}
+          </button>
         </div>
-      </main>
-
-      {grantedShards && (
-        <div className="modal-backdrop">
-          <div className="glass-panel modal-panel shop-receipt-panel">
-            <div className="shop-receipt-title">🎁 兑换成功</div>
-            <div className="muted" style={{ textAlign: 'center' }}>
-              {grantedShards.productName} 已直接发放到账号。
-            </div>
-            <div className="shop-receipt">
-              {Object.entries(grantedShards.shards).map(([itemId, count]) => (
-                <div key={itemId} className="shop-receipt-row">
-                  <span>{resolveShardLabel(itemId)}碎片</span>
-                  <strong style={{ color: '#10b981' }}>+{count}</strong>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setGrantedShards(null)} className="action-button primary" style={{ width: '100%' }}>确定</button>
-          </div>
-        </div>
-      )}
-
-      {receipt && (
-        <div className="modal-backdrop">
-          <div className="glass-panel modal-panel shop-receipt-panel">
-            <div className="shop-receipt-title">🥛 兑换成功</div>
-            <div className="muted" style={{ textAlign: 'center' }}>请截屏并发给owner。</div>
-
-            <div className="shop-receipt">
-              <div className="shop-receipt-row"><span>凭据编号</span><strong>{receipt.id}</strong></div>
-              <div className="shop-receipt-row"><span>购买者ID</span><strong>{receipt.buyerId}</strong></div>
-              <div className="shop-receipt-row"><span>用户名</span><strong>{receipt.username || '未记录'}</strong></div>
-              <div className="shop-receipt-row"><span>商品</span><strong>{receipt.productName}</strong></div>
-              <div className="shop-receipt-row"><span>金额</span><strong>{formatCoins(receipt.priceCoins)} 金币</strong></div>
-              <div className="shop-receipt-row"><span>购买形式</span><strong>{receipt.channelLabel}</strong></div>
-              <div className="shop-receipt-row"><span>购买时间</span><strong>{formatPurchaseTime(receipt.purchasedAt)}</strong></div>
-            </div>
-
-            <div className="button-row">
-              <button onClick={() => void copyReceipt()} className="action-button">{copied ? '已复制' : '复制凭据'}</button>
-              <button onClick={() => setReceipt(null)} className="action-button primary">确定</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+      </div>
+    </div>}
+  </>;
 }

@@ -14,6 +14,7 @@ import LevelIntro, { type IntroMetadata } from './LevelIntro';
 import { INTRO_TIPS } from './tips';
 import { getIntroMonsters } from './introLayout';
 import '../../src/index.css';
+import '../../src/styles/game-font.css';
 import './demo.css';
 
 type Phase = 'loading' | 'exiting' | 'revealing' | 'playing';

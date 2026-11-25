@@ -155,7 +155,7 @@ async function readExistingDrafts(file: string) {
 function buildDraftSource(drafts: BalanceDraftRecord[]) {
   const orderedDrafts = sortDrafts(drafts);
 
-  return `import type { BalanceLabLevelDraft } from './BalanceLabPage';\n\nexport const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = ${JSON.stringify(orderedDrafts, null, 2)};\n\nexport const BALANCE_LAB_LEVEL_DRAFT: BalanceLabLevelDraft = BALANCE_LAB_LEVEL_DRAFTS[0] as BalanceLabLevelDraft;\n`;
+  return `import type { BalanceLabLevelDraft } from '../../shared/balanceLabDraft';\n\nexport const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = ${JSON.stringify(orderedDrafts, null, 2)};\n\nexport const BALANCE_LAB_LEVEL_DRAFT: BalanceLabLevelDraft = BALANCE_LAB_LEVEL_DRAFTS[0] as BalanceLabLevelDraft;\n`;
 }
 
 function buildDraftResponse(drafts: BalanceDraftRecord[]) {

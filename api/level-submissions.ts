@@ -4,7 +4,6 @@ import { createId, ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
 import { getErrorMessage } from './_errors.js';
 
-const ADMIN_PASSWORD = 'csx081028';
 const DAILY_SUBMISSION_LIMIT = 10;
 const MAX_LEVEL_NAME_LENGTH = 120;
 const MAX_DIFFICULTY_LENGTH = 12;
@@ -79,12 +78,18 @@ function attributeSubmissionCode(source: unknown, contributor: string) {
 
 function hasAdminAccess(value: unknown) {
   if (typeof value !== 'string') return false;
-  const expected = Buffer.from(ADMIN_PASSWORD);
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 8) return false;
+  const expected = Buffer.from(password);
   const provided = Buffer.from(value);
   return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
 }
 
 function requireAdmin(req: VercelRequest, res: VercelResponse) {
+  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 8) {
+    res.status(503).json({ error: '请在Vercel设置新的ADMIN_PASSWORD（至少8个字符），审核功能暂不可用。' });
+    return false;
+  }
   if (hasAdminAccess(req.body?.password)) return true;
   res.status(401).json({ error: 'admin password incorrect' });
   return false;

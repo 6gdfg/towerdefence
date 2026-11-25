@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getToken } from '../td/authProgress';
+import { getToken, getUsername } from '../td/authProgress';
 import AuthBar from '../td/AuthBar';
 import { fetchStudyProgress, saveStudyProgressToCloud } from './studyApi';
-import { completeDailyPractice, recordBrowseTask } from '../tasks/tasksApi';
+import { completeDailyPractice, recordBrowseTask, startDailyPracticeRun, type PracticeRun } from '../tasks/tasksApi';
 import { loadStudyData } from './studyData';
 import { DAILY_QUESTION_LIMIT, fromStudyProgressWire, getTodayKey, limitStudyMistakes, loadStudyProgress, mergeStudyProgress, normalizeDailyStats, saveStudyProgress, toStudyProgressWire } from './studyStorage';
 import type { MistakeRecord, StudyData, StudyItem, StudyMode, StudyProgress, StudyQuestion } from './types';
@@ -28,6 +28,19 @@ const MODE_OPTIONS: Array<{ id: StudyMode; label: string; short: string }> = [
 const TEST_MODES = new Set<StudyMode>(['wordTest', 'phraseTest', 'daily', 'mistakeTest']);
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
 const MISTAKE_PAGE_SIZE = 18;
+
+type LocalPractice = PracticeRun & { answers: number[]; claimed?: boolean };
+function practiceStorageKey() { return `td_practice_run:${localStorage.getItem('td_player_id') || getUsername()}`; }
+function readLocalPractice(): LocalPractice | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(practiceStorageKey()) || 'null');
+    return value && typeof value.runId === 'string' && Array.isArray(value.questions) && value.questions.length===50
+      && Array.isArray(value.answers) && value.answers.length<=50 ? value : null;
+  } catch { return null; }
+}
+function saveLocalPractice(value: LocalPractice) {
+  try { localStorage.setItem(practiceStorageKey(),JSON.stringify(value)); } catch { /* Practice can continue without local storage. */ }
+}
 
 function shuffle<T>(items: T[]) {
   const result = [...items];
@@ -75,6 +88,9 @@ export default function StudyPage({ onExit }: StudyPageProps) {
   const [mistakeQuery, setMistakeQuery] = useState('');
   const [mistakePage, setMistakePage] = useState(0);
   const reportedBrowseIndexesRef = useRef(new Set<number>());
+  const practiceRef = useRef<LocalPractice | null>(null);
+  const [practiceBusy,setPracticeBusy] = useState(false);
+  const [practiceError,setPracticeError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -176,7 +192,62 @@ export default function StudyPage({ onExit }: StudyPageProps) {
     setMistakePage(0);
   };
 
-  const startDailyPractice = () => {
+  const claimPracticeReward = async (run: LocalPractice) => {
+    const token = getToken();
+    setPracticeBusy(true);
+    setPracticeError('');
+    try {
+      await completeDailyPractice(run.runId,run.answers);
+      if (getToken() !== token) return;
+      run.claimed=true;
+      saveLocalPractice(run);
+    } catch (error) {
+      if (getToken()===token) setPracticeError(error instanceof Error ? error.message : '练习结算失败，请重试。');
+    } finally { setPracticeBusy(false); }
+  };
+
+  const questionForRun = (run: LocalPractice,index: number) => {
+    const entry = run.questions[index];
+    const item = entry ? data?.itemById[entry.itemId] : null;
+    return item ? { item,options:entry.options } : null;
+  };
+
+  const startDailyPractice = async () => {
+    if (practiceBusy) return;
+    if (getToken()) {
+      const token=getToken();
+      setPracticeBusy(true);
+      setPracticeError('');
+      try {
+        const cached=readLocalPractice();
+        if (cached?.answers.length===50 && !cached.claimed) {
+          try { await completeDailyPractice(cached.runId,cached.answers); }
+          catch (error) { if ((error as { status?: number })?.status!==409) throw error; }
+          cached.claimed=true;
+          saveLocalPractice(cached);
+        }
+        const started=await startDailyPracticeRun();
+        if (getToken()!==token) return;
+        const run: LocalPractice=cached?.runId===started.runId ? cached : { ...started,answers:[] };
+        const next=questionForRun(run,run.answers.length);
+        if (!next) throw new Error('题库版本不一致，请刷新页面后重试。');
+        practiceRef.current=run;
+        saveLocalPractice(run);
+        const correct=run.answers.reduce((count,answer,index)=> {
+          const q=questionForRun(run,index);
+          return count+(q && q.options[answer]===q.item.answer ? 1 : 0);
+        },0);
+        setProgress(current=>({...current,daily:{ date:getTodayKey(),answered:run.answers.length,correct }}));
+        setSessionAnswered(run.answers.length);
+        setSessionCorrect(correct);
+        setQuestion(next);
+        setAnswerResult(null);
+        setDailySessionActive(true);
+      } catch(error) {
+        if (getToken()===token) setPracticeError(error instanceof Error ? error.message : '练习加载失败。');
+      } finally { setPracticeBusy(false); }
+      return;
+    }
     const daily = normalizeDailyStats(progress.daily);
     if (daily.answered >= DAILY_QUESTION_LIMIT) {
       setProgress(current => ({ ...current, daily: { date: getTodayKey(), answered: 0, correct: 0 } }));
@@ -206,8 +277,16 @@ export default function StudyPage({ onExit }: StudyPageProps) {
     const mode = progress.activeMode;
     const now = Date.now();
     const normalizedDaily = normalizeDailyStats(progress.daily);
-    const completesDailyRound = mode === 'daily' && normalizedDaily.answered + 1 >= DAILY_QUESTION_LIMIT;
-    const dailyCorrectAfterAnswer = normalizedDaily.correct + (correct ? 1 : 0);
+    const completesDailyRound = mode === 'daily' && (practiceRef.current?.answers.length ?? normalizedDaily.answered) + 1 >= DAILY_QUESTION_LIMIT;
+    const run = mode==='daily' ? practiceRef.current : null;
+    if (run) {
+      run.answers.push(selectedIndex);
+      saveLocalPractice(run);
+    }
+    const runCorrect = run?.answers.reduce((count,answer,index)=> {
+      const q=questionForRun(run,index);
+      return count+(q && q.options[answer]===q.item.answer ? 1 : 0);
+    },0);
 
     setProgress(current => {
       const mistakes = { ...current.mistakes };
@@ -232,19 +311,18 @@ export default function StudyPage({ onExit }: StudyPageProps) {
       const daily = mode === 'daily'
         ? {
             ...currentDaily,
-            answered: Math.min(DAILY_QUESTION_LIMIT, currentDaily.answered + 1),
-            correct: currentDaily.correct + (correct ? 1 : 0),
+            answered: run?.answers.length ?? Math.min(DAILY_QUESTION_LIMIT, currentDaily.answered + 1),
+            correct: runCorrect ?? currentDaily.correct + (correct ? 1 : 0),
           }
         : currentDaily;
       return { ...current, mistakes: limitStudyMistakes(mistakes), daily };
     });
 
     setAnswerResult({ selectedIndex, correct });
-    setSessionAnswered(value => value + 1);
-    if (correct) setSessionCorrect(value => value + 1);
-    if (completesDailyRound && getToken()) {
-      void completeDailyPractice(dailyCorrectAfterAnswer).catch(() => undefined);
-    }
+    setSessionAnswered(value => run?.answers.length ?? value + 1);
+    if (runCorrect!==undefined) setSessionCorrect(runCorrect);
+    else if (correct) setSessionCorrect(value => value + 1);
+    if (completesDailyRound && getToken() && run) void claimPracticeReward(run);
   };
 
   const nextQuestion = () => {
@@ -254,7 +332,9 @@ export default function StudyPage({ onExit }: StudyPageProps) {
       setDailySessionActive(false);
       return;
     }
-    const next = createQuestion(progress.activeMode, question?.item.id);
+    const next = progress.activeMode==='daily' && practiceRef.current
+      ? questionForRun(practiceRef.current,practiceRef.current.answers.length)
+      : createQuestion(progress.activeMode, question?.item.id);
     setQuestion(next);
     setAnswerResult(null);
   };
@@ -385,7 +465,7 @@ export default function StudyPage({ onExit }: StudyPageProps) {
                   ? `本轮已完成 ${daily.answered} / ${DAILY_QUESTION_LIMIT} 题，可继续作答。`
                   : `每轮固定 ${DAILY_QUESTION_LIMIT} 题。`}
             </span>
-            <button className="action-button primary" onClick={startDailyPractice}>
+            <button className="action-button primary" disabled={practiceBusy} onClick={() => void startDailyPractice()}>
               {daily.answered >= DAILY_QUESTION_LIMIT ? '再练一轮' : daily.answered > 0 ? '继续练习' : '开始练习'}
             </button>
           </div>
@@ -578,6 +658,11 @@ export default function StudyPage({ onExit }: StudyPageProps) {
           {progress.activeMode === 'browse' && renderBrowse()}
           {TEST_MODES.has(progress.activeMode) && renderTest()}
           {progress.activeMode === 'mistakes' && renderMistakes()}
+          {practiceError && <div role="alert" className="study-answer-panel is-wrong">
+            <span>{practiceError}</span>
+            {practiceRef.current?.answers.length===50 && <button className="action-button" disabled={practiceBusy}
+              onClick={()=>void claimPracticeReward(practiceRef.current!)}>重试结算</button>}
+          </div>}
         </section>
       </div>
       </main>

@@ -47,6 +47,9 @@ export default function BossHealthBars({ enemies, style, availableHeight, compac
                   className="boss-health-armor"
                   style={{ left: `${healthRatio * 100}%`, width: `${armorRatio * 100}%` }}
                 />
+                <span className="boss-health-value" aria-hidden="true">
+                  {Math.ceil(health + armor)}/{maximum}
+                </span>
               </div>
             </div>
           );

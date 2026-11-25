@@ -70,6 +70,20 @@ function parseJsonWords(raw: unknown): StudyWord[] {
   });
 }
 
+export function studyItemsFromJson(raw: unknown) {
+  const browseWords = parseJsonWords(raw);
+  const jsonWordItems: StudyItem[] = browseWords.flatMap((word, index) => {
+    const answer = formatTranslations(word.translations);
+    return answer ? [{ id: `j:${index}`, kind: 'word', prompt: word.word, answer }] : [];
+  });
+  let phraseIndex = 0;
+  const phraseItems: StudyItem[] = browseWords.flatMap(word => word.phrases.map(phrase => ({
+    id: `p:${phraseIndex++}`, kind: 'phrase' as const, prompt: phrase.phrase,
+    answer: phrase.translation, sourceWord: word.word,
+  })));
+  return { browseWords, jsonWordItems, phraseItems };
+}
+
 async function fetchText(url: string) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to load ${url}: ${response.status}`);
@@ -81,20 +95,8 @@ async function buildStudyData(): Promise<StudyData> {
     fetchText('/study-data/words.txt'),
     fetchText('/study-data/words.json'),
   ]);
-  const browseWords = parseJsonWords(JSON.parse(jsonText) as unknown);
+  const { browseWords, jsonWordItems, phraseItems } = studyItemsFromJson(JSON.parse(jsonText) as unknown);
   const wordItems = parseWordList(simpleText);
-  const jsonWordItems: StudyItem[] = browseWords.flatMap((word, index) => {
-    const answer = formatTranslations(word.translations);
-    return answer ? [{ id: `j:${index}`, kind: 'word', prompt: word.word, answer }] : [];
-  });
-  let phraseIndex = 0;
-  const phraseItems: StudyItem[] = browseWords.flatMap(word => word.phrases.map(phrase => ({
-    id: `p:${phraseIndex++}`,
-    kind: 'phrase' as const,
-    prompt: phrase.phrase,
-    answer: phrase.translation,
-    sourceWord: word.word,
-  })));
 
   const itemById: Record<string, StudyItem> = {};
   [...wordItems, ...jsonWordItems, ...phraseItems].forEach(item => {

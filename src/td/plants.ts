@@ -335,7 +335,7 @@ export const BASE_PLANTS_CONFIG: Record<PlantType, BasePlantConfig> = {
     cost: 200,
     placementCooldown: 60,
     range: 0,
-    damage: 300,
+    damage: 700,
     fireRate: 0,
     projectileSpeed: 0,
     elementAllowed: false,

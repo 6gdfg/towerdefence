@@ -1,5 +1,5 @@
 import { getToken, getUsername } from './authProgress';
-import { readApiJson } from './apiClient';
+import { readApiJson, requestApiJson } from './apiClient';
 
 export type ChestOpenResult = {
   shards: Record<string, number>;
@@ -19,21 +19,14 @@ async function postCloudAction<T>(url: string, body: Record<string, unknown>): P
   const token = getToken();
   if (!token) return null;
 
-  const response = await fetch(url, {
+  return requestApiJson<T>(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
-  });
-
-  try {
-    return await readApiJson<T>(response, `Request failed: ${response.status}`);
-  } catch (cause) {
-    if (cause instanceof Error) Object.assign(cause, { status: response.status });
-    throw cause;
-  }
+  }, '云端操作失败');
 }
 
 export function startChestUnlock(chestId: string) {
@@ -107,6 +100,14 @@ export async function startEndlessModeRun() {
 
 export function abandonEndlessModeRun(runId: string) {
   return postCloudAction<{ ok: boolean }>('/api/progress', { action: 'abandonEndlessRun', runId });
+}
+
+export async function startCampaignModeRun(levelId: string, difficulty: string, challenges: string[]) {
+  const result = await postCloudAction<{ ok: boolean; runId: string }>('/api/progress', {
+    action: 'startCampaignRun', levelId, difficulty, challenges,
+  });
+  if (!result?.ok || typeof result.runId !== 'string') throw new Error('无法建立对局，请检查登录状态和网络。');
+  return result;
 }
 
 export function upgradeCloudTower(towerType: string) {

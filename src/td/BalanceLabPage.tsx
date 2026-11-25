@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNLOCKED_ITEMS } from '../../shared/unlocks';
+import type { BalanceLabLevelDraft } from '../../shared/balanceLabDraft';
+export type { BalanceLabLevelDraft } from '../../shared/balanceLabDraft';
 import { ELEMENT_TYPES, MONSTER_LABELS, PLANT_TYPES } from './appConfig';
 import { getLevelSpecForDifficulty, LEVELS, MONSTER_BASE_STATS } from './levels';
 import { createLabDifficultyRatings, type DifficultyCode, type LevelDifficultyRatings } from './levelRatings';
@@ -28,25 +30,6 @@ export type BalanceLabConfig = {
   atModeConfig?: AtModeConfig;
   specialEnemyConfig: SpecialEnemyConfig;
   unlockRewards: string[];
-};
-
-export type BalanceLabLevelDraft = {
-  sourceLevelId: string;
-  levelNumber: number;
-  levelName: string;
-  contributor?: string;
-  difficulty: DifficultyCode;
-  rating: number;
-  mapId: number;
-  mapName: string;
-  startGold: number;
-  lives: number;
-  autoStartFirstWave: boolean;
-  firstWaveDelaySec: number;
-  waves: WaveDef[];
-  atModeConfig?: AtModeConfig;
-  specialEnemyConfig?: SpecialEnemyConfig;
-  unlockRewards?: string[];
 };
 
 type BalanceLabPageProps = {

@@ -81,10 +81,22 @@ export async function registerUser(username: string, password: string): Promise<
 export async function fetchCloudProgress(): Promise<CloudProgress> {
   const token = getToken();
   if (!token) throw new Error('No token');
-  const resp = await fetch('/api/progress', {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  return readApiJson<CloudProgress>(resp, 'Failed to fetch progress');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const resp = await fetch('/api/progress', {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    return await readApiJson<CloudProgress>(resp, 'Failed to fetch progress');
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('云端存档加载超时，请检查网络后点击重新连接。');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function clearAuth(): void {

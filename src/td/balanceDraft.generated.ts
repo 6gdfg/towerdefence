@@ -1,4 +1,4 @@
-import type { BalanceLabLevelDraft } from './BalanceLabPage';
+import type { BalanceLabLevelDraft } from '../../shared/balanceLabDraft';
 
 export const BALANCE_LAB_LEVEL_DRAFTS: BalanceLabLevelDraft[] = [
   {

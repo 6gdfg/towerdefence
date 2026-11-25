@@ -2202,45 +2202,22 @@ export const useTDStore = create<TDStore>((set, get) => ({
       } else if (enemy.shape === 'summoner') {
         const interval = SUMMONER_SPECIAL_INTERVAL;
         if ((enemy.specialTimer ?? 0) <= gameTime) {
-          // 召唤一个与自己等级相同的circle怪，出现在召唤者前方0.5格
           const path = paths[enemy.pathId];
-          const currentIndex = enemy.pathIndex;
-          const currentT = enemy.t;
+          const totalLen = Math.max(0.0001, totalPathLength(path));
+          // Advance in world distance across turns; stay before the house without moving behind the parent.
+          const spawnProgress = Math.min(
+            enemy.progress + 0.5 / totalLen,
+            Math.max(enemy.progress, 1 - 0.01 / totalLen),
+          );
+          const spawnLocation = getPathLocationAtProgress(path, spawnProgress);
 
-          // 计算召唤者前方位置（沿路径前进0.5格）
-          let spawnPos = { ...enemy.pos };
-          let spawnPathIndex = currentIndex;
-          let spawnT = currentT;
-
-          // 简单前进0.5格距离
-          const segLen = segmentLength(path[currentIndex], path[currentIndex + 1]);
-          if (segLen > 0) {
-            const advance = 0.5 / segLen;
-            spawnT = currentT + advance;
-            if (spawnT >= 1 && currentIndex < path.length - 2) {
-              spawnPathIndex = currentIndex + 1;
-              spawnT = spawnT - 1;
-            } else if (spawnT >= 1) {
-              spawnT = 0.99;
-            }
-            spawnPos = lerp(path[spawnPathIndex], path[spawnPathIndex + 1], spawnT);
-          }
-
-          // 创建召唤的circle怪物
           const baseStats = getMonsterRuntimeStats('circle', state.labOverrides);
           const mul = getMonsterLevelMultiplier(enemy.level);
           const summonedHp = Math.round(baseStats.hp * mul);
-          const totalLen = totalPathLength(path);
-          const prevSegments = (() => {
-            let s = 0;
-            for (let k = 0; k < spawnPathIndex; k++) s += segmentLength(path[k], path[k + 1]);
-            return s + segmentLength(path[spawnPathIndex], path[spawnPathIndex + 1]) * spawnT;
-          })();
-          const spawnProgress = prevSegments / totalLen;
 
           const summonedEnemy: Enemy = {
             id: `e-summoned-${Date.now()}-${Math.random()}`,
-            pos: spawnPos,
+            ...spawnLocation,
             hp: summonedHp,
             maxHp: summonedHp,
             speed: baseStats.speed,
@@ -2249,9 +2226,6 @@ export const useTDStore = create<TDStore>((set, get) => ({
             level: enemy.level,
             endlessWaveNumber: enemy.endlessWaveNumber,
             specialType: rollSpecialEnemyType(specialEnemyConfig),
-            pathIndex: spawnPathIndex,
-            t: spawnT,
-            progress: spawnProgress,
             pathId: enemy.pathId,
           };
           enemies.push(summonedEnemy);

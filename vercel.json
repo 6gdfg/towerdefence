@@ -1,5 +1,8 @@
 {
   "buildCommand": "npm run vercel-build",
+  "functions": {
+    "api/tasks.ts": { "includeFiles": "public/study-data/words.json" }
+  },
   "crons": [
     { "path": "/api/ranking?settle=1", "schedule": "0 16 * * 6" }
   ],

@@ -76,6 +76,23 @@ test('claims use authenticated progress actions and preserve inventory-full resu
   assert.equal(localStorage.getItem('td_endless_pending:test-id'), null);
 });
 
+test('endless settlement timeouts preserve the same run and score for a safe retry', async context => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const calls: Record<string, unknown>[] = [];
+  context.mock.method(globalThis, 'fetch', (_url: unknown, init: RequestInit) => {
+    calls.push(JSON.parse(String(init.body)));
+    if (calls.length > 1) return Promise.resolve(jsonResponse({ ok: true, wavesCleared: 20, rewardCoins: 1000, chestTypes: ['common'] }));
+    return new Promise((_resolve, reject) => init.signal!.addEventListener('abort', () => reject(new Error('aborted')), { once: true }));
+  });
+  const failed = assert.rejects(claimEndlessModeReward('same-run', 20), /请求超时/);
+  context.mock.timers.tick(20_000);
+  await failed;
+  assert.deepEqual(JSON.parse(localStorage.getItem('td_endless_pending:test-id')!), { runId: 'same-run', wavesCleared: 20 });
+  await claimEndlessModeReward('same-run', 20);
+  assert.deepEqual(calls[0], calls[1]);
+  assert.equal(localStorage.getItem('td_endless_pending:test-id'), null);
+});
+
 test('voluntary exits only abandon the run and never queue a reward claim', async context => {
   context.mock.method(globalThis, 'fetch', async (url: unknown, options: RequestInit) => {
     assert.equal(url, '/api/progress');

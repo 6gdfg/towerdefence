@@ -19,6 +19,7 @@ import LevelStartTransition, { type LevelIntroPhase } from './td/LevelStartTrans
 import type { IntroMetadata } from './td/LevelIntro';
 import { getIntroMonsters } from './td/introLayout';
 import { INTRO_TIPS } from './td/introTips';
+import { startCampaignModeRun } from './td/cloudApi';
 import ChallengeConfigModal from './td/ChallengeConfigModal';
 import UpdateAnnouncementModal from './td/UpdateAnnouncementModal';
 import SubmissionRewardModal from './td/SubmissionRewardModal';
@@ -82,6 +83,16 @@ type AtUnlockNotice = {
 type ActiveChallengeRun = {
   selected: ChallengeId[];
   startLives: number;
+};
+
+type PendingCampaignClear = {
+  runId: string;
+  levelIndex: number;
+  currentDifficulty: DifficultyCode;
+  currentStar: 1 | 2 | 3;
+  endLives: number;
+  wavesCleared: number;
+  token: string | null;
 };
 
 type SubmissionApprovalNotice = {
@@ -216,11 +227,17 @@ function App() {
   const [endlessRewardPending, setEndlessRewardPending] = useState(false);
   const [endlessRewardBusy, setEndlessRewardBusy] = useState(false);
   const endlessRewardBusyRef = useRef(false);
+  const pendingCampaignClearRef = useRef<PendingCampaignClear | null>(null);
+  const campaignRewardBusyRef = useRef(false);
+  const [campaignRewardPending, setCampaignRewardPending] = useState(false);
+  const [campaignRewardBusy, setCampaignRewardBusy] = useState(false);
   const [activeLabConfig, setActiveLabConfig] = useState<BalanceLabConfig | null>(null);
   const [pendingCardSelect, setPendingCardSelect] = useState<PendingCardSelect | null>(null);
   const [pendingLevelStart, setPendingLevelStart] = useState<PendingLevelStart | null>(null);
   const [levelIntroPhase, setLevelIntroPhase] = useState<LevelIntroPhase>('covering');
   const levelStartBusyRef = useRef(false);
+  const campaignRunRef = useRef<{ runId: string; token: string | null } | null>(null);
+  const [levelStartReady, setLevelStartReady] = useState(false);
   const levelStartIdRef = useRef(0);
   const [challengeConfigLevelIndex, setChallengeConfigLevelIndex] = useState<number | null>(null);
   const [activeChallengeRun, setActiveChallengeRun] = useState<ActiveChallengeRun | null>(null);
@@ -269,14 +286,14 @@ function App() {
   const introductionLoadedRef = useRef(false);
   useEffect(() => { const t = setInterval(()=>setNowTick(Date.now()), 1000); return ()=>clearInterval(t); }, []);
   const loadHub = useCallback(async () => {
+    const token = getToken();
     try {
       if (localPlaytestRef.current) return;
-      const token = getToken();
       if (!token) {
         return;
       }
       const d = await fetchCloudProgress();
-      if (localPlaytestRef.current) return;
+      if (localPlaytestRef.current || getToken() !== token) return;
       hydrateCloudProgressCache(d);
       const unlockedItems = Array.isArray(d.unlockedItems) && d.unlockedItems.length > 0 ? d.unlockedItems : [...DEFAULT_UNLOCKED_ITEMS];
       setHub({
@@ -300,11 +317,11 @@ function App() {
         setUnlockedState(1);
       }
     } catch (e) {
-      if (localPlaytestRef.current) return;
+      if (localPlaytestRef.current || getToken() !== token) return;
       console.error('Failed to load hub data', e);
       setHubLoadError(getErrorMessage(e, '云端存档加载失败，请检查网络后重试。'));
     } finally {
-      setDataFinished(true);
+      if (getToken() === token) setDataFinished(true);
     }
   }, []);
 
@@ -557,6 +574,8 @@ function App() {
 
 
   const beginLevelWithChallenges = (idx: number, difficulty: DifficultyCode, challenges: ChallengeId[] = []) => {
+    pendingCampaignClearRef.current = null;
+    setCampaignRewardPending(false);
     setActiveFunMode(null);
     setActiveLabConfig(null);
     setPendingCardSelect(null);
@@ -676,6 +695,7 @@ function App() {
     setPageTransition('idle');
     setChallengeConfigLevelIndex(null);
     levelStartBusyRef.current = true;
+    setLevelStartReady(false);
     setLevelIntroPhase('covering');
     setPendingLevelStart({
       id: ++levelStartIdRef.current, levelIndex: idx, difficulty, challenges: [...(challengeSel[idx] ?? [])],
@@ -688,10 +708,24 @@ function App() {
     });
   };
 
-  const confirmPendingLevelStart = () => {
+  const confirmPendingLevelStart = async () => {
     if (!pendingLevelStart) return;
     const pending = pendingLevelStart;
-    beginLevelWithChallenges(pending.levelIndex, pending.difficulty, pending.challenges);
+    const token = getToken();
+    try {
+      campaignRunRef.current = null;
+      if (!localPlaytest) {
+        const started = await startCampaignModeRun(LEVELS[pending.levelIndex].id, pending.difficulty, pending.challenges);
+        if (getToken() !== token || levelStartIdRef.current !== pending.id || !levelStartBusyRef.current) return;
+        campaignRunRef.current = { runId: started.runId, token };
+      }
+      beginLevelWithChallenges(pending.levelIndex, pending.difficulty, pending.challenges);
+      setLevelStartReady(true);
+    } catch (error) {
+      if (getToken() !== token || levelStartIdRef.current !== pending.id) return;
+      completeLevelStart();
+      alert(getErrorMessage(error, '开局校验失败，请重试。'));
+    }
   };
 
   const completeLevelStart = () => {
@@ -999,30 +1033,24 @@ function App() {
     };
   }, [challengeConfigLevelIndex, challengeSel, starSel, localPlaytest]);
 
-  const handleGameWin = useCallback(async () => {
-    if (localPlaytest) {
-      setWinReward({ coins: 0, message: '本地试玩完成，不保存进度或发放奖励。' });
-      setActiveChallengeRun(null);
-      navigateWithTransition('won');
-      return;
-    }
-    if (levelIndex != null) {
+  const settleCampaignReward = useCallback(async () => {
+    const pending = pendingCampaignClearRef.current;
+    if (!pending || campaignRewardBusyRef.current) return;
+    campaignRewardBusyRef.current = true;
+    setCampaignRewardBusy(true);
+    setCampaignRewardPending(true);
+    try {
+      const { levelIndex, currentDifficulty, currentStar } = pending;
       const L = LEVELS[levelIndex];
-      const selectedLevel = getLevelSpecForDifficulty(L, currentDifficulty);
-      const endLives = useTDStore.getState().lives;
-      const startLivesForRun = activeChallengeRun?.startLives ?? selectedLevel.lives;
-      const fullHealthClear = currentDifficulty === 'IN' && endLives >= startLivesForRun;
-      const challengeDiamondReward = activeChallengeRun
-        ? (hasChallenge(activeChallengeRun.selected, 'fullHealth') && endLives >= startLivesForRun ? 0.5 : 0)
-          + (hasChallenge(activeChallengeRun.selected, 'halfHealth') ? 0.5 : 0)
-          + (hasChallenge(activeChallengeRun.selected, 'elementless') ? 1 : 0)
-          + (hasChallenge(activeChallengeRun.selected, 'twilightForest') ? 1 : 0)
-        : 0;
       const result = await setStarCleared(L.id, currentStar, {
-        fullHealth: fullHealthClear,
         difficulty: currentDifficulty,
-        challengeDiamonds: challengeDiamondReward,
+        runId: pending.runId,
+        endLives: pending.endLives,
+        wavesCleared: pending.wavesCleared,
       });
+      if (getToken() !== pending.token || pendingCampaignClearRef.current !== pending) return;
+      if (!result?.ok) throw new Error('服务器未确认通关记录，请重试结算。');
+      setWinReward({ coins: 0, message: '通关记录已保存。' });
       const ratings = getLevelDifficultyRatings(L.id, levelIndex + 1);
       const hasAtDifficulty = Boolean(hasLevelDifficultyDraft(L, 'AT') && typeof ratings.AT === 'number');
       if (hasAtDifficulty && result?.newFullHealthClear) {
@@ -1080,12 +1108,46 @@ function App() {
           setSelectedChapterId(unlockedChapter);
         }
       }
-      await loadHub();
-      setUnlockedState(getUnlocked());
+      setCampaignRewardPending(false);
+      pendingCampaignClearRef.current = null;
+      setActiveChallengeRun(null);
+      void loadHub().then(() => setUnlockedState(getUnlocked()));
+    } catch (error) {
+      if (getToken() !== pending.token || pendingCampaignClearRef.current !== pending) return;
+      setWinReward({ coins: 0, message: `结算失败：${getErrorMessage(error, '请检查网络后重试。')}` });
+      console.error('Failed to settle campaign clear', error);
+    } finally {
+      campaignRewardBusyRef.current = false;
+      setCampaignRewardBusy(false);
     }
-    setActiveChallengeRun(null);
+  }, [loadHub, selectedChapterId]);
+
+  const handleGameWin = useCallback(() => {
+    useTDStore.setState({ running: false });
     navigateWithTransition('won');
-  }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, loadHub, navigateWithTransition, selectedChapterId, localPlaytest]);
+    if (localPlaytest) {
+      setWinReward({ coins: 0, message: '本地试玩完成，不保存进度或发放奖励。' });
+      setActiveChallengeRun(null);
+      return;
+    }
+    if (levelIndex == null) {
+      setActiveChallengeRun(null);
+      return;
+    }
+    const run = campaignRunRef.current;
+    if (!run || run.token !== getToken()) {
+      setWinReward({ coins: 0, message: '缺少有效对局记录，无法领取奖励。请重新开始关卡。' });
+      return;
+    }
+    const endLives = useTDStore.getState().lives;
+    pendingCampaignClearRef.current = {
+      runId: run.runId, levelIndex, currentDifficulty, currentStar, endLives,
+      wavesCleared: useTDStore.getState().wavesCleared ?? 0,
+      token: getToken(),
+    };
+    setWinReward({ coins: 0, message: '正在保存通关记录并结算奖励...' });
+    void settleCampaignReward();
+  }, [activeChallengeRun, currentDifficulty, currentStar, levelIndex, localPlaytest, navigateWithTransition, settleCampaignReward]);
 
   const settleEndlessReward = useCallback(async () => {
     if (endlessRewardBusyRef.current) return;
@@ -1097,7 +1159,7 @@ function App() {
     try {
       if (!endlessRunId) throw new Error('缺少无尽游戏记录');
       const result = await claimEndlessModeReward(endlessRunId, cleared);
-      if (!result) throw new Error('奖励服务暂不可用');
+      if (!result?.ok) throw new Error('奖励服务暂不可用');
       if (getToken() !== token) return;
       const fullText = result.chestInventoryFull ? '；宝箱库存已满，超出部分未发放' : '';
       setWinReward({
@@ -1106,7 +1168,7 @@ function App() {
         message: `击退 ${result.wavesCleared} 波${fullText}`,
       });
       setEndlessRewardPending(false);
-      await loadHub();
+      void loadHub();
     } catch (error) {
       if (getToken() !== token) return;
       setWinReward({
@@ -1388,9 +1450,9 @@ function App() {
               currentStar={currentStar}
               wavesCleared={wavesCleared}
               winReward={winReward}
-              rewardPending={activeFunMode === 'endless' && endlessRewardPending}
-              rewardBusy={activeFunMode === 'endless' && endlessRewardBusy}
-              onRetryReward={settleEndlessReward}
+              rewardPending={activeFunMode === 'endless' ? endlessRewardPending : campaignRewardPending}
+              rewardBusy={activeFunMode === 'endless' ? endlessRewardBusy : campaignRewardBusy}
+              onRetryReward={activeFunMode === 'endless' ? settleEndlessReward : settleCampaignReward}
               onChallengeHigherStar={() => {
                 if (levelIndex != null) {
                   const nextStar = Math.min(3, currentStar + 1) as 1|2|3;
@@ -1422,6 +1484,7 @@ function App() {
           metadata={pendingLevelStart.metadata}
           monsters={pendingLevelStart.monsters}
           onCovered={confirmPendingLevelStart}
+          ready={levelStartReady}
           onPhaseChange={setLevelIntroPhase}
           onComplete={completeLevelStart}
         />

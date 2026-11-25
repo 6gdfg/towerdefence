@@ -322,4 +322,50 @@ export const DATABASE_MIGRATIONS: DatabaseMigration[] = [
         ON endless_weekly_records(best_waves DESC, achieved_at ASC, player_id ASC)`,
     ],
   },
+  {
+    id: '019_campaign_clear_claims',
+    description: 'Remember recent campaign clear responses for safe settlement retries',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS campaign_clear_claims (
+        player_id TEXT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+        clear_id TEXT NOT NULL,
+        response JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (player_id, clear_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_campaign_clear_claims_recent ON campaign_clear_claims(player_id, created_at DESC)`,
+    ],
+  },
+  {
+    id: '020_reward_sessions',
+    description: 'Bound reward claims to one server-issued campaign and practice session per player',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS campaign_runs (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,
+        run_id TEXT NOT NULL,
+        config JSONB NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        completed BOOLEAN NOT NULL DEFAULT FALSE
+      )`,
+      `CREATE TABLE IF NOT EXISTS practice_runs (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,
+        run_id TEXT NOT NULL,
+        questions JSONB NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        response JSONB
+      )`,
+    ],
+  },
+  {
+    id: '021_daily_shop',
+    description: 'Store only each player current daily shop and four purchase flags',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS player_daily_shop (
+        player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,
+        shop_date DATE NOT NULL,
+        products JSONB NOT NULL CHECK (jsonb_typeof(products)='array' AND jsonb_array_length(products)=4),
+        purchased_mask SMALLINT NOT NULL DEFAULT 0 CHECK (purchased_mask BETWEEN 0 AND 15)
+      )`,
+    ],
+  },
 ];

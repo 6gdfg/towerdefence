@@ -46,8 +46,48 @@ test('a successful AT completion updates the in-memory clear flag immediately', 
   context.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({
     ok: true, star: 3, rewardCoins: 10, atCleared: true,
   }), { headers: { 'Content-Type': 'application/json' } }));
-  await setStarCleared('L1', 3, { difficulty: 'AT' });
+  await setStarCleared('L1', 3, { difficulty: 'AT', runId: 'campaign_test', endLives: 20, wavesCleared: 1 });
   assert.equal(getAtClearSync('L1'), true);
+});
+
+test('failed campaign saves report server errors without claiming local progress', async context => {
+  hydrateCloudProgressCache(payload());
+  context.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ error: 'temporary settlement failure' }), {
+    status: 503, headers: { 'Content-Type': 'application/json' },
+  }));
+  await assert.rejects(setStarCleared('L15', 3, { difficulty: 'IN', runId: 'campaign_test', endLives: 20, wavesCleared: 1 }), /temporary settlement failure/);
+  assert.equal(getMaxStarSync('L15'), 0);
+  assert.equal(getAtClearSync('L15'), false);
+});
+
+test('campaign save timeouts abort the request and leave progress available for retry', async context => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  hydrateCloudProgressCache(payload());
+  let signal: AbortSignal | undefined;
+  context.mock.method(globalThis, 'fetch', (_url: unknown, init: RequestInit) => {
+    signal = init.signal as AbortSignal;
+    return new Promise((_resolve, reject) => signal!.addEventListener('abort', () => reject(new Error('aborted')), { once: true }));
+  });
+  const failed = assert.rejects(setStarCleared('L15', 3, { difficulty: 'IN', runId: 'campaign_test', endLives: 20, wavesCleared: 1 }), /请求超时/);
+  context.mock.timers.tick(20_000);
+  await failed;
+  assert.equal(signal?.aborted, true);
+  assert.equal(getMaxStarSync('L15'), 0);
+});
+
+test('a delayed clear response cannot overwrite a newly signed-in account cache', async context => {
+  hydrateCloudProgressCache(payload());
+  let finish: (response: Response) => void = () => {};
+  context.mock.method(globalThis, 'fetch', () => new Promise<Response>(resolve => { finish = resolve; }));
+  const pending = setStarCleared('L15', 3, { difficulty: 'AT', runId: 'campaign_test', endLives: 20, wavesCleared: 1 });
+  token = 'another-player';
+  hydrateCloudProgressCache(payload({ stars: { L15: 1 } }));
+  finish(new Response(JSON.stringify({ ok: true, star: 3, rewardCoins: 100, atCleared: true }), {
+    headers: { 'Content-Type': 'application/json' },
+  }));
+  await pending;
+  assert.equal(getMaxStarSync('L15'), 1);
+  assert.equal(getAtClearSync('L15'), false);
 });
 
 test('the AT tile and level summary show CLEAR for a saved AT clear', () => {

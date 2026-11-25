@@ -1,63 +1,36 @@
-export type ShopPurchaseChannel = 'direct';
+import { ELEMENT_ITEM_IDS, NON_UPGRADEABLE_PLANT_ITEMS, PLANT_ITEM_IDS } from './unlocks.js';
 
-export type ShopProductKind = 'instant' | 'redemption';
-
-export type ShopDelivery =
-  | { type: 'plantShards'; amount: number }
-  | { type: 'elementShards'; amount: number };
-
-export type ShopProduct = {
+export type ShopCurrency = 'coins' | 'diamonds';
+export type DailyShopProduct = {
   id: string;
-  name: string;
-  description: string;
-  priceCoins: number;
-  /**
-   * instant: 兑换后立刻发货（发放碎片等），不写购买记录。
-   * redemption: 需要凭截图联系 owner 领取，写入一条凭据记录。
-   */
-  kind: ShopProductKind;
-  channel: ShopPurchaseChannel;
-  delivery?: ShopDelivery;
+  itemId: string;
+  amount: number;
+  currency: ShopCurrency;
+  price: number;
+};
+export type ShopProductView = DailyShopProduct & { purchased: boolean };
+export type ShopWallet = { coins: number; diamonds: number; experience: number };
+export type DailyShopState = ShopWallet & {
+  dayKey: string;
+  refreshAt: string;
+  products: ShopProductView[];
 };
 
-export const SHOP_PURCHASE_CHANNEL_LABELS: Record<ShopPurchaseChannel, string> = {
-  direct: '直接购买',
-};
+export const DAILY_SHOP_PLANT_POOL = PLANT_ITEM_IDS.filter(
+  item => !(NON_UPGRADEABLE_PLANT_ITEMS as readonly string[]).includes(item),
+);
+export const DAILY_SHOP_PRODUCT_IDS = ['daily-plant-0', 'daily-plant-1', 'daily-plant-2', 'daily-element-0'] as const;
 
-export const SHOP_PRODUCTS: readonly ShopProduct[] = [
-  {
-    id: 'yogurtCup',
-    name: '一杯酸奶',
-    description: '兑换后凭截图联系 owner 领取。',
-    priceCoins: 1_000_000,
-    kind: 'redemption',
-    channel: 'direct',
-  },
-  {
-    id: 'plantShardBox',
-    name: '植物碎片盲盒',
-    description: '立即到账：随机 3 个植物碎片，所有植物等概率。',
-    priceCoins: 22_222,
-    kind: 'instant',
-    channel: 'direct',
-    delivery: { type: 'plantShards', amount: 3 },
-  },
-  {
-    id: 'elementShardBox',
-    name: '元素碎片盲盒',
-    description: '立即到账：随机 1 个元素碎片，六种元素等概率。',
-    priceCoins: 12_345,
-    kind: 'instant',
-    channel: 'direct',
-    delivery: { type: 'elementShards', amount: 1 },
-  },
-];
-
-export function getShopProduct(productId: unknown): ShopProduct | null {
-  if (typeof productId !== 'string') return null;
-  return SHOP_PRODUCTS.find(product => product.id === productId) ?? null;
-}
-
-export function getShopPurchaseChannelLabel(channel: string): string {
-  return SHOP_PURCHASE_CHANNEL_LABELS[channel as ShopPurchaseChannel] ?? channel;
+export function createDailyShopProducts(randomInt: (exclusiveMax: number) => number): DailyShopProduct[] {
+  const available = [...DAILY_SHOP_PLANT_POOL];
+  const plants: DailyShopProduct[] = Array.from({ length: 3 }, (_, index) => {
+    const itemId = available.splice(randomInt(available.length), 1)[0];
+    const amount = 1 + randomInt(10);
+    return { id: DAILY_SHOP_PRODUCT_IDS[index], itemId, amount, currency: 'coins', price: amount * 500 };
+  });
+  const amount = 1 + randomInt(4);
+  return [...plants, {
+    id: DAILY_SHOP_PRODUCT_IDS[3], itemId: ELEMENT_ITEM_IDS[randomInt(ELEMENT_ITEM_IDS.length)],
+    amount, currency: 'diamonds', price: amount,
+  }];
 }

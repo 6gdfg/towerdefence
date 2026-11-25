@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ensurePlayer, ensureTables, getSql } from './_db.js';
 import { getAuthPlayerId } from './_auth.js';
-import { getErrorMessage } from './_errors.js';
+import { ApiError, getErrorMessage } from './_errors.js';
+import { startPracticeRun, validatePracticeRun } from './_practice.js';
 
 const DAILY_BROWSE_TARGET = 15;
 const WEEKLY_BROWSE_TARGET = 50;
-const DAILY_PRACTICE_TARGET = 50;
 const WEEKLY_PRACTICE_TARGET = 5;
 
 type Reward = { coins: number; coinsMax?: number; experience: number; diamonds: number };
@@ -165,31 +165,59 @@ async function readProgress(playerId: string) {
   return normalizeProgress(raw);
 }
 
-async function saveProgress(playerId: string, progress: TaskProgress) {
-  const sql = getSql();
-  await sql`INSERT INTO player_task_progress (player_id, progress, updated_at)
-    VALUES (${playerId}, ${JSON.stringify(progress)}::jsonb, NOW())
-    ON CONFLICT (player_id) DO UPDATE SET progress=EXCLUDED.progress, updated_at=NOW()`;
-}
-
 async function getWallet(playerId: string) {
   const sql = getSql();
   const rows = await sql`SELECT coins, diamonds, experience FROM player_wallet WHERE player_id=${playerId}`;
   return { coins: Number(rows[0]?.coins ?? 0), diamonds: Number(rows[0]?.diamonds ?? 0), experience: Number(rows[0]?.experience ?? 0) };
 }
 
-async function grantReward(playerId: string, reward: Reward) {
+type TaskMutation = { reward?: Reward; rewardKey?: 'runReward' | 'claimedReward' };
+
+async function mutateTasks(playerId: string, change: (progress: TaskProgress) => TaskMutation, practiceRunId: string | null = null) {
   const sql = getSql();
-  await sql`UPDATE player_wallet SET coins=coins + ${reward.coins}, diamonds=diamonds + ${reward.diamonds}, experience=experience + ${reward.experience}, updated_at=NOW()
-    WHERE player_id=${playerId}`;
+  await sql`INSERT INTO player_task_progress(player_id,progress) VALUES (${playerId},'{}'::jsonb) ON CONFLICT(player_id) DO NOTHING`;
+  // Optimistic comparison prevents losing another task event. The wallet lock
+  // and conditional writes put the claim flag and its reward in one transaction.
+  for (let attempt=0; attempt<5; attempt++) {
+    if (practiceRunId) {
+      const cached = await sql`SELECT response FROM practice_runs WHERE player_id=${playerId} AND run_id=${practiceRunId}`;
+      if (cached[0]?.response) return cached[0].response as ReturnType<typeof taskPayload> & { runReward: Reward };
+    }
+    const rows = await sql`SELECT progress FROM player_task_progress WHERE player_id=${playerId}`;
+    const original = rows[0]?.progress ?? {};
+    const progress = normalizeProgress(typeof original === 'string' ? JSON.parse(original) : original);
+    const mutation = change(progress);
+    const reward = mutation.reward ?? { coins: 0, experience: 0, diamonds: 0 };
+    const payload = { ...taskPayload(progress), ...(mutation.rewardKey ? { [mutation.rewardKey]: reward } : {}) };
+    const results = await sql.transaction(tx => [
+      tx`SELECT player_id FROM player_wallet WHERE player_id=${playerId} FOR UPDATE`,
+      tx.query(`WITH saved AS (
+          UPDATE player_task_progress SET progress=$3::jsonb,updated_at=NOW()
+          WHERE player_id=$1::text AND progress=$2::jsonb AND ($4::text IS NULL OR EXISTS (
+            SELECT 1 FROM practice_runs WHERE player_id=$1::text AND run_id=$4::text AND response IS NULL
+              AND started_at<=NOW()-INTERVAL '50 seconds' AND started_at>=NOW()-INTERVAL '1 day'
+          )) RETURNING player_id
+        ), finished AS (
+          UPDATE practice_runs SET response=$8::jsonb FROM saved
+          WHERE practice_runs.player_id=saved.player_id AND run_id=$4::text AND response IS NULL RETURNING run_id
+        ), credited AS (
+          UPDATE player_wallet SET coins=coins+$5::bigint,experience=experience+$6::bigint,diamonds=diamonds+$7::numeric,updated_at=NOW()
+          FROM saved WHERE player_wallet.player_id=saved.player_id AND ($4::text IS NULL OR EXISTS (SELECT 1 FROM finished))
+          RETURNING player_wallet.player_id
+        ) SELECT player_id FROM credited`,
+      [playerId, typeof original === 'string' ? original : JSON.stringify(original), JSON.stringify(progress), practiceRunId,
+        reward.coins, reward.experience, reward.diamonds, JSON.stringify(payload)]),
+    ]) as unknown[][];
+    if (results[1].length) return payload;
+  }
+  throw new ApiError(409, '任务状态已变化，请重试。');
 }
 
 export async function recordPlayerTaskEvent(playerId: string, event: PlayerTaskEvent) {
-  const progress = await readProgress(playerId);
-  const task = event === 'levelClear' ? progress.levelClear : progress.chestOpen;
-  if (task.complete) return;
-  task.complete = true;
-  await saveProgress(playerId, progress);
+  await mutateTasks(playerId, progress => {
+    (event === 'levelClear' ? progress.levelClear : progress.chestOpen).complete = true;
+    return {};
+  });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -206,71 +234,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
 
     const action = req.body?.action;
-    const progress = await readProgress(playerId);
     if (action === 'browse') {
       const index = Math.floor(Number(req.body?.index));
       if (!Number.isFinite(index) || index < 0 || index >= 100_000) return res.status(400).json({ error: 'invalid browse index' });
-      let changed = false;
-      if (!progress.browseSeen.includes(index) && progress.browseSeen.length < DAILY_BROWSE_TARGET) {
-        progress.browseSeen.push(index);
-        progress.browse.complete = progress.browseSeen.length >= DAILY_BROWSE_TARGET;
-        changed = true;
-      }
-      if (!progress.weeklyBrowseSeen.includes(index) && progress.weeklyBrowseSeen.length < WEEKLY_BROWSE_TARGET) {
-        progress.weeklyBrowseSeen.push(index);
-        progress.weeklyBrowse.complete = progress.weeklyBrowseSeen.length >= WEEKLY_BROWSE_TARGET;
-        changed = true;
-      }
-      if (changed) await saveProgress(playerId, progress);
-      return res.json(taskPayload(progress));
+      const payload = await mutateTasks(playerId, progress => {
+        if (!progress.browseSeen.includes(index) && progress.browseSeen.length < DAILY_BROWSE_TARGET) {
+          progress.browseSeen.push(index);
+          progress.browse.complete = progress.browseSeen.length >= DAILY_BROWSE_TARGET;
+        }
+        if (!progress.weeklyBrowseSeen.includes(index) && progress.weeklyBrowseSeen.length < WEEKLY_BROWSE_TARGET) {
+          progress.weeklyBrowseSeen.push(index);
+          progress.weeklyBrowse.complete = progress.weeklyBrowseSeen.length >= WEEKLY_BROWSE_TARGET;
+        }
+        return {};
+      });
+      return res.json(payload);
+    }
+
+    if (action === 'startDailyPractice') {
+      return res.json(await startPracticeRun(playerId, req.body?.restart === true));
     }
 
     if (action === 'completeDailyPractice') {
-      const correct = Math.max(0, Math.min(DAILY_PRACTICE_TARGET, Math.floor(Number(req.body?.correct) || 0)));
-      progress.practice.runs += 1;
-      progress.practice.complete = true;
-      progress.weeklyPractice.runs += 1;
-      progress.weeklyPractice.complete = progress.weeklyPractice.runs >= WEEKLY_PRACTICE_TARGET;
-      await saveProgress(playerId, progress);
-      const reward: Reward = { coins: 0, experience: 10, diamonds: correct >= 48 ? 1 : 0 };
-      await grantReward(playerId, reward);
-      return res.json({ ...taskPayload(progress), runReward: reward, wallet: await getWallet(playerId) });
+      const validated = await validatePracticeRun(playerId, req.body?.runId, req.body?.answers);
+      if ('cached' in validated) return res.json({ ...validated.cached, wallet: await getWallet(playerId) });
+      const payload = await mutateTasks(playerId, progress => {
+        progress.practice.runs += 1;
+        progress.practice.complete = true;
+        progress.weeklyPractice.runs += 1;
+        progress.weeklyPractice.complete = progress.weeklyPractice.runs >= WEEKLY_PRACTICE_TARGET;
+        return { reward: { coins: 0, experience: 10, diamonds: validated.correct>=48 ? 1 : 0 }, rewardKey: 'runReward' };
+      }, validated.runId);
+      return res.json({ ...payload, wallet: await getWallet(playerId) });
     }
 
     if (action === 'claim') {
       const taskId = req.body?.taskId;
-      let reward: Reward | null = null;
-      if (taskId === 'dailySignIn' && !progress.signIn.claimed) {
-        progress.signIn.claimed = true;
-        reward = { coins: Math.floor(Math.random() * 1001) + 1000, experience: 0, diamonds: 0 };
-      } else if (taskId === 'browse15' && progress.browse.complete && !progress.browse.claimed) {
-        progress.browse.claimed = true;
-        reward = { coins: 500, experience: 10, diamonds: 0 };
-      } else if (taskId === 'dailyPractice' && progress.practice.complete && !progress.practice.claimed) {
-        progress.practice.claimed = true;
-        reward = { coins: 1000, experience: 10, diamonds: 1 };
-      } else if (taskId === 'levelClear' && progress.levelClear.complete && !progress.levelClear.claimed) {
-        progress.levelClear.claimed = true;
-        reward = { coins: 500, experience: 0, diamonds: 0 };
-      } else if (taskId === 'chestOpen' && progress.chestOpen.complete && !progress.chestOpen.claimed) {
-        progress.chestOpen.claimed = true;
-        reward = { coins: 500, experience: 0, diamonds: 0 };
-      } else if (taskId === 'weeklyBrowse50' && progress.weeklyBrowse.complete && !progress.weeklyBrowse.claimed) {
-        progress.weeklyBrowse.claimed = true;
-        reward = { coins: 3000, experience: 100, diamonds: 0 };
-      } else if (taskId === 'weeklyPractice5' && progress.weeklyPractice.complete && !progress.weeklyPractice.claimed) {
-        progress.weeklyPractice.claimed = true;
-        reward = { coins: 5000, experience: 100, diamonds: 1 };
-      }
-      if (!reward) return res.status(400).json({ error: 'task unavailable' });
-      await saveProgress(playerId, progress);
-      await grantReward(playerId, reward);
-      return res.json({ ...taskPayload(progress), claimedReward: reward, wallet: await getWallet(playerId) });
+      const payload = await mutateTasks(playerId, progress => {
+        let reward: Reward | null = null;
+        if (taskId === 'dailySignIn' && !progress.signIn.claimed) {
+          progress.signIn.claimed = true;
+          reward = { coins: Math.floor(Math.random() * 1001) + 1000, experience: 0, diamonds: 0 };
+        } else if (taskId === 'browse15' && progress.browse.complete && !progress.browse.claimed) {
+          progress.browse.claimed = true;
+          reward = { coins: 500, experience: 10, diamonds: 0 };
+        } else if (taskId === 'dailyPractice' && progress.practice.complete && !progress.practice.claimed) {
+          progress.practice.claimed = true;
+          reward = { coins: 1000, experience: 10, diamonds: 1 };
+        } else if (taskId === 'levelClear' && progress.levelClear.complete && !progress.levelClear.claimed) {
+          progress.levelClear.claimed = true;
+          reward = { coins: 500, experience: 0, diamonds: 0 };
+        } else if (taskId === 'chestOpen' && progress.chestOpen.complete && !progress.chestOpen.claimed) {
+          progress.chestOpen.claimed = true;
+          reward = { coins: 500, experience: 0, diamonds: 0 };
+        } else if (taskId === 'weeklyBrowse50' && progress.weeklyBrowse.complete && !progress.weeklyBrowse.claimed) {
+          progress.weeklyBrowse.claimed = true;
+          reward = { coins: 3000, experience: 100, diamonds: 0 };
+        } else if (taskId === 'weeklyPractice5' && progress.weeklyPractice.complete && !progress.weeklyPractice.claimed) {
+          progress.weeklyPractice.claimed = true;
+          reward = { coins: 5000, experience: 100, diamonds: 1 };
+        }
+        if (!reward) throw new ApiError(400, 'task unavailable');
+        return { reward, rewardKey: 'claimedReward' };
+      });
+      return res.json({ ...payload, wallet: await getWallet(playerId) });
     }
 
     return res.status(400).json({ error: 'bad action' });
   } catch (error: unknown) {
-    console.error(error);
-    return res.status(500).json({ error: getErrorMessage(error) });
+    if (!(error instanceof ApiError)) console.error(error);
+    return res.status(error instanceof ApiError ? error.status : 500).json({ error: getErrorMessage(error) });
   }
 }

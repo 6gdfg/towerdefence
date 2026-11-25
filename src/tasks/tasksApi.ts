@@ -1,5 +1,5 @@
 import { getToken } from '../td/authProgress';
-import { readApiJson } from '../td/apiClient';
+import { readApiJson, requestApiJson } from '../td/apiClient';
 
 export type TaskReward = { coins: number; coinsMax?: number; experience: number; diamonds: number };
 
@@ -24,12 +24,11 @@ export type TasksPayload = {
 async function postTasks<T>(body: unknown, fallback: string) {
   const token = getToken();
   if (!token) throw new Error('请先登录账号');
-  const response = await fetch('/api/tasks', {
+  return requestApiJson<T>('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
-  });
-  return readApiJson<T>(response, fallback);
+  }, fallback);
 }
 
 export async function fetchTasks() {
@@ -43,8 +42,14 @@ export function recordBrowseTask(index: number) {
   return postTasks<Partial<TasksPayload>>({ action: 'browse', index }, '任务进度保存失败');
 }
 
-export function completeDailyPractice(correct: number) {
-  return postTasks<Partial<TasksPayload>>({ action: 'completeDailyPractice', correct }, '练习奖励发放失败');
+export type PracticeRun = { runId: string; questions: Array<{ itemId: string; options: string[] }> };
+
+export function startDailyPracticeRun(restart = false) {
+  return postTasks<PracticeRun>({ action: 'startDailyPractice', restart }, '练习加载失败');
+}
+
+export function completeDailyPractice(runId: string, answers: number[]) {
+  return postTasks<Partial<TasksPayload>>({ action: 'completeDailyPractice', runId, answers }, '练习奖励发放失败');
 }
 
 export function claimTask(taskId: PlayerTask['id']) {

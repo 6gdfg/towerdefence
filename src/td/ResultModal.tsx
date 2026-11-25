@@ -113,7 +113,7 @@ export default function ResultModal({
                   {summarizeChestTypes(chestTypes)}
                 </span>
               </div>
-            ) : !reward.newRecord ? (
+            ) : !reward.newRecord && !rewardPending ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginTop: 4 }}>
                 <span>宝箱</span>
                 <span style={{ fontWeight: 600, color: '#94a3b8' }}>未掉落</span>
@@ -122,7 +122,7 @@ export default function ResultModal({
           </div>
         )}
 
-        {activeFunMode === 'endless' && rewardPending && (
+        {rewardPending && (
           <button className="action-button" onClick={onRetryReward} disabled={rewardBusy} style={{ marginBottom: 12 }}>
             {rewardBusy ? '结算中...' : '重试结算'}
           </button>
@@ -132,12 +132,12 @@ export default function ResultModal({
           {isWon ? (
             <>
               {levelIndex != null && currentStar < 3 && (
-                <button onClick={onChallengeHigherStar} className="action-button" style={secondaryButtonStyle}>挑战更高难度</button>
+                <button onClick={onChallengeHigherStar} disabled={rewardPending || rewardBusy} className="action-button" style={secondaryButtonStyle}>挑战更高难度</button>
               )}
-              <button onClick={onNextLevel} className="action-button primary" style={secondaryButtonStyle}>下一关</button>
-              <button onClick={onRestartLevel} className="action-button" style={secondaryButtonStyle}>重玩</button>
-              <button onClick={onBackToSelect} className="action-button" style={secondaryButtonStyle}>返回关卡</button>
-              <button onClick={onBackToHub} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
+              <button onClick={onNextLevel} disabled={rewardPending || rewardBusy} className="action-button primary" style={secondaryButtonStyle}>下一关</button>
+              <button onClick={onRestartLevel} disabled={rewardPending || rewardBusy} className="action-button" style={secondaryButtonStyle}>重玩</button>
+              <button onClick={onBackToSelect} disabled={rewardBusy} className="action-button" style={secondaryButtonStyle}>返回关卡</button>
+              <button onClick={onBackToHub} disabled={rewardBusy} className="action-button" style={secondaryButtonStyle}>返回主界面</button>
             </>
           ) : activeFunMode ? (
             <>

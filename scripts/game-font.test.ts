@@ -38,18 +38,21 @@ test('WOFF2 subsets retain the original coverage without overlapping or changing
   assert.ok(priorityBytes < 150_000);
 });
 
-test('global controls and intro share one font and preload only the priority subsets', async () => {
+test('global controls and intro share one font without blocking the website entry on font downloads', async () => {
   const css = await readFile('src/index.css', 'utf8');
   const fontCss = await readFile('src/styles/game-font.css', 'utf8');
   const introCss = await readFile('src/td/LevelIntro.css', 'utf8');
   const html = await readFile('index.html', 'utf8');
+  const main = await readFile('src/main.tsx', 'utf8');
   assert.match(css, /font-family: 'Tower Defence'/);
   assert.match(css, /button, input, select, textarea, pre, code, kbd, samp/);
   assert.doesNotMatch(css + introCss, /Phigros Demo|SFMono-Regular|Consolas|cmdysj\.ttf/);
   assert.equal((fontCss.match(/font-display: swap/g) ?? []).length, manifest.subsets.length);
-  assert.equal((html.match(/as="font"/g) ?? []).length, 2);
-  assert.match(html, /game-latin\.woff2/);
-  assert.match(html, /game-ui\.woff2/);
+  assert.doesNotMatch(html, /as="font"/);
+  assert.doesNotMatch(css, /@import.*game-font/);
+  assert.match(main, /import\('\.\/styles\/game-font\.css'\)\.catch/);
+  assert.match(fontCss, /game-latin\.woff2/);
+  assert.match(fontCss, /game-ui\.woff2/);
 });
 
 test('build configurations keep even small font subsets external for on-demand loading', async () => {

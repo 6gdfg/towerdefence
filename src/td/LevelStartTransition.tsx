@@ -7,12 +7,13 @@ export type LevelIntroPhase = 'covering' | 'loading' | 'exiting' | 'revealing';
 type Props = {
   metadata: IntroMetadata;
   monsters: ShapeType[];
+  ready?: boolean;
   onCovered: () => void;
   onPhaseChange: (phase: LevelIntroPhase) => void;
   onComplete: () => void;
 };
 
-export default function LevelStartTransition({ metadata, monsters, onCovered, onPhaseChange, onComplete }: Props) {
+export default function LevelStartTransition({ metadata, monsters, ready = true, onCovered, onPhaseChange, onComplete }: Props) {
   const [phase, setPhase] = useState<LevelIntroPhase>('covering');
   const [fontReady, setFontReady] = useState(false);
   const phaseRef = useRef<LevelIntroPhase | 'complete'>('covering');
@@ -40,13 +41,13 @@ export default function LevelStartTransition({ metadata, monsters, onCovered, on
   }, []);
 
   useEffect(() => {
-    if (phase === 'loading' && !fontReady) return;
+    if (phase === 'loading' && (!fontReady || !ready)) return;
     // Fallbacks also complete transitions if a browser suppresses animation events.
     const timings = { covering: 700, loading: 1600, exiting: 1550, revealing: 750 };
     const next = { covering: 'loading', loading: 'exiting', exiting: 'revealing', revealing: 'complete' } as const;
     const timer = window.setTimeout(() => advance(phase, next[phase]), timings[phase]);
     return () => window.clearTimeout(timer);
-  }, [advance, fontReady, phase]);
+  }, [advance, fontReady, phase, ready]);
 
   return (
     <div className="level-start-transition" data-phase={phase}>
